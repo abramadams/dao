@@ -174,7 +174,7 @@ when the Pet object is instantiated.  If none exists it will load an un-initiali
 is also evaluated and saved (if any changes were detected ).
 
 One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
-relationship creates an Array of whatever object it is related to, and adds the _add<Entity Name>()_ method to the instance so you can add instances to the array.  Notice in 
+relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in 
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
 
 ## lazy loading
@@ -182,7 +182,7 @@ If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage o
 entities, or are loading a collection of entities that have related entities.  What it will do is load the parent entity and "overload" the getters methods of the child entities
 with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.
 
-To lazy load, you simply use the dynamic load methdo, prefixed with "lazy"
+To lazy load, you simply use the dynamic load method, prefixed with "lazy"
 ```
 	pet = new Pet( dao ).lazyLoadAll();
 	// then, if I only need the first name of the "user" for the second pet I'd just:
