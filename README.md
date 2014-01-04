@@ -28,8 +28,7 @@ Using the built-in methods for CRUD provides some benefits such as being databas
 providing optional "onFinish" callbacks functions, transaction logging (for custom replication).
 
 # DAO Examples:
-```coldfusion
-<cfscript>
+```javascript
 	// create instance of DAO - must feed it a datasource name
 	dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
 	
@@ -69,15 +68,13 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 		cachedWithin = createTimeSpan(0,0,2,0)
 	);
 
-</cfscript>
 ```
 # The ORM'sh side of DAO
 The second part of this library is a ORM'sh implementation of entity management.  It internally uses the 
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
 the following examples:
 
-```coldfusion
-<cfscript>
+```javascript
 	// create instance of dao ( could be injected via your favorite DI library )
 	dao = new dao( dsn = "dao" );
 
@@ -127,14 +124,12 @@ the following examples:
 	users = user.listAsArray( where = "FirstName = 'Johnny' ");
 	users = user.listAsJSON( where = "FirstName = 'Johnny' ");
 
-</cfscript>
 ```
 That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
 relationships.  By-in-large I have adopted the property syntax used by CF ORM to define
 entity properties and describe relationships.  Example: 
 
-```coldfusion 
-<cfscript>
+```javascript
 /* Pet.cfc */
 component persistent="true" table="pets" extends="com.database.BaseModelObject" accessors="true" {
 
@@ -154,13 +149,10 @@ component persistent="true" table="pets" extends="com.database.BaseModelObject" 
 		return variables.firstName & " " & variables.lastName;
 	}
 }
-</cfscript>
 ```
 When in development you can have dao create your tables for you by passing the dropcreate = true to the initializer.  Exmaple:
-```
-<cfscript>
+```javascript
 	user = new User( dao = dao, dropCreate = true );
-</cfscript>
 ```
 This will inspect your CFC properties and create a table based on those details.  This supports having different property names vs column names, table names, data types, etc...
 
@@ -191,12 +183,10 @@ entities, or are loading a collection of entities that have related entities.  W
 with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.
 
 To lazy load, you simply use the dynamic load methdo, prefixed with "lazy"
-```coldfusion
-<cfscript>
+```
 	pet = new Pet( dao ).lazyLoadAll();
 	// then, if I only need the first name of the "user" for the second pet I'd just:
 	ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
-</cfscript>
 ```
 
 # Requirements
