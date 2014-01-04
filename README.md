@@ -70,7 +70,7 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 
 ```
 # The ORM'sh side of DAO
-The second part of this library is a ORM'sh implementation of entity management.  It internally uses the 
+The second part of this library is an ORM'sh implementation of entity management.  It internally uses the 
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
 the following examples:
 
@@ -156,8 +156,8 @@ When in development you can have dao create your tables for you by passing the d
 ```
 This will inspect your CFC properties and create a table based on those details.  This supports having different property names vs column names, table names, data types, etc...
 
-The "Pet.cfc" above would create a table named "pets" with an auto incrementing PK, a "varchar(45)" _id field, a userID field with the type "Int"
-varchar fields named first_name and last_name a datetime field named created_datetime and a datetime field.
+The "Pet.cfc" above would create a table named `pets` with an auto incrementing PK name `ID`, a "varchar(45)" `_id` field, a `userID` field with the type "Int"
+varchar fields named `first_name` and `last_name` a datetime field named `created_datetime` and a datetime field named `modified_datetime`.
 
 * The _id field, will automatically generate a UUID value when a record is first created because we specified a generator UUID.
 * The getters/setters for first_name, last_name, craeted_datetime, modified_datetime would be:
