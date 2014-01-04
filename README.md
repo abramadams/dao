@@ -70,7 +70,7 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 
 ```
 # The ORM'sh side of DAO
-The second part of this library is a ORM'sh implementation of entity management.  It internally uses the 
+The second part of this library is an ORM'sh implementation of entity management.  It internally uses the 
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
 the following examples:
 
