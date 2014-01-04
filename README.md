@@ -174,7 +174,7 @@ when the Pet object is instantiated.  If none exists it will load an un-initiali
 is also evaluated and saved (if any changes were detected ).
 
 One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
-relationship creates an Array of whatever object it is related to, and adds the _add<Entity Name>()_ method to the instance so you can add instances to the array.  Notice in 
+relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in 
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
 
 ## lazy loading
