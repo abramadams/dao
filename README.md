@@ -1,4 +1,4 @@
-dao - A ColdFusion library for easy Data Access.
+dao - A ColdFusion library for easy Data Access and Object Mapping.
 ===
 
 # Disclaimer
@@ -27,6 +27,9 @@ as well as a general `dao.execute()` to run arbitrary SQL against the database.
 Using the built-in methods for CRUD provides some benefits such as being database agnostic,
 providing optional "onFinish" callbacks functions, transaction logging (for custom replication).
 
+# Installation
+Copy the "database" folder `(/src/com/database)` into your project (or into the folder you place your components)
+
 # DAO Examples:
 ```javascript
 	// create instance of DAO - must feed it a datasource name
@@ -44,6 +47,13 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 	newID = dao.insert( table = "users", data = DATA );
 	// newID would contain the record's auto-incremented PK value
 	
+	// DAO has a method queryParam() that wraps your values in 
+	// appropriate cfqueryparam tags.  The method takes 4 args:
+	// value - required
+	// cfsqltype - optional, will be guessed based on value.  Uses
+	// common data type names, no need for the cf_sql_type... crap.
+	// list - true/false; will pass to cfqueryparam list attribute
+	// null - true/false; will pass to the cfqueryparam null attribute
 	
 	// Insert data (using mysql specific replace into syntax )
 	newID2 = dao.execute("
