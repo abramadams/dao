@@ -1,6 +1,6 @@
 ﻿/**
 *	@hint Extend this component to add ORM like behavior to your model CFCs.  Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
-*   @version 0.0.51
+*   @version 0.0.53
 *   @updated 12/30/2013 
 *   @author Abram Adams
 **/ 
@@ -106,7 +106,7 @@ component accessors="true" output="false" {
 		*/
 
 		var found = false;
-		if( structCount( variables.tabledef.instance.tablemeta.columns ) GT arrayLen( variables.meta.properties ) ){			
+		if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){			
 			// We'll loop through each column in the table definition and see if we have a property, if not, create one.
 			// @TODO when CF9 support is no longer needed, use an arrayFind with a anonymous function to do the search.
 			for( var col in variables.tabledef.instance.tablemeta.columns ){				
@@ -161,14 +161,17 @@ component accessors="true" output="false" {
 
 		}
 		/* Now if the model was extended, include those properties as well */
-		for ( var prop in variables.meta.extends.properties ){
-			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
-				// copy the real setter function to a temp variable.
-				variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
-				// now override the setter with the new function that will set the dirty flag.
-				this[ "set" & prop.name ] = setFunc;        		
+		if( structKeyExists( variables.meta, 'extends' ) && structKeyExists( variables.meta.extends, 'properties' )){
+			for ( var prop in variables.meta.extends.properties ){
+				if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
+					// copy the real setter function to a temp variable.
+					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
+					// now override the setter with the new function that will set the dirty flag.
+					this[ "set" & prop.name ] = setFunc;        		
+				}
 			}
 		}
+
 	    return this;
 	}
 
@@ -635,9 +638,12 @@ component accessors="true" output="false" {
 
 			// set uuid for fields set to generator="uuid"
 			var col = {};			
+			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
-			var props = deSerializeJSON( serializeJSON( variables.meta.extends.properties ) );
-			props.addAll( deSerializeJSON( serializeJSON( variables.meta.properties ) ) );
+			if( structKeyExists( variables.meta, 'extends' ) && structKeyExists( variables.meta.extends, 'properties' )){
+				props.addAll( deSerializeJSON( serializeJSON( variables.meta.extends.properties ) ) );
+			}
+
 			for ( col in props ){	
 
 				if( structKeyExists( col, 'generator' ) && col.generator eq 'uuid' ){
@@ -702,9 +708,12 @@ component accessors="true" output="false" {
 
 
 		}else if( isDirty() ){
+
+			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
-			var props = deSerializeJSON( serializeJSON( variables.meta.extends.properties ) );
-			props.addAll( deSerializeJSON( serializeJSON( variables.meta.properties ) ) );
+			if( structKeyExists( variables.meta, 'extends' ) && structKeyExists( variables.meta.extends, 'properties' )){
+				props.addAll( deSerializeJSON( serializeJSON( variables.meta.extends.properties ) ) );
+			}
 			
 			for ( col in props ){
 				/**

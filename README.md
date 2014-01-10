@@ -216,6 +216,13 @@ component persistent="true" table="eventLog" extends="com.database.BaseModelObje
 ```
 And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
 
+### Dynamic Entity - A step further
+I believe it's best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
+```javascript
+eventLog = new com.database.BaseModelObject( dao = dao, table = 'eventLog' );
+```
+That would have returned an entity instance with all the properties from the eventLog table.  I'm not saying this is a best practice, but it is possible.  It hasn't been tested in the wild, so YMMV - but it passes our internal manual tests.
+
 ## Relationships
 Since this Pet.cfc defines a one-to-one relationship with the user, this will automatically load the correct "User" object into the Pet object
 when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User

@@ -2,7 +2,10 @@
 
     dao = new com.database.dao( dsn = "dao" );
 
-    eventLog = new model.EventLog( dao = dao );
+    eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
+   /*  The above code should esentially be equivalent to the below line
+    eventLog = new model.EventLog( dao = dao ); 
+   */
     eventLog.setEvent('test');
     eventLog.save();
     eventLog.setEventDate( now() );    
