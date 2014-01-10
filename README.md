@@ -178,6 +178,44 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
 * The modifiedDate will update with the evaluated value of "now()" each time the data is updated.
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
 
+## Dynamic Entities
+Sometimes it's a pain in the arse to create entity CFCs that just point to a single table.  You must create properties for each field in the table.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
+```javascript
+/* EventLog.cfc */
+component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
+}
+```
+Say I created a table named eventLog in my databse with the following:
+```sql
+CREATE TABLE `eventLog` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
+  `event` varchar(100) DEFAULT NULL,
+  `description` text,
+  `eventDate` datetime DEFAULT NULL,
+  PRIMARY KEY (`ID`)
+);
+```
+When I instantiate the EventLog.cfc with:
+```javascript
+eventLog = new model.EventLog( dao = dao );
+```
+I'll get an instance of EventLog as if the CFC had included the following properties:
+```javascript
+property name="ID" fieldtype="id" generator="increment";
+property name="event" type="string";
+property name="description" type="string";
+property name="eventDate" type="date";
+```
+To make this work, just make sure you set the table attribute to point to the actual table in the database, extend BaseModelObject and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.
+
+You can also mix and match.  You can statically define properties:
+```javascript
+component persistent="true" table="eventLog" extends="com.database.BaseModelObject" accessors="true"{
+	property name="description" type="string";
+}
+```
+And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
+
 ## Relationships
 Since this Pet.cfc defines a one-to-one relationship with the user, this will automatically load the correct "User" object into the Pet object
 when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User

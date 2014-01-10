@@ -2,10 +2,18 @@
 
     dao = new com.database.dao( dsn = "dao" );
 
+    eventLog = new model.EventLog( dao = dao );
+    eventLog.setEvent('test');
+    eventLog.save();
+    eventLog.setEventDate( now() );    
+    eventLog.save();
+    writeDump(eventLog.toStruct());
+    
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
+    writeDump(user);
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');
@@ -27,5 +35,8 @@
     //users = user.loadAll();
     writeDump(users);
     writeDump( user.loadAll() );
+
+    writeOutput("<pre>#user.toJSON()#</pre>");
+    writeOutput("<pre>#user.listAsJSON()#</pre>");
     
 </cfscript> 

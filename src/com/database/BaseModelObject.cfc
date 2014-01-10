@@ -87,6 +87,7 @@ component accessors="true" output="false" {
 			}
 		}
 
+		
 		/* Setup the ID (primary key) field.  This can be used to generate id values, etc.. */
 		setIDField( arguments.IDField );
         setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
@@ -94,25 +95,73 @@ component accessors="true" output="false" {
 
         variables.dao.addTableDef( variables.tabledef );
 
+        // Hack to make variables.meta a true CF data type
+        variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
+        variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
+
+		/* 
+			If there are more columns in the table than there are properties, let's dynamically add them 
+			This will allow us to dynamically stub out the entity "class".  So one could just create a 
+			CFC without any properties, then point it to a table and get a fully instantiated entity.
+		*/
+
+		var found = false;
+		if( structCount( variables.tabledef.instance.tablemeta.columns ) GT arrayLen( variables.meta.properties ) ){			
+			// We'll loop through each column in the table definition and see if we have a property, if not, create one.
+			// @TODO when CF9 support is no longer needed, use an arrayFind with a anonymous function to do the search.
+			for( var col in variables.tabledef.instance.tablemeta.columns ){				
+				for ( var existingProp in variables.meta.properties ){					
+					if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col ) 
+							|| ( structKeyExists( existingProp, 'name' ) && existingProp.name EQ col )){
+						//property exists skip to the next column
+						found = true;
+						break;
+					}
+				}
+				
+				if ( !found ){
+				
+					variables[col] = this[col] = "";
+					variables["set" & col] = this["set" & col] = this.methods["set" & col] = setFunc;
+					variables["get" & col] = this["get" & col] = this.methods["get" & col] = getFunc;
+
+					var newProp = {
+						"name" = col, 
+						"column" = col,
+						"generator" = variables.tabledef.instance.tablemeta.columns[col].generator, 
+						"fieldtype" = variables.tabledef.instance.tablemeta.columns[col].isPrimaryKey ? "id" : "",
+						"type" = variables.tabledef.getDummyType(variables.tabledef.instance.tablemeta.columns[col].type),
+						"dynamic" = true
+					};
+					
+					arrayAppend( variables.meta.properties, newProp );				
+				}
+
+				found = false;
+
+			}
+		}
+
 
        /** 
        * This will hijack all of the setters and inject a function that will set the 
        * isDirty flag to true anytime data changes
-       **/
-       // NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
-		for( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-			prop = variables.meta.properties[i];			
+       **/	
+		for ( var prop in variables.meta.properties ){
 			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
+
 				// copy the real setter function to a temp variable.
 				variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 
 				// now override the setter with the new function that will set the dirty flag.
-				this[ "set" & prop.name ] = setFunc;        		
+				if( !structKeyExists( this, "set" & prop.name ) || !isCustomFunction( this[ "set" & prop.name ] ) ){
+					this[ "set" & prop.name ] = setFunc;
+				}
 			}
+
 		}
 		/* Now if the model was extended, include those properties as well */
-		for( var i = 1; i LTE arrayLen( variables.meta.extends.properties ); i++ ){
-			prop = variables.meta.extends.properties[i];			
+		for ( var prop in variables.meta.extends.properties ){
 			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 				// copy the real setter function to a temp variable.
 				variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
@@ -144,13 +193,30 @@ component accessors="true" output="false" {
 				writeDump(variables);
 				writeDump( e );abort;
 			}
-			//variables[ propName ] = v;
 			// Get the original setter function that we set aside in the init routine.
 			var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
+			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
+			this[propName] = variables[propName] = v;
 			// tmpFunc is now the original setter so let's fire it.  The calling page
 			// will not know this happened.
 			tmpFunc( v );
 		}
+
+	}
+	private any function getFunc( any name = "" ){
+
+		if( len( trim( name ) ) ){
+			return this[ name ];
+		}
+
+		if( left( getFunctionCalledName(), 3) == "get" && getFunctionCalledName() != 'getterFunc' ){
+
+			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
+
+			return this[propName];
+		}
+
+		return "";
 
 	}
 
@@ -221,14 +287,14 @@ component accessors="true" output="false" {
 			}
 
 			/** 
-			* @TODO refactore the read to handle limits more db agnostic (use the dao object to limit)
+			* @TODO refactor the read to handle limits more db agnostic (use the dao object to limit)
 			**/
 			record = variables.dao.read(sql="
-				SELECT #this.getIDField()# FROM #this.getTable()#
+				SELECT #( !loadAll && variables.dao.getDBType() is 'mssql' ) ? 'TOP ' & limit : ''# #this.getIDField()# FROM #this.getTable()#
 				WHERE #where#
 				#recordSQL#
 				#orderby#
-				#!loadAll ? 'LIMIT ' & limit : ''#
+				#( !loadAll && variables.dao.getDBType() is 'mysql' ) ? 'LIMIT ' & limit : ''#
 			", name="model_load_by_handler");
 			
 			variables._isNew = record.recordCount EQ 0;
@@ -261,7 +327,7 @@ component accessors="true" output="false" {
 				return this;
 			}
 		}
-				
+		
 		// throw error			
 		throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
 		
@@ -339,8 +405,10 @@ component accessors="true" output="false" {
 
 				}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' && structKeyExists( col, 'cfc' ) ){						
 					if( !lazy ){
-						writeLog('aggressively loading one-to-one object: #col.cfc# [#col.name#]');
-						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
+						writeLog('aggressively loading one-to-one object: #col.cfc# [#col.name#]');						
+						var tmpID = len( trim( evaluate("this.get#col.fkcolumn#()") ) ) ? variables[ col.fkcolumn ] : '0';
+						setterFunc( tmp.load( tmpID ) );
+						
 					}else{
 
 						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
@@ -494,7 +562,9 @@ component accessors="true" output="false" {
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
-			for ( arg in variables ){
+			
+			for ( var prop in variables.meta.properties ){						
+				arg = prop.name;
 				LOCAL.functionName = "get" & arg;
 				try
 				{
@@ -503,24 +573,31 @@ component accessors="true" output="false" {
 						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,#ArrayToList(excludeKeys)#",arg ) ){
 						
 						if( structKeyExists( this, LOCAL.functionName ) ){
-							LOCAL.tmpFunc = this[LOCAL.functionName];
-							returnStruct[lcase(arg)] = LOCAL.tmpFunc();
-							if(!isSimpleValue(returnStruct[arg])){
+							//LOCAL.tmpFunc = structKeyExists( this, 'methods' ) ? this.methods[LOCAL.functionName] : this[LOCAL.functionName];							
+							
+							if( structKeyExists( variables, arg ) ){								
+								returnStruct[lcase(arg)] = variables[arg];
+								//returnStruct[lcase(arg)] = LOCAL.tmpFunc(arg); 							
+							}
 
-								if( isArray( returnStruct[arg] ) ){
+							if(structKeyExists( returnStruct, arg ) ){
+								if(!isSimpleValue(returnStruct[arg])){
 
-									for( var i = 1; i LTE arrayLen( returnStruct[arg] ); i++ ){
-										if( isObject( returnStruct[lcase(arg)][i] ) ){
-											returnStruct[lcase(arg)][i] = returnStruct[lcase(arg)][i].toStruct( excludeKeys = excludeKeys );
+									if( isArray( returnStruct[arg] ) ){
+
+										for( var i = 1; i LTE arrayLen( returnStruct[arg] ); i++ ){
+											if( isObject( returnStruct[lcase(arg)][i] ) ){
+												returnStruct[lcase(arg)][i] = returnStruct[lcase(arg)][i].toStruct( excludeKeys = excludeKeys );
+											}
 										}
+									}else if( isObject( returnStruct[lcase(arg)] ) ){
+										returnStruct[lcase(arg)] = returnStruct[arg].toStruct( excludeKeys = excludeKeys );								
 									}
-								}else if( isObject( returnStruct[lcase(arg)] ) ){
-									returnStruct[lcase(arg)] = returnStruct[arg].toStruct( excludeKeys = excludeKeys );								
+								}else if( isNumeric( returnStruct[ lcase( arg ) ] ) 
+										&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
+										
+									returnStruct[ lcase( arg ) ] = javaCast( 'int', returnStruct[ lcase( arg ) ] );
 								}
-							}else if( isNumeric( returnStruct[ lcase( arg ) ] ) 
-									&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
-									
-								returnStruct[ lcase( arg ) ] = javaCast( 'int', returnStruct[ lcase( arg ) ] );
 							}
 						}
 
@@ -528,8 +605,6 @@ component accessors="true" output="false" {
 				}
 				catch (any e){ writeDump(e);abort;}
 			}
-
-
 		return returnStruct;
 	}
 
@@ -617,7 +692,7 @@ component accessors="true" output="false" {
 				data = DATA
 			); 
 			//this.setID(newID);
-			variables['ID'] = newID;
+			variables['ID'] = this['ID'] = newID;			
             tempID = newID;
 
             // This is the second pass of the child save routine.
@@ -630,13 +705,14 @@ component accessors="true" output="false" {
 			/* Merges properties and extends.properties into a CF array */
 			var props = deSerializeJSON( serializeJSON( variables.meta.extends.properties ) );
 			props.addAll( deSerializeJSON( serializeJSON( variables.meta.properties ) ) );
+			
 			for ( col in props ){
 				/**
 				*  Find any "formula" type fields to evaluate.  Used for things like udpate timestamps
 				**/			
 				if( structKeyExists( col, 'formula' ) && len( trim( col.formula ) ) ){					
 					variables[ col.name ] = evaluate( col.formula );
-				}			
+				}
 			}	
 			
 			// On updates, we only need to run the child save routine 
@@ -645,7 +721,7 @@ component accessors="true" output="false" {
 			// this entity instance.
 			_saveTheChildren();
 
-			var DATA = duplicate(variables);	
+			var DATA = duplicate( this.toStruct() );
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
@@ -653,12 +729,6 @@ component accessors="true" output="false" {
 				DATA[ LOCAL.columnName ] = DATA[col];
 			}
 
-			/* if(this.getCreated_By_Users_ID() == 0){
-				// This is really a new record, but we've been given an ID, 
-				// so let's set the created info
-				this.setCreated_Datetime(now());
-				this.setCreated_By_Users_ID(this.getCurrentUserID());
-			} */
             DATA[getIDField()] = getID();
 			if (structCount(arguments.overrides) > 0){
 				for ( var override in overrides ){
@@ -666,7 +736,7 @@ component accessors="true" output="false" {
 				}
 			}
 			
-			/*******/
+			/*** update the thing ****/
 			variables.dao.update(
 				table = this.getTable(),
 				data = DATA
@@ -708,12 +778,17 @@ component accessors="true" output="false" {
 				try{
 					/* Set the object's FK to the value of the new parent record  */
 					/* TODO: when we no longer need to support ACF9, change this to use invoke() */
-					var tmp = variables[col.name];
-					evaluate("this.set#col.fkcolumn#( tmp.get#col.inverseJoinColumn#() )");
+					if( structKeyExists( variables, col.name ) ){
+						var tmp = variables[col.name];
+						evaluate("this.set#col.fkcolumn#( tmp.get#col.inverseJoinColumn#() )");
+					}
 										
 				}catch (any e){
 					writeDump(e);					
-					writeDump(variables[ col.name ] );abort;
+					writeDump(col);
+					writeDump(variables);
+
+					abort;
 				}
 			}
 		} 	
