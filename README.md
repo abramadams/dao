@@ -185,7 +185,7 @@ Sometimes it's a pain in the arse to create entity CFCs that just point to a sin
 component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
 }
 ```
-Say I created a table named eventLog in my databse with the following:
+That's all we *need*.  Now say I created a table named eventLog in my databse with the following:
 ```sql
 CREATE TABLE `eventLog` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
@@ -238,10 +238,10 @@ entities, or are loading a collection of entities that have related entities.  W
 with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.
 
 To lazy load, you simply use the dynamic load method, prefixed with "lazy"
-```
-	pet = new Pet( dao ).lazyLoadAll();
-	// then, if I only need the first name of the "user" for the second pet I'd just:
-	ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
+```javascript
+pet = new Pet( dao ).lazyLoadAll();
+// then, if I only need the first name of the "user" for the second pet I'd just:
+ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
 
 # Requirements
@@ -256,5 +256,5 @@ argument passed to the init method when instantiating dao.cfc.  So if you have o
 instantiate as: dao = new dao( dbType = 'otherrdbs' );
 
 # More examples
-Check out the daotest.cfm for a basic run-down of good old CRUD operations using dao.
+Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
 
