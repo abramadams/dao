@@ -312,10 +312,7 @@ component accessors="true" output="false" {
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
 				var recordArray = [];
 
-    			starttime = getTickCount();    
-    
 				for ( var rec = 1; rec LTE record.recordCount; rec++ ){
-					substarttime = getTickCount();
 					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
 					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
 					var qn = queryNew( record.columnList );
@@ -323,14 +320,8 @@ component accessors="true" output="false" {
 						queryAddRow( qn );
 						querySetCell( qn, col, record[ col ][ rec ] );
 					}
-					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );
-    				subduration = getTickCount() - substarttime;
-    				//writeOutput('#subduration/1000#: instantiating record #record[ getIDField() ][ rec ] # :: #rec#');		
-    				writeLog('#subduration/1000#: instantiating record #record[ getIDField() ][ rec ] # :: #rec#');		
+					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );    				    		
 				}
-				duration = getTickCount() - starttime;
-    			writeOutput('Took ' & duration / 1000 & ' seconds to query #limit# records and instantiate the objects<br>');		
-    			writeLog('Took ' & duration / 1000 & ' seconds to query #limit# records and instantiate the objects<br>');		
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
@@ -375,7 +366,6 @@ component accessors="true" output="false" {
 
 		/*  Now iterate the properties and see if there are any relationships we can resolve */		
 		var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
-		writeLog("parent table: " & getTable());
 		
 		for ( var col in props ){
 
