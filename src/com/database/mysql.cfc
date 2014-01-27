@@ -9,9 +9,11 @@
 
 	  ********************************************************** --->
 
-<cfcomponent extends="dao" output="false">
+<cfcomponent output="false">
+	<cfproperty name="dao" type="dao"/>
 	
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
+		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
 		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mysql" />
 		<cfargument name="user" type="string" required="false" default="" hint="Data Source User Name" />
@@ -23,6 +25,7 @@
 			
 			//This is the datasource name for the system
 			variables.dsn = arguments.dsn;
+			variables.dao = arguments.dao;
 			variables.transactionLogFile = arguments.transactionLogFile;
 			
 			this.useCFQueryParams = arguments.useCFQueryParams;
@@ -50,9 +53,9 @@
 	</cffunction>
 
 	<cffunction name="delete" hint="I delete records from the database.  I am MySQL specific." returntype="boolean" output="true">
-		<cfargument name="TableName" required="yes" type="string" hint="Table to delete from.">
-		<cfargument name="recordID" required="yes" type="string" hint="Record ID of record to be deleted.">
-		<cfargument name="IDField" required="no" type="string" hint="ID field of record to be deleted.">
+		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
+		<cfargument name="recordID" required="true" type="string" hint="Record ID of record to be deleted.">
+		<cfargument name="IDField" required="false" type="string" hint="ID field of record to be deleted.">
 
 		<cfset var ret = true />
 		<cfset var pk = getPrimaryKey(arguments.tablename) />
@@ -75,7 +78,7 @@
 	</cffunction>
 
 	<cffunction name="deleteAll" hint="I delete all records from the passed tablename.  I am MySQL specific." returntype="boolean" output="true">
-		<cfargument name="TableName" required="yes" type="string" hint="Table to delete from.">
+		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
 
 		<cfset var ret = true />
 		<cfset var rel = "" />
@@ -93,12 +96,19 @@
 
 
 	<cffunction name="select" hint="I select records from the database.  I am MySQL specific." returntype="query" output="true">
-		<cfargument name="sql" required="yes" type="any" hint="Either Table to select from or sql statement.">
-		<cfargument name="name" required="no" type="string" hint="Name of Query (required for cachedwithin)" default="sel_#listFirst(createUUID(),'-')#">
-		<cfargument name="cachedwithin" required="no" type="any" hint="createTimeSpan() to cache this query" default="">
-		
+		<cfargument name="sql" required="false" type="string" default="" hint="Either Table to select from or sql statement.">
+		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="sel_#listFirst(createUUID(),'-')#">
+		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
+		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
+		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
+		<cfargument name="where" required="false" type="string" hint="Where clause" default="Only used if sql is a tablename">
+		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
+
 		<cfset var get = "" />
-		
+		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
+			<cfset arguments.table = arguments.sql/>
+		</cfif>
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
@@ -111,13 +121,37 @@
 					</cfquery>
 				</cfif>
 			<cfelse>
+				<!--- Table select --->
+				<cfif !len( trim( arguments.columns ) ) >
+					<cfset arguments.columns = getSafeColumnNames(variables.dao.getColumns(arguments.table))/>
+				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
-						select #getSafeColumnNames(getColumns(arguments.sql))# from #arguments.sql#
+						SELECT #getSafeColumnNames(variables.dao.getColumns(arguments.table))# 
+						FROM #arguments.table#
+						<cfif len( trim( arguments.where ) )>
+							#arguments.where#
+						</cfif>
+						<cfif len( trim( arguments.orderby ) )>
+							ORDER BY #arguments.orderby#
+						</cfif>
+						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+							LIMIT #val( arguments.limit )#
+						</cfif>
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#variables.dsn#">
-						select #getSafeColumnNames(getColumns(arguments.sql))# from #arguments.sql#
+						SELECT #arguments.columns#
+						FROM #arguments.table#
+						<cfif len( trim( arguments.where ) )>
+							#arguments.where#
+						</cfif>
+						<cfif len( trim( arguments.orderby ) )>
+							ORDER BY #arguments.orderby#
+						</cfif>
+						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+							LIMIT #val( arguments.limit )#
+						</cfif>						
 					</cfquery>
 				</cfif>
 			</cfif>
@@ -126,7 +160,7 @@
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
-				<cfsetting showdebugoutput="yes">
+				<cfsetting showdebugoutput="true">
 				<cfabort>
 			</cfcatch>
 		</cftry>
@@ -162,7 +196,7 @@
 					INSERT INTO #tablename# (#getSafeColumnNames(columns)#)
 						VALUES (
 						<cfloop list="#columns#" index="col">
-							<cfset isnull = "no">
+							<cfset isnull = "false">
 							<cfset curRow = curRow +1>
 							<cfset current[curRow] = structNew()>
 							<cfset current[curRow].colIndex = curRow>
@@ -180,17 +214,17 @@
 									<cfset current[curRow].data = arguments.tabledef.getColumnDefaultValue(col)>
 								<cfelse>
 									<cfset current[curRow].data = arguments.tabledef.getColumnNullValue(col)>
-									<cfset isnull = "yes">
+									<cfset isnull = "true">
 								</cfif>
 							</cfif>
 							<cfif not arguments.tabledef.isColumnNullable(col)>
-								<cfset isnull = "no">
+								<cfset isnull = "false">
 							</cfif>
 							<cfif curRow GT 1>,</cfif>
 							<cfif not len(trim(current[curRow].data))>
 								<cfset current[curRow].data = arguments.tabledef.getColumnNullValue(current[curRow].column)>
 								<cfif cfsqltype neq "cf_sql_boolean">
-									<cfset isnull = "yes">
+									<cfset isnull = "true">
 								</cfif>
 							</cfif>
 							
@@ -210,9 +244,9 @@
 	</cffunction>
 
 	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="numeric" output="true">
-		<cfargument name="tabledef" required="yes" type="any" hint="TableDef object containing data.">
-		<cfargument name="columns" required="no" default="" type="string" hint="Optional list columns to be updated.">
-		<cfargument name="IDField" required="yes" type="string" hint="Optional list columns to be updated.">
+		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
+		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
+		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
 		
 		<cfset var curRow = 0 />
 		<cfset var current = arrayNew(1) />
@@ -220,7 +254,7 @@
 		<cfset var pk = arguments.IDField />
 		<cfset var ret = true />
 		<cfset var value = "" />
-		<cfset var isnull = "no" />
+		<cfset var isnull = "false" />
 		<cfset var upd = "" />
 		<cfset var col = "" />
 		<cfset var cfsqltype = "" />
@@ -242,7 +276,7 @@
 								<!--- No need to update th PK field --->
 								<cfif col NEQ pk AND arguments.tabledef.getColumnIsDirty(col)>
 									<cfset performUpdate = true/>
-									<cfset isnull = "no">
+									<cfset isnull = "false">
 									<cfset curRow = curRow +1>
 									<cfif curRow GT 1>, </cfif>										
 									#getSafeColumnName(col)# =									
@@ -251,11 +285,11 @@
 																		
 									<cfif not len(trim(value))>
 										<cfif cfsqltype neq "cf_sql_boolean">
-											<cfset isnull = "yes">
+											<cfset isnull = "true">
 										</cfif>
 										<cfset value = arguments.tabledef.getColumnNullValue(col)>
 										<cfif not arguments.tabledef.isColumnNullable(col)>
-											<cfset isnull = "no">
+											<cfset isnull = "false">
 										</cfif>
 										<cfif cfsqltype is "cf_sql_timestamp">
 											<cfset cfsqltype = "cf_sql_varchar">
@@ -293,7 +327,7 @@
 	<!--- GETTERS --->
 <!--- Data Definition Functions --->
 	<cffunction name="define" hint="I return the structure of the passed table.  I am MySQL specific." returntype="query" access="public" output="true">
-		<cfargument name="TableName" required="yes" type="string" hint="Table to define.">
+		<cfargument name="TableName" required="true" type="string" hint="Table to define.">
 		
 		<cfset var def = "" />
 		
@@ -313,7 +347,7 @@
 	</cffunction>
 
 	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MySQL specific." returntype="struct" access="public" output="true">
-		<cfargument name="TableName" required="yes" type="string" hint="Table to return primary key.">
+		<cfargument name="TableName" required="true" type="string" hint="Table to return primary key.">
 
 		<cfset var def = define(arguments.tablename) />
 		<cfset var ret = structnew() />
@@ -338,7 +372,7 @@
 	</cffunction>
 
 	<cffunction name="getPrimaryKeys" hint="I return the primary keys column name and type for the passed in table.  I am MySQL specific." returntype="array" access="public" output="true">
-		<cfargument name="TableName" required="yes" type="string" hint="Table to return primary key.">
+		<cfargument name="TableName" required="true" type="string" hint="Table to return primary key.">
 
 		<cfset var def = define(arguments.tablename) />
 		<cfset var ret = [] />
@@ -359,29 +393,26 @@
 	</cffunction>
 	
 	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
-		<cfargument name="cols" required="yes" type="string">
+		<cfargument name="cols" required="true" type="string">
 
 		<cfset var i = 0 />
 		<cfset var columns = "" />
 		<cfset var colname = "" />
+	
+		<cfsavecontent variable="columns">
+			<cfoutput>
+				<cfloop list="#arguments.cols#" index="colname">
+					<cfset i = i + 1>`#colname#`<cfif i lt listLen(cols)>,</cfif>
+				</cfloop>
+			</cfoutput>
+		</cfsavecontent>
 		
-		<cflock name="getSafeColumnNames" type="exclusive" throwontimeout="no" timeout="3">
-		
-			<cfsavecontent variable="columns">
-				<cfoutput>
-					<cfloop list="#arguments.cols#" index="colname">
-						<cfset i = i + 1>`#colname#`<cfif i lt listLen(cols)>,</cfif>
-					</cfloop>
-				</cfoutput>
-			</cfsavecontent>
-		
-		</cflock>
 		<cfreturn columns />
 
 	</cffunction>
 
 	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
-		<cfargument name="col" required="yes" type="string">
+		<cfargument name="col" required="true" type="string">
 		
 		<cfset var ret = "" />
 		

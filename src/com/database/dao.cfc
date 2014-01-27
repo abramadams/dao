@@ -54,6 +54,7 @@
 <cfcomponent displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="false" accessors="true">
 			   
 	<cfproperty name="dsn" type="string">	
+	<cfproperty name="dbtype" type="string">	
 	<cfproperty name="writeTransactionLog" type="boolean">	
 			  
 	<cffunction name="init" access="public" returntype="DAO" output="false" displayname="DAO Constructor" hint="I initialize DAO.">
@@ -78,7 +79,15 @@
 			
 			//This is the actual db specific connection.
 			this.conn = createObject("component", variables.dbType);
-			this.conn.init(dsn=variables.dsn, user=arguments.user,password=arguments.password,dbtype=arguments.dbtype,transactionLogFile=arguments.transactionLogFile,useCFQueryParams = arguments.useCFQueryParams);
+			this.conn.init( 
+					dao = this,
+					dsn = variables.dsn, 
+					user = arguments.user,
+					password = arguments.password,
+					dbtype = arguments.dbtype,
+					transactionLogFile = arguments.transactionLogFile,
+					useCFQueryParams = arguments.useCFQueryParams
+					);
 			
 			variables.transactionLogFile = arguments.transactionLogFile;			
 			variables.useCFQueryParams = arguments.useCFQueryParams;
@@ -98,10 +107,15 @@
 	</cffunction>
 	
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
-		<cfargument name="sql" required="yes" type="string" hint="Either a tablename or full SQL statement.">
-		<cfargument name="name" required="no" type="string" hint="Name of Query (required for cachedwithin)" default="ret_#listFirst(createUUID(),'-')#_#getTickCount()#">
-		<cfargument name="QoQ" required="no" type="struct" hint="Struct containing query object for QoQ" default="#{}#">
-		<cfargument name="cachedwithin" required="no" type="any" hint="createTimeSpan() to cache this query" default="">
+		<cfargument name="sql" required="false" type="string" default="" hint="Either a tablename or full SQL statement.">
+		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="ret_#listFirst(createUUID(),'-')#_#getTickCount()#">
+		<cfargument name="QoQ" required="false" type="struct" hint="Struct containing query object for QoQ" default="#{}#">
+		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
+		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
+		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
+		<cfargument name="where" required="false" type="string" hint="Where clause" default="Only used if sql is a tablename">
+		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var tmpSQL = "" />
 		<cfset var tempCFSQLType = "" />
@@ -109,9 +123,17 @@
 		<cfset var tmpName = "" />
 		<cfset var idx = "" />
 		<cfset var LOCAL = {} />
-		
+
+		<cfif !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) )>
+			<cfthrow message="You must pass in either a table name or sql statement." />
+		</cfif>
+
+		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
+			<cfset arguments.table = arguments.sql/>
+		</cfif>
+
 		<cftry>
-			<cfif len(trim(arguments.sql))>
+			<cfif len( trim( arguments.sql ) ) || len( trim( arguments.table ) )>
 				<cftimer label="Query: #arguments.name#" type="debug">
 				<cfif !structKeyExists( arguments.QoQ, 'query' ) >
 						<cfif listlen(arguments.sql, ' ') GT 1>
@@ -235,7 +257,15 @@
 							</cfif>
 						<cfelse>
 							<!--- abstract --->							
-							<cfset LOCAL[arguments.name] = this.conn.select(sql=arguments.sql,cachedwithin=arguments.cachedwithin,name=arguments.name)/>
+							<cfset LOCAL[arguments.name] = this.conn.select( 																
+																table = arguments.table,
+																columns = arguments.columns,
+																name = arguments.name, 
+																where = arguments.where,
+																orderby = arguments.orderby,
+																limit = arguments.limit,
+																cachedwithin = arguments.cachedwithin
+															)/>
 						</cfif>
 
 				<cfelse>
@@ -256,7 +286,7 @@
 
 
 	<cffunction name="readFromQuery" hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false">
-		<cfargument name="sql" required="yes" type="string" hint="Full SQL statement.">
+		<cfargument name="sql" required="true" type="string" hint="Full SQL statement.">
 		
 		<cfset var ret = "" />
 		
@@ -280,7 +310,7 @@
 	
 	<cffunction name="insert" hint="I insert data into a table in the database." returntype="any" access="public" output="false">
 		<cfargument name="table" type="string" required="true" hint="Name of table to insert data into.">
-		<cfargument name="data" required="yes" type="struct" hint="Struct of name value pairs containing data.  Name must match column name.  This could be a form scope">		
+		<cfargument name="data" required="true" type="struct" hint="Struct of name value pairs containing data.  Name must match column name.  This could be a form scope">		
 		<cfargument name="dryRun" type="boolean" required="false" default="false" hint="for debugging, will dump the data used to insert instead of actually inserting.">
 		<cfargument name="onFinish" type="any" required="false" default="" hint="Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...">
 
@@ -331,7 +361,7 @@
 	</cffunction>
 
 	<cffunction name="bulkInsert" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the number of records inserted." returntype="numeric" output="false">
-		<cfargument name="tabledef" required="yes" type="tabledef" hint="TableDef object containing data.">
+		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 		<cfset var qry = arguments.tabledef.getRows()/>
 
@@ -343,7 +373,7 @@
 
 	<cffunction name="update" hint="I update data in a table in the database." returntype="any" access="public" output="false">
 		<cfargument name="table" type="string" required="true" hint="Name of table to update data from.">
-		<cfargument name="data" required="yes" type="struct" hint="Struct of name value pairs containing data.  Name must match column name.  This could be a form scope">
+		<cfargument name="data" required="true" type="struct" hint="Struct of name value pairs containing data.  Name must match column name.  This could be a form scope">
 		<cfargument name="IDField" required="false" type="string" default="ID" hint="The name of the Primary Key column in the table.">
 		<cfargument name="ID" required="false" type="string" default="" hint="The value of the Primary Key column in the table.">				
 		<cfargument name="dryRun" type="boolean" required="false" default="false" hint="for debugging, will dump the data used to insert instead of actually inserting.">
@@ -437,8 +467,8 @@
 
 	<cffunction name="updateTable" hint="I update data in the database.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value." returntype="numeric" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
-		<cfargument name="columns" required="no" type="string" hint="Optional list columns to be updated." default="">
-		<cfargument name="IDField" required="no" type="string" hint="Optional ID field." default="">
+		<cfargument name="columns" required="false" type="string" hint="Optional list columns to be updated." default="">
+		<cfargument name="IDField" required="false" type="string" hint="Optional ID field." default="">
 
 		<cfset var ret = "" />
 		
@@ -452,7 +482,7 @@
 	</cffunction>
 
 	<cffunction name="bulkUpdate" hint="I update data in the database.  I take a tabledef object containing the tablename and column values. I return the number of records updated." returntype="numeric" output="false">
-		<cfargument name="tabledef" required="yes" type="tabledef" hint="TableDef object containing data.">
+		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 		<cfset var qry = arguments.tabledef.getRows() />
 		<cfset var curRow = 0 />
@@ -479,9 +509,9 @@
 	</cffunction>
 
 	<cffunction name="delete" hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to delete from.">
-		<cfargument name="recordID" required="yes" type="string" hint="Record ID of record to be deleted. Use * to delete all.">
-		<cfargument name="IDField" required="no" type="string" hint="ID Field of record to be deleted. Default value = table's Primary Key." default="">
+		<cfargument name="table" required="true" type="string" hint="Table to delete from.">
+		<cfargument name="recordID" required="true" type="string" hint="Record ID of record to be deleted. Use * to delete all.">
+		<cfargument name="IDField" required="false" type="string" hint="ID Field of record to be deleted. Default value = table's Primary Key." default="">
 		<cfargument name="onFinish" type="any" required="false" default="" hint="Will execute when finished deleting.  Can be used for audit logging, notifications, post update processing, etc...">
 
 		<cfset var ret = true>
@@ -511,10 +541,10 @@
 
 
 	<cffunction name="markDeleted" hint="I mark the record as deleted.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to delete from.">
-		<cfargument name="recordID" required="yes" type="string" hint="Record ID of record to be deleted. Use * to delete all.">
-		<cfargument name="IDField" required="no" type="string" hint="ID Field of record to be deleted. Default value = table's Primary Key." default="ID">
-		<cfargument name="userID" required="no" type="numeric" hint="User ID of user performing delete." default="ID">		
+		<cfargument name="table" required="true" type="string" hint="Table to delete from.">
+		<cfargument name="recordID" required="true" type="string" hint="Record ID of record to be deleted. Use * to delete all.">
+		<cfargument name="IDField" required="false" type="string" hint="ID Field of record to be deleted. Default value = table's Primary Key." default="ID">
+		<cfargument name="userID" required="false" type="numeric" hint="User ID of user performing delete." default="ID">		
 
 		<cfset var ret = true>
  		<cftry>
@@ -552,8 +582,8 @@
 	</cffunction>
 		
 	<cffunction name="logTransaction" returntype="void" output="false">
-		<cfargument name="sql" required="yes" type="string">
-		<cfargument name="lastID" required="no" type="string">
+		<cfargument name="sql" required="true" type="string">
+		<cfargument name="lastID" required="false" type="string">
 		
 		<!--- Duck out if we were told not to write the transaction log --->
 		<cfif !getWriteTransactionLog()>
@@ -815,7 +845,7 @@
 	</cffunction>
 	
 	<cffunction name="getCFSQLType" returntype="string" hint="I determine the CFSQL type for the passd value and return the proper type as a string to be used in cfqueryparam." output="false">
-		<cfargument name="type" required="yes">
+		<cfargument name="type" required="true">
 
 		<cfset var int_types = "int,integer,numeric,number,cf_sql_integer">
 		<cfset var string_types = "varchar,char,text,memo,nchar,nvarchar,ntext,cf_sql_varchar">
@@ -866,14 +896,14 @@
 	</cffunction>
 	
 	<cffunction name="setUpdate" returntype="void" hint="I build a container to be passed to the update function." output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to perform action against.">
-		<cfargument name="key" required="yes" type="any" hint="Primary Key Index value.">
-		<cfargument name="col_value" required="yes" type="struct" hint="Column and Value pairs as a struct.">
+		<cfargument name="table" required="true" type="string" hint="Table to perform action against.">
+		<cfargument name="key" required="true" type="any" hint="Primary Key Index value.">
+		<cfargument name="col_value" required="true" type="struct" hint="Column and Value pairs as a struct.">
 
 	</cffunction>
 
 	<cffunction name="define" hint="I return the structure of the passed table.  I am MySQL specific." returntype="query" access="public" output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to define.">
+		<cfargument name="table" required="true" type="string" hint="Table to define.">
 
 		<cfset var def = this.conn.define(arguments.table)>
 
@@ -881,8 +911,8 @@
 	</cffunction>
 
 	<cffunction name="getColumnType" hint="I return the datatype for the given table.column.  I am MySQL specific." returntype="string" access="public" output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to define.">
-		<cfargument name="column" required="yes" type="string" hint="Column to define.">
+		<cfargument name="table" required="true" type="string" hint="Table to define.">
+		<cfargument name="column" required="true" type="string" hint="Column to define.">
 
 		<cfset var def = define(arguments.table)>
 		<cfset var col = "">
@@ -909,7 +939,7 @@
 	</cffunction>
 
 	<cffunction name="getColumns" hint="I return a list of columns for the passed table." returntype="string" access="public" output="false">
-		<cfargument name="table" required="yes" type="string" hint="Table to define.">
+		<cfargument name="table" required="true" type="string" hint="Table to define.">
 	
 		<cfset var def = new tabledef(tablename=arguments.table,dsn=variables.dsn)/>
 		<cfset var cols = def.getColumns()>
@@ -929,7 +959,7 @@
 	</cffunction>
 	
 	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="cols" required="yes" type="string">
+		<cfargument name="cols" required="true" type="string">
 
 			<cfset var columns = this.conn.getSafeColumnNames(arguments.cols)>
 
@@ -938,7 +968,7 @@
 	</cffunction>
 
 	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="col" required="yes" type="string">
+		<cfargument name="col" required="true" type="string">
 
 		<cfset var ret = this.conn.getSafeColumnName(arguments.col)>
 
@@ -950,8 +980,8 @@
 	<cffunction name="queryParam" hint="I create the values to build the cfqueryparam tag." output="false" returntype="string">
 		<cfargument name="value" type="string" required="true">
 		<cfargument name="cfsqltype" type="string" required="false" default="cf_sql_varchar" hint="This can be a standard RDBS datatype or a cf_sql_type (see getCFSQLType())">
-		<cfargument name="list" type="boolean" required="no" default="false">
-		<cfargument name="null" required="false" type="boolean" default="no">
+		<cfargument name="list" type="boolean" required="false" default="false">
+		<cfargument name="null" required="false" type="boolean" default="false">
 		
 		<cfset var returnStruct = structNew() />
 		<cfset var returnString = structNew() />
@@ -964,8 +994,8 @@
 	<cffunction name="queryParamStruct" hint="I create the values to build the cfqueryparam tag." output="false" returntype="struct">
 		<cfargument name="value" type="string" required="true">
 		<cfargument name="cfsqltype" type="string" required="false" default="cf_sql_varchar" hint="This can be a standard RDBS datatype or a cf_sql_type (see getCFSQLType())">
-		<cfargument name="list" type="boolean" required="no" default="no">
-		<cfargument name="null" required="false" type="boolean" default="no">
+		<cfargument name="list" type="boolean" required="false" default="false">
+		<cfargument name="null" required="false" type="boolean" default="false">
 		
 		<cfset var returnStruct = structNew() />
 

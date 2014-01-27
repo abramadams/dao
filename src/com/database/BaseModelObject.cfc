@@ -262,7 +262,12 @@ component accessors="true" output="false" {
 			|| arguments.missingMethodName is "loadTop"
 			){
 			
-			var loadAll = left( arguments.missingMethodName, 7 ) is "loadAll" || left( arguments.missingMethodName, 11 ) is "lazyLoadAll";
+			var loadAll = ( left( originalMethodName, 7 ) is "loadAll" 
+						  	|| left( originalMethodName , 11 ) is "lazyLoadAll" );
+			if( left( originalMethodName, 7 ) is "loadAll" && arrayLen( arguments.missingMethodArguments ) EQ 1 ){
+				loadAll = false;			
+				limit = arguments.missingMethodArguments[1];
+			}
 
 			// Build where clause based on function name
 			if(arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop"){
@@ -289,17 +294,15 @@ component accessors="true" output="false" {
 				where = len( trim( where ) ) ? where : '1=1';
 			}
 
-			/** 
-			* @TODO refactor the read to handle limits more db agnostic (use the dao object to limit)
-			**/
-			record = variables.dao.read(sql="
-				SELECT #( !loadAll && variables.dao.getDBType() is 'mssql' ) ? 'TOP ' & limit : ''# #this.getIDField()# FROM #this.getTable()#
-				WHERE #where#
-				#recordSQL#
-				#orderby#
-				#( !loadAll && variables.dao.getDBType() is 'mysql' ) ? 'LIMIT ' & limit : ''#
-			", name="model_load_by_handler");
-			
+			record = variables.dao.read( 
+				table = this.getTable(), 
+				columns = "#this.getIDField()# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#,#this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", 
+				where = "WHERE #where# #recordSQL#", 
+				orderby = orderby, 
+				limit = limit, 
+				name = "model_load_by_handler"
+			);
+
 			variables._isNew = record.recordCount EQ 0;
 
 			//If a record existed, load it		
@@ -309,12 +312,25 @@ component accessors="true" output="false" {
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
 				var recordArray = [];
 
+    			starttime = getTickCount();    
+    
 				for ( var rec = 1; rec LTE record.recordCount; rec++ ){
+					substarttime = getTickCount();
 					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
 					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-					arrayAppend( recordArray, duplicate( this.load( ID = record.ID[ rec ], lazy = left( originalMethodName , 4 ) is "lazy" ) ) );
+					var qn = queryNew( record.columnList );
+					for( var col in listToArray( record.columnList ) ){
+						queryAddRow( qn );
+						querySetCell( qn, col, record[ col ][ rec ] );
+					}
+					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );
+    				subduration = getTickCount() - substarttime;
+    				//writeOutput('#subduration/1000#: instantiating record #record[ getIDField() ][ rec ] # :: #rec#');		
+    				writeLog('#subduration/1000#: instantiating record #record[ getIDField() ][ rec ] # :: #rec#');		
 				}
-			
+				duration = getTickCount() - starttime;
+    			writeOutput('Took ' & duration / 1000 & ' seconds to query #limit# records and instantiate the objects<br>');		
+    			writeLog('Took ' & duration / 1000 & ' seconds to query #limit# records and instantiate the objects<br>');		
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
@@ -340,8 +356,12 @@ component accessors="true" output="false" {
 	**/
 	public any function load( required any ID, boolean lazy = false ){
 		
-		var record = getRecord( ID = arguments.ID );
-
+		if ( isQuery(arguments.ID) ){
+			var record = arguments.ID;
+		}else{
+			var record = getRecord( ID = arguments.ID );			
+		}
+		
 		for ( var fld in listToArray( record.columnList ) ){
 			/* LOCAL.functionName = "set" & fld;
 			try{
@@ -354,7 +374,7 @@ component accessors="true" output="false" {
 		variables.ID = arguments.ID;
 
 		/*  Now iterate the properties and see if there are any relationships we can resolve */		
-		var props = deSerializeJSON( serializeJSON( duplicate( variables.meta.properties ) ) );
+		var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 		writeLog("parent table: " & getTable());
 		
 		for ( var col in props ){
@@ -472,14 +492,18 @@ component accessors="true" output="false" {
         return getRecord( ID );
     }
 
-	public query function list(string where = "", numeric limit = 20, string orderby = ""){
+    /**
+    * @hint The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)" 
+    **/    
+	public query function list(string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", string where = "", any limit = "", string orderby = ""){
 		var LOCAL = {};
-		var record = variables.dao.read(sql = "
-					SELECT #getIDField()# as ID, #variables.tabledef.getNonPrimaryKeyColumns()# FROM #this.getTable()#
-					#len( trim( arguments.where ) ) ? ' WHERE ' & arguments.where : ''#
-					#len(trim(arguments.orderby)) ? ' ORDER BY ' & arguments.orderby : ''#
-					#arguments.limit GT 0 ? ' LIMIT ' & arguments.limit : ''#
-				");
+		var record = variables.dao.read( 
+				table = this.getTable(), 
+				columns = columns, 
+				where = where, 
+				orderby = orderby, 
+				limit = limit 
+			);
 		return record;
 	}
 
