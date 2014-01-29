@@ -22,6 +22,11 @@
 	");
 	writeDump('Created record ID: ' & newID2);
 
+	// read data (filter user by name)
+	writeOutput("<h2>return specific users with multiple tokenized params</h2>");
+	results3a = dao.read(table="users", where = "where 1=1 and first_name = #dao.queryParam('john')#' and last_name = #dao.queryParam('deere')# and 1 in(1,2,3)" );
+	writeDump(results3a);	
+
 	// read data (all users)
 	writeOutput("<h2>return all users</h2>");
 	results1 = dao.read('users');

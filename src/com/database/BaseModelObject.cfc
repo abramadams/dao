@@ -151,11 +151,13 @@ component accessors="true" output="false" {
 			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 
 				// copy the real setter function to a temp variable.
-				variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
-
-				// now override the setter with the new function that will set the dirty flag.
-				if( !structKeyExists( this, "set" & prop.name ) || !isCustomFunction( this[ "set" & prop.name ] ) ){
-					this[ "set" & prop.name ] = setFunc;
+				if( structKeyExists( this, "set" & prop.name ) ){
+					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
+					
+					// now override the setter with the new function that will set the dirty flag.
+					if( !structKeyExists( this, "set" & prop.name ) || !isCustomFunction( this[ "set" & prop.name ] ) ){
+						this[ "set" & prop.name ] = setFunc;
+					}
 				}
 			}
 
@@ -276,8 +278,12 @@ component accessors="true" output="false" {
 				for (i = 1; i LTE arrayLen(queryArguments); i++){
 					args[queryArguments[i]] = arguments.missingMethodArguments[i];
 					// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
-					LOCAL.columnName = structFindValue( variables.meta, queryArguments[i] );
-					LOCAL.columnName = arrayLen( LOCAL.columnName ) && structKeyExists( LOCAL.columnName[1].owner, 'column' ) ? LOCAL.columnName[1].owner.column : queryArguments[i];
+					LOCAL.columnName = structFindValue( variables.meta, queryArguments[i], 'all' )[1];
+					if( !structKeyExists( LOCAL.columnName, 'owner' ) ){					
+						LOCAL.columnName = structFindValue( variables.meta, ListChangeDelims( queryArguments[i], '', '_', false ), 'all' )[1];
+					}
+					
+					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[i];
 					
 					//if( structKeyExists( variables.meta.properties, ))
 					recordSQL &= " AND #LOCAL.columnName# = #variables.dao.queryParam(value=arguments.missingMethodArguments[i])#";
@@ -893,7 +899,11 @@ component accessors="true" output="false" {
 		var tmpstr = "";
 		var col = {};
 
-		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
+		// Throw a helpful error message if the BaseModelObject was instantiated directly.		
+		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
+			throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
+		}
+		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
 		for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
 			col = variables.meta.properties[i];
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';

@@ -9,7 +9,7 @@
 
 	  ********************************************************** --->
 
-<cfcomponent output="false">
+<cfcomponent output="false" accessors="true">
 	<cfproperty name="dao" type="dao"/>
 	
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
@@ -101,11 +101,13 @@
 		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
-		<cfargument name="where" required="false" type="string" hint="Where clause" default="Only used if sql is a tablename">
+		<cfargument name="where" required="false" type="string" hint="Where clause Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
+		<cfset var tmpSQL = "" />
+		<cfset var idx = 1 />
 		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
 			<cfset arguments.table = arguments.sql/>
 		</cfif>
@@ -113,11 +115,45 @@
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
-						#preserveSingleQuotes(arguments.sql)#
+						<!--- #preserveSingleQuotes(arguments.sql)# --->
+						<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>							
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								#tmpSQL.statements[idx].before#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam 
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+										value="#tmpSQL.statements[idx].value#" 
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>
+							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#variables.dsn#">
-						#preserveSingleQuotes(arguments.sql)#
+						<!--- #preserveSingleQuotes(arguments.sql)# --->
+						<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>							
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								#tmpSQL.statements[idx].before#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam 
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+										value="#tmpSQL.statements[idx].value#" 
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>	
+							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				</cfif>
 			<cfelse>
@@ -130,7 +166,23 @@
 						SELECT #getSafeColumnNames(variables.dao.getColumns(arguments.table))# 
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-							#arguments.where#
+							<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								#tmpSQL.statements[idx].before#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam 
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+										value="#tmpSQL.statements[idx].value#" 
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>	
+							<!--- /Parse out the queryParam calls inside the where statement --->
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
@@ -144,7 +196,25 @@
 						SELECT #arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-							#arguments.where#
+							
+							<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								#tmpSQL.statements[idx].before#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam 
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+										value="#tmpSQL.statements[idx].value#" 
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>							
+							<!--- /Parse out the queryParam calls inside the where statement --->
+
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
@@ -228,13 +298,13 @@
 								</cfif>
 							</cfif>
 							
-							#this.queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
+							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
 							<cfset cfsqltype = "bad">
 						</cfloop>
 						)
 				</cfsavecontent>	
 								
-				<cfset ret = this.execute(ins)/>
+				<cfset ret = getDao().execute(ins)/>
 
 
 		</cfoutput>
@@ -297,7 +367,7 @@
 									</cfif>
 										
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
-									#this.queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
+									#getDao().queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
 									<cfset value = "">
 									<cfset cfsqltype = "">
 								</cfif>
@@ -307,7 +377,7 @@
 					</cfsavecontent>
 					
 					<cfif performUpdate>
-						<cfset this.execute(upd) />
+						<cfset getDao().execute(upd) />
 					</cfif>
 				<!---</cftransaction>--->
 			</cfoutput>
