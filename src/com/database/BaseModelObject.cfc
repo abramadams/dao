@@ -266,10 +266,10 @@ component accessors="true" output="false" {
 			
 			var loadAll = ( left( originalMethodName, 7 ) is "loadAll" 
 						  	|| left( originalMethodName , 11 ) is "lazyLoadAll" );
-			if( left( originalMethodName, 7 ) is "loadAll" && arrayLen( arguments.missingMethodArguments ) EQ 1 ){
+			/* if( left( originalMethodName, 7 ) is "loadAll" && arrayLen( arguments.missingMethodArguments ) EQ 1 ){
 				loadAll = false;			
 				limit = arguments.missingMethodArguments[ 1 ];				
-			}
+			} */
 
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
@@ -286,7 +286,7 @@ component accessors="true" output="false" {
 					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[ i ];
 					
 					//if( structKeyExists( variables.meta.properties, ))
-					recordSQL &= " AND #LOCAL.columnName# = #variables.dao.queryParam(value=arguments.missingMethodArguments[ i ])#";
+					recordSQL &= " AND #LOCAL.columnName# = #getDao().queryParam(value="#arguments.missingMethodArguments[ i ]#")#";
 					//Setup defaults
 					LOCAL.functionName = "set" & queryArguments[ i ];
 					try{
@@ -310,23 +310,24 @@ component accessors="true" output="false" {
 			);
 
 			variables._isNew = record.recordCount EQ 0;
-
+			
 			//If a record existed, load it		
 			if( record.recordCount == 1 && !left( originalMethodName, 7 ) is "loadAll" && !left( originalMethodName, 11 ) is "lazyLoadAll"){
-				return this.load( ID = val( record.ID ), lazy = left( originalMethodName , 4 ) is "lazy" );
+				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
 				var recordArray = [];
-
+				var qn = queryNew( record.columnList );
+				queryAddRow( qn, 1 );
+				
 				for ( var rec = 1; rec LTE record.recordCount; rec++ ){
 					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
 					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-					var qn = queryNew( record.columnList );
 					for( var col in listToArray( record.columnList ) ){
-						queryAddRow( qn );
 						querySetCell( qn, col, record[ col ][ rec ] );
 					}
 					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );    				    		
+
 				}				
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
@@ -337,6 +338,7 @@ component accessors="true" output="false" {
 					try{
 						LOCAL.tmpFunc = this[ LOCAL.functionName ];
 						LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
+						variables._isDirty = false;
 					} catch ( any err ){}
 				}			
 						
@@ -358,19 +360,17 @@ component accessors="true" output="false" {
 		}else{
 			var record = getRecord( ID = arguments.ID );			
 		}
-
+		
 		for ( var fld in listToArray( record.columnList ) ){
-			LOCAL.functionName = "set" & fld;
+
+			/* LOCAL.functionName = "set" & fld;
 			try{
 				LOCAL.tmpFunc = this[LOCAL.functionName];
 				LOCAL.tmpFunc(record[fld][ 1 ]);
-			} catch ( any err ){}
-			variables['_isDirty'] = false;
-			//variables[ fld ] = record[ fld ][ 1 ];
+			} catch ( any err ){} */
+			variables[ fld ] = record[ fld ][ 1 ];	
+			variables._isDirty = false;			
 		}
-	
-		//variables.ID = record.ID;
-
 		/*  Now iterate the properties and see if there are any relationships we can resolve */		
 		//var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 		var props = variables.meta.properties;
