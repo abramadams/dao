@@ -17,13 +17,13 @@
     eventLog.save();
     eventLog.setEventDate( now() );    
     eventLog.save();
-    writeDump(eventLog.toStruct());
+   // writeDump(eventLog.toStruct());
     
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
-    writeDump(user);
+   // writeDump(user);
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');
@@ -38,15 +38,17 @@
     pet = new model.Pet( dao = dao, dropcreate = false );
     pet.setFirstName('dog');
     pet.setUser( user );
-    writeDump(pet);
+    //writeDump(pet);
     pet.save();
 
     users = user.lazyloadAllByLastName( 'Bond' ); 
+    //writeDump(users);
     //users = user.loadAll();
-    writeDump(users);
-    writeDump( user.loadAll() );
+    //writeDump( user.loadAll() );
 
+    writeOutput("user.toJSON()");
     writeOutput("<pre>#user.toJSON()#</pre>");
+    writeOutput("user.listAsJSON()");
     writeOutput("<pre>#user.listAsJSON()#</pre>");
     
 </cfscript> 

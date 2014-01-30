@@ -253,7 +253,7 @@ component accessors="true" output="false" {
 		var i = 0;
 		var record = "";
 		var recordSQL = "";
-		var limit = arguments.missingMethodName is "loadTop" ? arguments.missingMethodArguments[1] : 1;
+		var limit = arguments.missingMethodName is "loadTop" ? arguments.missingMethodArguments[ 1 ] : "";
 		var orderby = arguments.missingMethodName is "loadTop" ? "ORDER BY " & arguments.missingMethodArguments[2] : '';
 		var where = "1=1";
 
@@ -268,30 +268,30 @@ component accessors="true" output="false" {
 						  	|| left( originalMethodName , 11 ) is "lazyLoadAll" );
 			if( left( originalMethodName, 7 ) is "loadAll" && arrayLen( arguments.missingMethodArguments ) EQ 1 ){
 				loadAll = false;			
-				limit = arguments.missingMethodArguments[1];
+				limit = arguments.missingMethodArguments[ 1 ];				
 			}
 
 			// Build where clause based on function name
-			if(arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop"){
+			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
 				arguments.missingMethodName = reReplaceNoCase(reReplaceNoCase(arguments.missingMethodName,'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy','','all'), 'And','|','all' );
-				queryArguments = listToArray(arguments.missingMethodName,'|');
-				for (i = 1; i LTE arrayLen(queryArguments); i++){
-					args[queryArguments[i]] = arguments.missingMethodArguments[i];
+				queryArguments = listToArray( arguments.missingMethodName, '|' );
+				for ( i = 1; i LTE arrayLen( queryArguments ); i++ ){
+					args[ queryArguments[ i ] ] = arguments.missingMethodArguments[ i ];
 					// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
-					LOCAL.columnName = structFindValue( variables.meta, queryArguments[i], 'all' )[1];
+					LOCAL.columnName = structFindValue( variables.meta, queryArguments[ i ], 'all' )[ 1 ];
 					if( !structKeyExists( LOCAL.columnName, 'owner' ) ){					
-						LOCAL.columnName = structFindValue( variables.meta, ListChangeDelims( queryArguments[i], '', '_', false ), 'all' )[1];
+						LOCAL.columnName = structFindValue( variables.meta, ListChangeDelims( queryArguments[ i ], '', '_', false ), 'all' )[ 1 ];
 					}
 					
-					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[i];
+					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[ i ];
 					
 					//if( structKeyExists( variables.meta.properties, ))
-					recordSQL &= " AND #LOCAL.columnName# = #variables.dao.queryParam(value=arguments.missingMethodArguments[i])#";
+					recordSQL &= " AND #LOCAL.columnName# = #variables.dao.queryParam(value=arguments.missingMethodArguments[ i ])#";
 					//Setup defaults
-					LOCAL.functionName = "set" & queryArguments[i];
+					LOCAL.functionName = "set" & queryArguments[ i ];
 					try{
 						LOCAL.tmpFunc = this[LOCAL.functionName];
-						LOCAL.tmpFunc(arguments.missingMethodArguments[i]);
+						LOCAL.tmpFunc(arguments.missingMethodArguments[ i ]);
 					} catch ( any err ){}
 				}											
 			}
@@ -302,7 +302,7 @@ component accessors="true" output="false" {
 
 			record = variables.dao.read( 
 				table = this.getTable(), 
-				columns = "#this.getIDField()# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#,#this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", 
+				columns = "#( this.getIDField() NEQ 'ID' ) ? this.getIDField() & ' as ID,' : ''# #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", 
 				where = "WHERE #where# #recordSQL#", 
 				orderby = orderby, 
 				limit = limit, 
@@ -327,7 +327,7 @@ component accessors="true" output="false" {
 						querySetCell( qn, col, record[ col ][ rec ] );
 					}
 					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );    				    		
-				}
+				}				
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
@@ -353,25 +353,27 @@ component accessors="true" output="false" {
 	**/
 	public any function load( required any ID, boolean lazy = false ){
 		
-		if ( isQuery(arguments.ID) ){
+		if ( isQuery( arguments.ID ) ){
 			var record = arguments.ID;
 		}else{
 			var record = getRecord( ID = arguments.ID );			
 		}
-		
+
 		for ( var fld in listToArray( record.columnList ) ){
-			/* LOCAL.functionName = "set" & fld;
+			LOCAL.functionName = "set" & fld;
 			try{
 				LOCAL.tmpFunc = this[LOCAL.functionName];
-				LOCAL.tmpFunc(record[fld][1]);
-			} catch ( any err ){} */
-			variables[ fld ] = record[ fld ][ 1 ];
+				LOCAL.tmpFunc(record[fld][ 1 ]);
+			} catch ( any err ){}
+			variables['_isDirty'] = false;
+			//variables[ fld ] = record[ fld ][ 1 ];
 		}
 	
-		variables.ID = arguments.ID;
+		//variables.ID = record.ID;
 
 		/*  Now iterate the properties and see if there are any relationships we can resolve */		
-		var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
+		//var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
+		var props = variables.meta.properties;
 		
 		for ( var col in props ){
 
@@ -410,7 +412,7 @@ component accessors="true" output="false" {
 							var name = GetFunctionCalledName();
 								name = mid( name, 4, len( name ) );
 							var args = this["____lazy#hash(lcase(name))#"];							
-							var tmp = this[name][1];
+							var tmp = this[name][ 1 ];
 							
 							// Now load the child object into the entity property
 							this[name] = evaluate('tmp.#(lazy)?'lazy':''##args['loadFuncName']#( args.id, args.childWhere )');
@@ -592,29 +594,30 @@ component accessors="true" output="false" {
 				try
 				{
 					if( !findNoCase( '$$_', arg ) 
-						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[arg] ) )
+						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
 						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,#ArrayToList(excludeKeys)#",arg ) ){
 						
 						if( structKeyExists( this, LOCAL.functionName ) ){
 							//LOCAL.tmpFunc = structKeyExists( this, 'methods' ) ? this.methods[LOCAL.functionName] : this[LOCAL.functionName];							
 							
-							if( structKeyExists( variables, arg ) ){								
-								returnStruct[lcase(arg)] = variables[arg];
-								//returnStruct[lcase(arg)] = LOCAL.tmpFunc(arg); 							
+							if( structKeyExists( variables, arg ) ){						
+								returnStruct[ lcase( arg ) ] = variables[ arg ];
+								//writeDump(variables[ arg ]);
+								//returnStruct[ lcase( arg ) ] = LOCAL.tmpFunc( arg ); 							
 							}
 
-							if(structKeyExists( returnStruct, arg ) ){
-								if(!isSimpleValue(returnStruct[arg])){
+							if( structKeyExists( returnStruct, arg ) ){
+								if( !isSimpleValue( returnStruct[ arg ] ) ){
 
-									if( isArray( returnStruct[arg] ) ){
+									if( isArray( returnStruct[ arg ] ) ){
 
-										for( var i = 1; i LTE arrayLen( returnStruct[arg] ); i++ ){
-											if( isObject( returnStruct[lcase(arg)][i] ) ){
-												returnStruct[lcase(arg)][i] = returnStruct[lcase(arg)][i].toStruct( excludeKeys = excludeKeys );
+										for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
+											if( isObject( returnStruct[ lcase( arg ) ][ i ] ) ){
+												returnStruct[ lcase( arg ) ][ i ] = returnStruct[ lcase( arg ) ][ i ].toStruct( excludeKeys = excludeKeys );
 											}
 										}
-									}else if( isObject( returnStruct[lcase(arg)] ) ){
-										returnStruct[lcase(arg)] = returnStruct[arg].toStruct( excludeKeys = excludeKeys );								
+									}else if( isObject( returnStruct[ lcase( arg ) ] ) ){
+										returnStruct[ lcase( arg ) ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys );								
 									}
 								}else if( isNumeric( returnStruct[ lcase( arg ) ] ) 
 										&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
@@ -635,7 +638,7 @@ component accessors="true" output="false" {
     * @hint I return a JSON representation of the object in its current state.
     **/
 	public string function toJSON( array excludeKeys = [] ){
-
+		//writeDump(this.toStruct( excludeKeys = excludeKeys ));abort;
 		var json = serializeJSON( this.toStruct( excludeKeys = excludeKeys ) );
 
 		return json;
@@ -689,7 +692,7 @@ component accessors="true" output="false" {
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
-				columnName = arrayLen( columnName ) && structKeyExists( columnName[1].owner, 'column' ) ? columnName[1].owner.column : col;			
+				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;			
 				DATA[ LOCAL.columnName ] = DATA[col];
 			}
 			
@@ -702,7 +705,7 @@ component accessors="true" output="false" {
 			/* 		
             // attach parent ID to child
 			for ( var i = 1; i LT arrayLen( variables.meta.properties ); i++ ){
-				var col = variables.meta.properties[i];
+				var col = variables.meta.properties[ i ];
 					
 				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'many-to-one' && structKeyExists( col, 'cfc' ) ){
 					writeDump(this);abort;
@@ -754,7 +757,7 @@ component accessors="true" output="false" {
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
-				columnName = arrayLen( columnName ) && structKeyExists( columnName[1].owner, 'column' ) ? columnName[1].owner.column : col;			
+				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;			
 				DATA[ LOCAL.columnName ] = DATA[col];
 			}
 
@@ -783,7 +786,7 @@ component accessors="true" output="false" {
 	 /* Now save any child records */        
 		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
 		for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-			col = variables.meta.properties[i]; 
+			col = variables.meta.properties[ i ]; 
 			if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && val( tempID ) ){
 				for ( var child in variables[ col.name ] ){
 					//var FKFunc = duplicate( child["set" & col.fkcolumn] );					
@@ -833,7 +836,7 @@ component accessors="true" output="false" {
 			/* First delete any child records */        
 			// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
 			for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-				var col = variables.meta.properties[i];
+				var col = variables.meta.properties[ i ];
 				if( structKeyExists( col, 'fieldType' ) 
 					&& ( col.fieldType eq 'one-to-many' || col.fieldType eq 'one-to-one' ) 
 					&& ( !structKeyExists( col, 'cascade') || col.cascade != 'save-update') 
@@ -888,6 +891,7 @@ component accessors="true" output="false" {
 
 	/**
     * @hint I create a table based on the current object's properties.
+    * @TODO Make the table creation db platform agnostic (using underlying dao)
     **/
 	private function makeTable(){
 		//writeDump(variables.meta);
@@ -905,7 +909,7 @@ component accessors="true" output="false" {
 		}
 		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
 		for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-			col = variables.meta.properties[i];
+			col = variables.meta.properties[ i ];
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
 			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
 			col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
