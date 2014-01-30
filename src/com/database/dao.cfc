@@ -162,41 +162,7 @@
 									
 									
 									<!--- Now we build the query --->
-									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
-										<!---
-										<!--- The first position of the tmpSQL list will be the first section of SQL code --->
-										#listFirst(preserveSingleQuotes(tmpSQL),chr(998))#
-										<!--- Now, we loop through the rest of the tmpSQL to build the cfqueryparams --->
-										<cfloop list="#listDeleteAt(tmpSQL,1,chr(998))#" delimiters="#chr(998)#" index="LOCAL.idx">
-											<!---
-												These will return the position and length of the name, cfsqltype and value.
-												We use these to extract the values for the actual cfqueryparam
-											--->
-											<cfset LOCAL.tempCFSQLType = reFindNoCase('cfsqltype\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<cfset LOCAL.tempValue = reFindNoCase('value\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<!--- Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777)) --->
-											<cfset LOCAL.value = reReplaceNoCase(mid(PreserveSingleQuotes(LOCAL.idx),LOCAL.tempValue.pos[2],LOCAL.tempValue.len[2]),chr(777),'','all')>
-											<cfset LOCAL.value = reReplaceNoCase(preserveSingleQuotes(LOCAL.value),chr(999),'','all')>
-
-											<cfset LOCAL.tempList = reFindNoCase('list\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<cfif NOT arrayLen(LOCAL.tempList.pos) GTE 2 OR NOT isBoolean(mid(LOCAL.idx,LOCAL.tempList.pos[2],LOCAL.tempList.len[2]))>
-												<cfset LOCAL.isList = false />
-											<cfelse>
-												<cfset LOCAL.isList = mid(LOCAL.idx,LOCAL.tempList.pos[2],LOCAL.tempList.len[2])/>
-											</cfif>
-											<!--- Now write the cfqueryparam --->							
-											<cfqueryparam 
-												cfsqltype="#mid(LOCAL.idx,LOCAL.tempCFSQLType.pos[2],LOCAL.tempCFSQLType.len[2])#" 
-												value="#LOCAL.value#" 
-												list="#LOCAL.isList#">							
-
-
-											<!--- Now anything after the closing > should be  --->
-											<cfif listLen(LOCAL.idx,chr(999)) GT 1>
-												#listLast(preserveSingleQuotes(LOCAL.idx),chr(999))#
-											</cfif>
-										</cfloop>
-										--->
+									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">										
 										<!--- 
 											Parse out the queryParam calls inside the where statement 
 											This has to be done this way because you cannot use 
@@ -217,62 +183,9 @@
 									</cfquery>
 
 							<cfelse>
-									<!---
-										We need to parse the sql
-										statement to find $queryParam()$ calls.  We do this by
-										passing the sql to parseQueryParams, which replaces the
-										$queryParam()$ function call with a pseudo cfqueryparam that
-										we can digest here to build the query.  The returned pseudo
-										cfqueryparam tag is structured as follows:
-
-										<cfqueryparam
-													cfsqltype="sql data type"  <--- this is converted
-																					to cfsqltype using
-																					getCFSQLType
-													value="actual value" />
-										EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
-										This can also be done prior to sending the SQL statement to this 
-										function by calling the queryParam() function directly.
-										EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
-										This direct method is recommended.										
-									 --->
-									<!--- First thing to do is parse the queryparams from the sql statement (if any exist) --->
-									<!--- <cfset tmpSQL = parseQueryParams(arguments.sql)/> --->
+									
 									<!--- Now we build the query --->
-									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
-										<!---
-										<!--- The first position of the tmpSQL list will be the first section of SQL code --->
-										#listFirst(preserveSingleQuotes(tmpSQL),chr(998))#
-										<!--- Now, we loop through the rest of the tmpSQL to build the cfqueryparams --->
-										<cfloop list="#listDeleteAt(tmpSQL,1,chr(998))#" delimiters="#chr(998)#" index="LOCAL.idx">
-											<!---
-												These will return the position and length of the name, cfsqltype and value.
-												We use these to extract the values for the actual cfqueryparam
-											--->
-											<cfset LOCAL.tempCFSQLType = reFindNoCase('cfsqltype\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<cfset LOCAL.tempValue = reFindNoCase('value\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<!--- Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777)) --->
-											<cfset LOCAL.value = reReplaceNoCase(mid(PreserveSingleQuotes(LOCAL.idx),LOCAL.tempValue.pos[2],LOCAL.tempValue.len[2]),chr(777),'','all')>
-											<cfset LOCAL.value = reReplaceNoCase(preserveSingleQuotes(LOCAL.value),chr(999),'','all')>
-											
-											<cfset LOCAL.tempList = reFindNoCase('list\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
-											<cfif NOT arrayLen(LOCAL.tempList.pos) GTE 2 OR NOT isBoolean(mid(LOCAL.idx,LOCAL.tempList.pos[2],LOCAL.tempList.len[2]))>
-												<cfset LOCAL.isList = false />
-											<cfelse>
-												<cfset LOCAL.isList = mid(LOCAL.idx,LOCAL.tempList.pos[2],LOCAL.tempList.len[2])/>
-											</cfif>
-											<!--- Now write the cfqueryparam --->							
-											<cfqueryparam 
-												cfsqltype="#mid(LOCAL.idx,LOCAL.tempCFSQLType.pos[2],LOCAL.tempCFSQLType.len[2])#" 
-												value="#LOCAL.value#" 
-												list="#LOCAL.isList#">							
-
-											<!--- Now anything after the closing > should be  --->
-											<cfif listLen(LOCAL.idx,chr(999)) GT 1>
-												#listLast(preserveSingleQuotes(LOCAL.idx),chr(999))#
-											</cfif>
-										</cfloop>
-										--->
+									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">										
 										<!--- 
 											Parse out the queryParam calls inside the where statement 
 											This has to be done this way because you cannot use 
@@ -341,7 +254,7 @@
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 			<cfset var ret = 0/>
-			<cfset ret = this.conn.write(arguments.tabledef)/>
+			<cfset ret = this.conn.write( arguments.tabledef )/>
 
 		<cfreturn ret />
 	</cffunction>
@@ -1046,7 +959,7 @@
 		<cfreturn returnStruct />
 	</cffunction>
 
-	<cffunction name="parameterizeSQL" output="false" access="public" returntype="struct">
+	<cffunction name="parameterizeSQL" output="false" access="public" returntype="struct" hint="I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.">
 		<cfargument name="sql" type="string" required="true" hint="SQL statement (or partial SQL statement) which contains tokenized queryParam calls">
 		
 		<cfset var LOCAL = {}/>
@@ -1063,7 +976,7 @@
 
 			<cfif listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) >
 				<!--- No queryParams to parse, just return the raw SQL --->
-				<cfreturn {statements:[{"before" = tmpSQL}] }/>
+				<cfreturn {statements = [ {"before" = tmpSQL} ] }/>
 			</cfif>
 			<cfset tmpSQL = listToArray( tmpSQL, chr( 999 ) ) />
 			
@@ -1078,40 +991,32 @@
 
 				<cfset tempParam = listRest( tmpSQL[ idx ], chr( 998 ) ) />
 				<cfset tempParam = preserveSingleQuotes( tempParam ) />
-				<!--- <cfdump var="#[tmpSQL[idx]]#" label="tmpsql"/>
-					<cfdump var="#[tmp.before]#" label="before"/>
-					<cfdump var="#[tempParam]#" label="param"/>
-					<cfdump var="#[tmp.after]#" label="after" abort> --->
 				<!---
 					These will return the position and length of the name, cfsqltype and value.
 					We use these to extract the values for the actual cfqueryparam
 				--->
-				<cfset tempCFSQLType = reFindNoCase( 'cfsqltype\=#chr(777)#(.*?)#chr(777)#', tempParam, 1, true )>
+				<cfset tempCFSQLType = reFindNoCase( 'cfsqltype\=#chr(777)#(.*?)#chr(777)#', tempParam, 1, true ) />
 				
 				<cfif arrayLen( tempCFSQLType.pos ) LTE 1>
-					<cfset arrayAppend( LOCAL.statements, tmp )/>
+					<cfset arrayAppend( LOCAL.statements, tmp ) />
 					<cfcontinue/>
 				</cfif>
 
-				<cfset tmp.cfSQLType = mid(tempParam,tempCFSQLType.pos[2],tempCFSQLType.len[2])/>
-				<cfset tempValue = reFindNoCase('value\=#chr(777)#(.*?)#chr(777)#',tempParam,1,true)>
+				<cfset tmp.cfSQLType = mid( tempParam, tempCFSQLType.pos[2], tempCFSQLType.len[2] ) />
+				<cfset tempValue = reFindNoCase( 'value\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true ) />
 				<!--- Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777)) --->
-				<cfset tmp.value = reReplaceNoCase(mid(PreserveSingleQuotes(tempParam),tempValue.pos[2],tempValue.len[2]),chr(777),'','all')>
-				<cfset tmp.value = reReplaceNoCase(preserveSingleQuotes(tmp.value),chr(999),'','all')>
+				<cfset tmp.value = reReplaceNoCase( mid( PreserveSingleQuotes( tempParam ), tempValue.pos[2], tempValue.len[2] ), chr( 777 ), '', 'all' ) />
+				<cfset tmp.value = reReplaceNoCase( preserveSingleQuotes( tmp.value ), chr( 999 ), '', 'all' ) />
 
-				<cfset tempList = reFindNoCase('list\=#chr(777)#(.*?)#chr(777)#',tempParam,1,true)>
-				<cfif NOT arrayLen(tempList.pos) GTE 2 OR NOT isBoolean(mid(tempParam,tempList.pos[2],tempList.len[2]))>
+				<cfset tempList = reFindNoCase( 'list\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true ) />
+				<cfif NOT arrayLen( tempList.pos ) GTE 2 OR NOT isBoolean( mid( tempParam, tempList.pos[2], tempList.len[2] ) ) >
 					<cfset tmp.isList = false />
 				<cfelse>
-					<cfset tmp.isList = mid(tempParam,tempList.pos[2],tempList.len[2])/>
+					<cfset tmp.isList = mid( tempParam, tempList.pos[2], tempList.len[2] ) />
 				</cfif>
-				<!--- Now write the cfqueryparam --->							
-				<!--- <cfqueryparam 
-					cfsqltype="#mid(LOCAL.tempParam,LOCAL.tempCFSQLType.pos[2],LOCAL.tempCFSQLType.len[2])#" 
-					value="#LOCAL.value#" 
-					list="#LOCAL.isList#">	 --->						
 
 				<cfset arrayAppend( LOCAL.statements, tmp )/>
+				<!--- Reset tmp struct --->
 				<cfset tmp = {}/>
 			</cfloop>
 
