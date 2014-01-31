@@ -2,7 +2,7 @@
 
     dao = new com.database.dao( dsn = "dao" );
 
-    eventLog = new model.EventLog( dao = dao );
+    //eventLog = new model.EventLog( dao = dao );
     //eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
    /**  
     * The above code should esentially be equivalent to the below line
@@ -13,17 +13,17 @@
     * automatically create the table based on the properties if the table does not 
     * exist 
     **/
-    eventLog.setEvent('test');
+   /*  eventLog.setEvent('test');
     eventLog.save();
     eventLog.setEventDate( now() );    
-    eventLog.save();
+    eventLog.save(); */
    // writeDump(eventLog.toStruct());
     
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
-   // writeDump(user);
+   writeDump( user.toBreezeMetaData() );
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');
