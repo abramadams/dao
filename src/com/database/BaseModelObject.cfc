@@ -966,9 +966,9 @@ component accessors="true" output="false" {
 
 	}
 
-	public function toBreezeMetaData() returnFormat = "JSON"{
+	public function getBreezeMetaData(){
 		var breezeMetaData = {
-			"metadataVersion"= "1.0.2",
+			"metadataVersion"= "1.0.5",
     		"namingConvention"= "camelCase",
     		"localQueryComparisonOptions"= "caseInsensitiveSQL",
 		    "resourceEntityTypeMap"= {
@@ -978,7 +978,7 @@ component accessors="true" output="false" {
     	var breezeEntity = generateBreezeEntityType();
     	structInsert( breezeMetaData, breezeEntity["name"], { "#breezeEntity["name"]#" = "#breezeEntity["definition"]#" } );
 
-		return serializeJSON( breezeMetaData );
+		return breezeMetaData;
 	}
 	
 	private function getBreezeNameSpace(){
@@ -990,7 +990,7 @@ component accessors="true" output="false" {
 		for( var i = listLen( m ); i GT 0; i-- ){
 			reversed = listAppend( reversed, listGetAt( m, i ) );
 		}
-		return "###reReplace( reversed, '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";
+		return "###reReplace( len( trim( reversed ) ) ? reversed : 'model', '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";
 	}
 	private function getBreezeEntityName(){
 		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
