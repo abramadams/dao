@@ -1,7 +1,6 @@
 component extends="taffy.core.api" {	
 	//this.name = "breeze-Test-api";	
 	this.name = hash(getCurrentTemplatePath());
-	this.mappings['/'] = expandPath( './' );
 	this.mappings['/com'] = expandPath( '/src/com/' );
 	this.mappings['/model'] = expandPath( '../model' );
 	this.mappings['/taffy'] = expandPath( './taffy' );

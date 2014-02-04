@@ -797,6 +797,7 @@
 	</cffunction>
 
 	<cffunction name="guessResourcesFullPath" access="private" output="false" returntype="string">
+		<!--- <cfdump var="#['expanding ' & guessResourcesPath(), expandPath(guessResourcesPath())]#" abort> --->
 		<cfreturn expandPath(guessResourcesPath()) />
 	</cffunction>
 
