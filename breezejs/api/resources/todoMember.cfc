@@ -8,14 +8,20 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/SaveChanges" {
 		
 		for (var entity in arguments.entities ){
 			todo.load( entity.ID );
-			//writeDump(todo);
-			todo.setDescription( entity.description );
-			todo.setIsDone( entity.isDone );
-			todo.setIsArchived( entity.isArchived );
-			//todo.setCreatedAt( entity.createdAt );
-			todo.save();
-			//writeDump(todo);
-			//writeDump(entity);abort;
+			if( entity.entityAspect.EntityState == "Deleted" ){
+				todo.delete();
+			}else{				
+				//writeDump(todo);
+				todo.setDescription( entity.description );
+				todo.setIsDone( entity.isDone ? true : false );
+				todo.setIsArchived( entity.isArchived ? true : false );		
+				//todo.setCreatedAt( entity.createdAt );
+				
+				//writeDump(todo);
+				todo.save();
+				//writeDump(todo);abort;
+				//writeDump(entity);abort;
+			}
 		}
 
 

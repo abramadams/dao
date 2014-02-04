@@ -1,19 +1,12 @@
 component extends="taffy.core.api" {	
 	//this.name = "breeze-Test-api";	
 	this.name = hash(getCurrentTemplatePath());
-	this.mappings['/'] = expandPath( '.' );
+	this.mappings['/'] = expandPath( './' );
 	this.mappings['/com'] = expandPath( '/src/com/' );
 	this.mappings['/model'] = expandPath( '../model' );
-	this.mappings['/taffy'] = expandPath('./taffy');
-	this.mappings['/resources'] = expandPath('./resources');
-/* 
-	variables.framework = {};
-	variables.framework.debugKey = "debug";
-	variables.framework.reloadKey = "reload";
-	variables.framework.reloadPassword = "true";
-	variables.framework.representationClass = "taffy.core.genericRepresentation";
-	variables.framework.returnExceptionsAsJson = true;
-	 */
+	this.mappings['/taffy'] = expandPath( './taffy' );
+	this.mappings['/resources'] = expandPath( './resources' );
+
 	variables.framework = {
 		reloadKey = "reboot",
 		reloadPassword = "makeithappen",

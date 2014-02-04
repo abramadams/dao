@@ -530,7 +530,7 @@ component accessors="true" output="false" {
         }
 
         // Get the list of columns as an array and the column count.
-        LOCAL.columns = ListToArray( lcase(query.columnList) );
+        LOCAL.columns = ListToArray( camelCase(query.columnList) );
         LOCAL.columnCount = arrayLen( LOCAL.columns );
 
         // Create an array to keep all the objects.
@@ -972,17 +972,18 @@ component accessors="true" output="false" {
 		this.setTabledef( new tabledef(tableName = getTable(), dsn = dao.getDSN()) );
 
 	}
+	/* Utilities */
+	/**
+	* @Hint tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
+	**/
+	private function camelCase( required string str ){
+		str = lcase( str );
+		return reReplaceNoCase( str, '\b(is|has)(\w)', '\1\u\2', 'all' );
+	}
 
+
+	/* BreezeJS interface */
 	public function getBreezeMetaData(){
-		/* var breezeMetaData = {
-			"metadataVersion"= "1.0.5",
-    		"namingConvention"= "camelCase",
-    		"localQueryComparisonOptions"= "caseInsensitiveSQL",
-		    "resourceEntityTypeMap"= {
-		        "#this.getTable()#"= "#getBreezeEntityName()#:#getBreezeNameSpace()#"
-		    }
-    	}; */
-
     	var breezeMetaData = {
 		    "schema" = {
 		        "namespace" = "#getBreezeNameSpace()#",
@@ -1014,15 +1015,6 @@ component accessors="true" output="false" {
 		        }
 		    }
 		};
-		/*  "entityContainer": {
-            "name": "TodosContext",
-            "entitySet": {
-                "name": "Todos",
-                "entityType": "Self.TodoItem"
-            }
-        } */
-    	/* var breezeEntity = generateBreezeEntityType();
-    	structInsert( breezeMetaData, breezeEntity["name"], { "#breezeEntity["name"]#" = "#breezeEntity["definition"]#" } ); */
 
 		return breezeMetaData;
 	}
@@ -1031,7 +1023,7 @@ component accessors="true" output="false" {
 		if( len(trim( filter ) ) ){
 			filter = reReplaceNoCase( filter, ' eq ', ' = ', 'all' );
 		}
-		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & filter : "", orderby = arguments.orderby );
+		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & filter : "", orderby = arguments.orderby );		
 		var row = "";
 		var data = [];
 		for( var i = 1; i LTE arrayLen( list ); i++ ){
@@ -1107,24 +1099,24 @@ component accessors="true" output="false" {
 			} 
 
 			/* define validators */
-			var validators = [];
+		/* 	var validators = [];
 			if ( !prop["nullable"] ){
 				arrayAppend( validators, {"validatorName" = "required"} );
-			}
+			} */
 
 			/* max length */
 			if( structKeyExists( col, 'length' ) ){
 				prop["fixedLength"] = "false";
 				prop["unicode"] = "true";
 				prop["maxLength"] = col.length;
-				arrayAppend( validators, {
+				/* arrayAppend( validators, {
 											"maxLength"= col.length,
                         					"validatorName"= "maxLength"
-                        				});	
+                        				});	 */
 			}
-			if( arrayLen( validators ) ){
+			/* if( arrayLen( validators ) ){
 			//	arrayAppend( prop["validators"], validators );
-			}
+			} */
 			arrayAppend( props, prop );
 			prop = {};
 		}

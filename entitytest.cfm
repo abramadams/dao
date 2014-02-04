@@ -23,7 +23,12 @@
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
-   writeDump( user.toBreezeMetaData() );
+
+    todoItem = new breezejs.model.TodoItem( dao = dao );
+    todoItem.setDescription('Food');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');
