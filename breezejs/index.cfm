@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1"/>
 
-    <title>Breeze Todos with AngularJs</title>
+    <title>Breeze Todos with AngularJs (Backed by CFML via DAO)</title>
     <link rel="stylesheet" href="assets/css/reset.css" />
     <link rel="stylesheet" href="assets/css/toastr.css" />
     <link rel="stylesheet" href="assets/css/todo.css" />
@@ -15,7 +15,7 @@
     <div id="applicationHost"  class="ng-cloak">
         <header>
             <h1>Breeze Todos</h1>
-            <h2>with AngularJs & DI</h2>
+            <h2>with AngularJs & DI (Backed by CFML via DAO)</h2>
             <form data-ng-submit="addItem()">
                 <input type="text" data-ng-model="newTodo" placeholder="What needs to be done?" />
             </form>

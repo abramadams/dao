@@ -1,6 +1,6 @@
 ﻿/**
 *	@hint Extend this component to add ORM like behavior to your model CFCs.  Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
-*   @version 0.0.53
+*   @version 0.0.54
 *   @updated 12/30/2013 
 *   @author Abram Adams
 **/ 
@@ -353,27 +353,46 @@ component accessors="true" output="false" {
 	* @hint Loads data into the model object. If lazy == true the child objects will be lazily loaded. Lazy loading allows us to inject "getter" methods that will instantiate the related data only when requested.  This makes the loading much quicker and only instantiates child objects when needed.
 	**/
 	public any function load( required any ID, boolean lazy = false ){
-		
-		if ( isQuery( arguments.ID ) ){
-			var record = arguments.ID;
-		}else{
-			var record = getRecord( ID = arguments.ID );			
-		}
-		
-		for ( var fld in listToArray( record.columnList ) ){
-
-			/* LOCAL.functionName = "set" & fld;
-			try{
-				LOCAL.tmpFunc = this[LOCAL.functionName];
-				LOCAL.tmpFunc(record[fld][ 1 ]);
-			} catch ( any err ){} */
-			variables[ fld ] = record[ fld ][ 1 ];	
-			variables._isDirty = false;			
-		}
-		/*  Now iterate the properties and see if there are any relationships we can resolve */		
-		//var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
+		var LOCAL = {};
 		var props = variables.meta.properties;
 		
+		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
+			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
+			if ( structKeyExists( arguments.ID, getIDField() ) ){
+				load( ID = arguments.ID[ getIDField() ] );
+			}
+			// Load the object based on the pased in struct. This may be a new record, or an update to an existing one.
+			for ( var prop in props ){			
+				//Load the properties based on the passed in struct.
+				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name ) ){
+					// We'll need to check some data types first though.					
+					if ( prop.type == 'date' && findNoCase( 'Z', arguments.ID[ prop.name ] ) ){
+						variables[ prop.name ] = convertHttpDate( arguments.ID[ prop.name ] );
+					}else{
+						variables[ prop.name ] = arguments.ID[ prop.name ];
+					}
+					variables._isDirty = true; // <-- may not be, but we can't tell so better safe than sorry					
+				}
+			}
+			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
+				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
+				return this;
+			}
+
+		}else{
+
+			if ( isQuery( arguments.ID ) ){
+				var record = arguments.ID;
+			}else{
+				var record = getRecord( ID = arguments.ID );			
+			}
+		
+			for ( var fld in listToArray( record.columnList ) ){
+				variables[ fld ] = record[ fld ][ 1 ];
+				variables._isDirty = false;			
+			}
+		}
+		/*  Now iterate the properties and see if there are any relationships we can resolve */		
 		for ( var col in props ){
 
 			/* Load all child objects */
@@ -554,7 +573,7 @@ component accessors="true" output="false" {
                 // Set column value into the structure.
                 //writeDump( [listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) ]);
                 if ( listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) == "BIT"){
-                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ] ? true : false;
+                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = val( query[ LOCAL.columnName ][ LOCAL.rowIndex ] ) ? true : false;
                 }else{
                 	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
                 }
@@ -980,7 +999,13 @@ component accessors="true" output="false" {
 		str = lcase( str );
 		return reReplaceNoCase( str, '\b(is|has)(\w)', '\1\u\2', 'all' );
 	}
-
+	/**
+	* @Hint Converts http date to CF date object (since one cannot natively in CF9).
+	* @TODO Make this better :)
+	**/
+	private date function convertHttpDate( required string httpDate ){
+		return parseDateTime( listFirst( httpDate, 'T' ) & ' ' & listFirst( listLast( httpDate, 'T' ), 'Z' ) );
+	}
 
 	/* BreezeJS interface */
 	public function getBreezeMetaData(){
@@ -1037,6 +1062,28 @@ component accessors="true" output="false" {
 
 	}
 	
+	public boolean function breezeSave( required any entities ){
+		try{
+
+			for (var entity in arguments.entities ){
+				this.load( entity );
+				if( entity.entityAspect.EntityState == "Deleted" ){ // other states: Added, Modified
+					this.delete();
+				}else{
+					this.save();					
+				}
+			}
+
+			return true;
+		}
+		catch (any e){
+			writeDump(e);abort;
+			return false;
+		}
+
+
+	}
+
 	private function getBreezeNameSpace(){
 		var basePath = getDirectoryFromPath(getbaseTemplatePath());
 		var curpath = expandPath('/');		
@@ -1083,8 +1130,12 @@ component accessors="true" output="false" {
 		variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
 
 		for ( var col in variables.meta.properties ){
-
+			/* TODO: flesh out relationships here */
+			if( !structKeyExists( col, 'type') ){ 
+				continue;
+			} 
 			prop["name"] = col.name;
+
 			prop["type"] = getBreezeType( col.type );
 			//prop["defaultValue"] = structKeyExists( col, 'default' ) ? col.default : "";					
 			prop["nullable"] = structKeyExists( col, 'notnull' ) ? !col.notnull : true;

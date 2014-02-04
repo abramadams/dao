@@ -8,8 +8,8 @@ component extends="taffy.core.api" {
 	this.mappings['/resources'] = expandPath( './resources' );
 
 	variables.framework = {
-		reloadKey = "reboot",
-		reloadPassword = "makeithappen",
+		reloadKey = "reload",
+		reloadPassword = "true",
 		disableDashboard = false,
 		disabledDashboardRedirect = "/",
 		debugKey = "debugonly",
