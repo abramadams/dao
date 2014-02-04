@@ -39,13 +39,13 @@
                 <li data-ng-repeat="item in items | filter:itemFilter">
                     <div data-ng-show="!(item.isEditing)">
                          <!--data-ng-class on the checkbox in the next line is a fix for a subtle IE9 repaint bug-->
-                        <input type="checkbox" data-ng-model="item.IsDone" data-ng-class="{done: item.IsDone}" />
-                        <label data-ng-click="edit(item)" data-ng-class="{done: item.IsDone, archived: item.IsArchived}" >{{item.Description}}</label>
+                        <input type="checkbox" data-ng-model="item.isDone" data-ng-class="{done: item.isDone}" />
+                        <label data-ng-click="edit(item)" data-ng-class="{done: item.isDone, archived: item.isArchived}" >{{item.description}}</label>
                         <a href="#" data-ng-click="removeItem(item)">X</a>
                     </div>
                     <div data-ng-show="item.isEditing">
                         <form data-ng-submit="completeEdit(item)">
-                            <input type="text" data-ng-model="item.Description" data-on-blur="completeEdit(item)" data-focus-when="item.isEditing" />
+                            <input type="text" data-ng-model="item.description" data-on-blur="completeEdit(item)" data-focus-when="item.isEditing" />
                         </form>
                     </div>
                 </li>

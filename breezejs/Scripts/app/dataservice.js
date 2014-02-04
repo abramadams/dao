@@ -5,11 +5,12 @@
 todo.factory('dataservice', function (breeze, logger, $timeout) {
 
     breeze.config.initializeAdapterInstance("modelLibrary", "backingStore", true);
+   
 
-    //var serviceName = 'api/index.cfm/breeze/todos'; // route to the same origin Web Api controller
+    var serviceName = 'api/index.cfm/breeze/todos'; // route to the same origin Web Api controller
 
     // *** Cross origin service example  ***
-    var serviceName = 'http://todo.breezejs.com/breeze/todos'; // controller in different origin
+    //var serviceName = 'http://todo.breezejs.com/breeze/todos'; // controller in different origin
 
     var manager = new breeze.EntityManager(serviceName);
     manager.enableSaveQueuing(true);
@@ -29,11 +30,11 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
     function getAllTodos(includeArchived) {
         var query = breeze.EntityQuery
                 .from("Todos")
-                .orderBy("CreatedAt");
+                .orderBy("createdAt");
 
         if (!includeArchived) { // exclude archived Todos
             // add filter clause limiting results to non-archived Todos
-            query = query.where("IsArchived", "==", false);
+            query = query.where("isArchived", "==", false);            
         }
 
         return manager.executeQuery(query);

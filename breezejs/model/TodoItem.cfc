@@ -3,8 +3,8 @@ component persistent="true" extends="com.database.BaseModelObject" accessors="tr
 	property name="ID" type="numeric" fieldtype="id" generator="increment";	
 	property name="description" type="string" length="30";
 
-	property name="isDone" type="numeric";
-	property name="isArchived" type="numeric";
+	property name="isDone" type="boolean";
+	property name="isArchived" type="boolean";
 	
 	property name="createdAt" type="date";	
 

@@ -153,10 +153,8 @@ component accessors="true" output="false" {
 				if( structKeyExists( this, "set" & prop.name ) ){
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					
-					// now override the setter with the new function that will set the dirty flag.
-					if( !structKeyExists( this, "set" & prop.name ) || !isCustomFunction( this[ "set" & prop.name ] ) ){
-						this[ "set" & prop.name ] = setFunc;
-					}
+					// now override the setter with the new function that will set the dirty flag.					
+					this[ "set" & prop.name ] = setFunc;					
 				}
 			}
 
@@ -189,8 +187,10 @@ component accessors="true" output="false" {
 			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
 			//var getFunc = duplicate( this["get" & mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) ) ] );			
 			try{
-				if( structKeyExists( variables, propName ) && v!= variables[ propName ] ){					
-					variables._isDirty = compare( v, variables[ propName ] );
+				// If the property exists, compare the old value to the new value (case sensitive)
+				if( structKeyExists( variables, propName ) ){
+					//If the old value isn't identical to the new value, set the isDirty flag to true
+					variables._isDirty = compare( v, variables[ propName ] ) != 0;
 				}
 			} catch ( any e ){
 				writeDump(propName);
@@ -200,7 +200,7 @@ component accessors="true" output="false" {
 			// Get the original setter function that we set aside in the init routine.
 			var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
 			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
-			this[propName] = variables[propName] = v;
+			this[propName] = variables[propName] = v;			
 			// tmpFunc is now the original setter so let's fire it.  The calling page
 			// will not know this happened.
 			tmpFunc( v );
@@ -552,12 +552,16 @@ component accessors="true" output="false" {
                 LOCAL.columnName = LOCAL.columns[ LOCAL.columnIndex ];
 
                 // Set column value into the structure.
-                LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
+                //writeDump( [listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) ]);
+                if ( listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) == "BIT"){
+                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ] ? true : false;
+                }else{
+                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
+                }
 
             }
 
         }
-
 
         // At this point, we have an array of structure objects that
         // represent the rows in the query over the indexes that we
@@ -924,8 +928,11 @@ component accessors="true" output="false" {
 					case 'date':
 						tmpstr = '`#col.name#` datetime #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
-					case 'boolean': case 'tinyint':
+					case 'tinyint':
 						tmpstr = '`#col.name#` tinyint(1) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+					break;
+					case 'boolean': case 'bit':
+						tmpstr = '`#col.name#` BIT #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? true : false) & "'": ''#';
 					break;
 					case 'text':
 						tmpstr = '`#col.name#` text #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
@@ -967,18 +974,75 @@ component accessors="true" output="false" {
 	}
 
 	public function getBreezeMetaData(){
-		var breezeMetaData = {
+		/* var breezeMetaData = {
 			"metadataVersion"= "1.0.5",
     		"namingConvention"= "camelCase",
     		"localQueryComparisonOptions"= "caseInsensitiveSQL",
 		    "resourceEntityTypeMap"= {
 		        "#this.getTable()#"= "#getBreezeEntityName()#:#getBreezeNameSpace()#"
 		    }
-    	};
-    	var breezeEntity = generateBreezeEntityType();
-    	structInsert( breezeMetaData, breezeEntity["name"], { "#breezeEntity["name"]#" = "#breezeEntity["definition"]#" } );
+    	}; */
+
+    	var breezeMetaData = {
+		    "schema" = {
+		        "namespace" = "#getBreezeNameSpace()#",
+		        "alias" = "Self",
+		        "d4p1 =UseStrongSpatialTypes" = "false",
+		        "xmlns =d4p1" = "http://schemas.microsoft.com/ado/2009/02/edm/annotation",
+		        "xmlns" = "http://schemas.microsoft.com/ado/2009/11/edm",
+		        "cSpaceOSpaceMapping" = [
+		            [
+		                "#getBreezeNameSpace()#.#getBreezeEntityName()#",
+		                "#getBreezeNameSpace()#.#getBreezeEntityName()#"
+		            ]
+		        ],
+		        "entityType" = {
+		            "name" = getBreezeEntityName(),
+		            "key" = {
+		                "propertyRef" = {
+		                    "name" = lcase( getIDField() ) 
+		                }
+		            },
+		            "property" = generateBreezeProperties()
+		        },
+		        "entityContainer" = {
+		            "name" = "#getDao().getDSN()#Context",
+		            "entitySet" = {
+		                "name" = "#getDao().getDSN()#",
+		                "entityType" = "Self.#getBreezeEntityName()#"
+		            }
+		        }
+		    }
+		};
+		/*  "entityContainer": {
+            "name": "TodosContext",
+            "entitySet": {
+                "name": "Todos",
+                "entityType": "Self.TodoItem"
+            }
+        } */
+    	/* var breezeEntity = generateBreezeEntityType();
+    	structInsert( breezeMetaData, breezeEntity["name"], { "#breezeEntity["name"]#" = "#breezeEntity["definition"]#" } ); */
 
 		return breezeMetaData;
+	}
+
+	public function listAsBreezeData( string filter = "", string orderby = "" ){
+		if( len(trim( filter ) ) ){
+			filter = reReplaceNoCase( filter, ' eq ', ' = ', 'all' );
+		}
+		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & filter : "", orderby = arguments.orderby );
+		var row = "";
+		var data = [];
+		for( var i = 1; i LTE arrayLen( list ); i++ ){
+			row = list[ i ];			
+			row["$type"] = "#getBreezeNameSpace()#.#getBreezeEntityName()#, DAOBreezeService";				
+			row["$id"] = row[ getIDField() ];
+			arrayAppend( data, row );
+			row = "";
+		}
+		return data;
+
 	}
 	
 	private function getBreezeNameSpace(){
@@ -990,7 +1054,7 @@ component accessors="true" output="false" {
 		for( var i = listLen( m ); i GT 0; i-- ){
 			reversed = listAppend( reversed, listGetAt( m, i ) );
 		}
-		return "###reReplace( len( trim( reversed ) ) ? reversed : 'model', '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";
+		return "#reReplace( len( trim( reversed ) ) ? reversed : 'model', '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";		
 	}
 	private function getBreezeEntityName(){
 		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
@@ -1009,7 +1073,7 @@ component accessors="true" output="false" {
 	                {
 	                    "name"= "products",
 	                    "entityTypeName"= "Childtablehere:#getBreezeNameSpace()#",
-	                    "isScalar"= false,
+	                    "isScalar"= "false",
 	                    "associationName"= "FK_Product_Category"
 	                }
 	            ]
@@ -1018,31 +1082,40 @@ component accessors="true" output="false" {
 	    return breezeEntity;
 	}
 
+	
 	public function generateBreezeProperties(){
 		var props = [];
-		var prop = { "validators" = [] };
+		//var prop = { "validators" = [] };
+		var prop = { };
 
 		variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
+
 		for ( var col in variables.meta.properties ){
 
 			prop["name"] = col.name;
-			prop["dataType"] = getBreezeType( col.type );
-			prop["defaultValue"] = structKeyExists( col, 'default' ) ? col.default : "";					
-			prop["isNullable"] = structKeyExists( col, 'notnull' ) ? !col.notnull : true;
+			prop["type"] = getBreezeType( col.type );
+			//prop["defaultValue"] = structKeyExists( col, 'default' ) ? col.default : "";					
+			prop["nullable"] = structKeyExists( col, 'notnull' ) ? !col.notnull : true;
 
 			/* is part of a key? */
-			if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' 
+			 if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' 
 				|| structKeyExists( col, 'uniquekey' ) ){
-				prop["isPartOfKey"] = true;
-			}
+			 	prop["name"] = lcase( col.name );
+				//prop["isPartOfKey"] = true;
+				prop["d4p1:StoreGeneratedPattern"] = "Identity";
+				prop["nullable"] = "false";
+			} 
+
 			/* define validators */
 			var validators = [];
-			if ( !prop["isNullable"] ){
+			if ( !prop["nullable"] ){
 				arrayAppend( validators, {"validatorName" = "required"} );
 			}
 
 			/* max length */
 			if( structKeyExists( col, 'length' ) ){
+				prop["fixedLength"] = "false";
+				prop["unicode"] = "true";
 				prop["maxLength"] = col.length;
 				arrayAppend( validators, {
 											"maxLength"= col.length,
@@ -1050,23 +1123,25 @@ component accessors="true" output="false" {
                         				});	
 			}
 			if( arrayLen( validators ) ){
-				arrayAppend( prop["validators"], validators );
+			//	arrayAppend( prop["validators"], validators );
 			}
 			arrayAppend( props, prop );
+			prop = {};
 		}
 
 		return props;
 	}
-	
+
 	private function getBreezeType( required string type ){
 		var CfToBreezeTypes = {
 			"string" = "String",
+			"boolean" = "Boolean",
 			"numeric" = "Int32",
-			"date" = "Date",
+			"date" = "DateTime",
 			"guid" = "Guid"
 		};
 
-		return structKeyExists( CfToBreezeTypes, type ) ? CfToBreezeTypes[ type ] : type;
+		return "Edm." & ( structKeyExists( CfToBreezeTypes, type ) ? CfToBreezeTypes[ type ] : type );
 
 	}
 

@@ -805,6 +805,7 @@
 		<cfset var money_types = "money,cf_sql_money">
 		<cfset var timestamp_types = "timestamp,cf_sql_timestamp">
 		<cfset var double_types = "double,cf_sql_double">
+		<cfset var bit_types = "bit">
 		<!--- Default return = varchar --->
 		<cfset var ret = "cf_sql_varchar">
 
@@ -825,6 +826,8 @@
 			<cfset ret = "cf_sql_double">
 		<cfelseif listFindNoCase(timestamp_types,arguments.type)>
 			<cfset ret = "cf_sql_timestamp">
+		<cfelseif listFindNoCase(bit_types,arguments.type)>
+			<cfset ret = "cf_sql_bit">
 		</cfif>
 
 		<cfreturn ret />
@@ -878,7 +881,7 @@
 		<cfelse>
 			<cfset ret = col.type>
 		</cfif>
-		
+
 		<cfreturn ret />
 	</cffunction>
     

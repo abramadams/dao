@@ -6640,7 +6640,7 @@ var CsdlMetadataParser = (function () {
         __toArray(schemas).forEach(function (schema) {
             if (schema.cSpaceOSpaceMapping) {
                 // Web api only - not avail in OData.
-                var mappings = JSON.parse(schema.cSpaceOSpaceMapping);
+                var mappings = (typeof (schema.cSpaceOSpaceMapping) === "string") ? JSON.parse(schema.cSpaceOSpaceMapping) : schema.cSpaceOSpaceMapping;
                 var newMap = {};
                 mappings.forEach(function (mapping) {
                     newMap[mapping[0]] = mapping[1];
@@ -14562,7 +14562,7 @@ breeze.SaveOptions= SaveOptions;
                 }
                 var data = httpResponse.data;
                 try {
-                    var metadata = typeof (data) === "string" ? JSON.parse(data) : data;
+                    var metadata = typeof (data) === "string" ? JSON.parse(JSON.parse(data)) : data;
                     metadataStore.importMetadata(metadata);
                 } catch(e) {
                     var errMsg = "Unable to either parse or import metadata: " + e.message;

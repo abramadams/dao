@@ -17,7 +17,7 @@ todo.controller('TodoCtrl', function ($scope, breeze, dataservice, logger) {
         var searchText = $scope.searchText;
         return searchText ? 
             // if there is search text, look for it in the description; else return true
-            -1 != todoItem.Description.toLowerCase().indexOf(searchText.toLowerCase()) :
+            -1 != todoItem.description.toLowerCase().indexOf(searchText.toLowerCase()) :
             true;
     };
 
@@ -27,9 +27,9 @@ todo.controller('TodoCtrl', function ($scope, breeze, dataservice, logger) {
     
     $scope.addItem = function () {
         var item = dataservice.createTodo({
-            Description: $scope.newTodo,
-            CreatedAt: new Date(),
-            IsDone: $scope.allCompleted
+            description: $scope.newTodo,
+            createdAt: new Date(),
+            isDone: $scope.allCompleted
         });
 
         dataservice.saveChanges().fail(addFailed);
@@ -69,7 +69,7 @@ todo.controller('TodoCtrl', function ($scope, breeze, dataservice, logger) {
             if (!$scope.includeArchived) {
                 removeItem($scope.items, item);
             }
-            item.IsArchived = true;
+            item.isArchived = true;
         });
         suspendItemSave = false;
         dataservice.saveChanges();
@@ -106,7 +106,7 @@ todo.controller('TodoCtrl', function ($scope, breeze, dataservice, logger) {
     $scope.markAllCompleted = function(value) {
         suspendItemSave = true;
         $scope.items.forEach(function(item) {
-            item.IsDone = value;
+            item.isDone = value;
         });
         suspendItemSave = false;
         dataservice.saveChanges();
@@ -160,8 +160,8 @@ todo.controller('TodoCtrl', function ($scope, breeze, dataservice, logger) {
         var itemsDone = [], itemsLeft = [];
 
         $scope.items.forEach(function (item) {
-            if (item.IsDone) {
-                if (!item.IsArchived) {
+            if (item.isDone) {
+                if (!item.isArchived) {
                     itemsDone.push(item); // only unarchived items                
                 }
             } else {
