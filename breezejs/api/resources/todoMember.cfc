@@ -11,22 +11,22 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/SaveChanges" {
 			if( entity.entityAspect.EntityState == "Deleted" ){
 				todo.delete();
 			}else{				
-				//writeDump(todo);
 				todo.setDescription( entity.description );
 				todo.setIsDone( entity.isDone ? true : false );
 				todo.setIsArchived( entity.isArchived ? true : false );		
-				//todo.setCreatedAt( entity.createdAt );
-				
-				//writeDump(todo);
+				//If createdAt was not populated in the entity record, populate it
+				if( !len( trim( todo.getCreatedAt() ) ) ){
+					// CF9 doesn't natively parse HTTP dates very well, so this'll have to do for now.
+					todo.setCreatedAt( listFirst( entity.createdAt, 'T' ) & ' ' & listFirst( listLast( entity.createdAt, 'T' ), 'Z' ) );				
+				}
+
 				todo.save();
-				//writeDump(todo);abort;
-				//writeDump(entity);abort;
+				
 			}
 		}
 
-
 		return noData().withStatus(200);
-		//return representationOf( todo.listAsBreezeData() ).withStatus(200);
+		//return representationOf( todo.toJSON() ).withStatus(200);
 
 	}
 }
