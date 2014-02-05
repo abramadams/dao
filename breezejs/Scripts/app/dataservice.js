@@ -52,7 +52,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
             .then(saveSucceeded)
             .fail(saveFailed);
 
-        function saveSucceeded(saveResult) {
+        function saveSucceeded(saveResult) {           
             logger.success("# of Todos saved = " + saveResult.entities.length);
             logger.log(saveResult);
         }
@@ -60,7 +60,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
         function saveFailed(error) {
             var reason = error.message;
             var detail = error.detail;
-
+            console.log(error);
             if (error.entityErrors) {
                 reason = handleSaveValidationError(error);
             } else if (detail && detail.ExceptionType &&

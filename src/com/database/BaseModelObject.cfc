@@ -132,7 +132,9 @@ component accessors="true" output="false" {
 						"type" = variables.tabledef.getDummyType(variables.tabledef.instance.tablemeta.columns[col].type),
 						"dynamic" = true
 					};
-					
+					if ( structKeyExists( variables.tabledef.instance.tablemeta.columns[col], 'length' ) ){
+						newProp["length"] = variables.tabledef.instance.tablemeta.columns[col].length;
+					}
 					arrayAppend( variables.meta.properties, newProp );				
 				}
 
@@ -145,7 +147,8 @@ component accessors="true" output="false" {
        /** 
        * This will hijack all of the setters and inject a function that will set the 
        * isDirty flag to true anytime data changes
-       **/	
+       **/
+       var setter = setFunc;
 		for ( var prop in variables.meta.properties ){
 			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 
@@ -154,7 +157,7 @@ component accessors="true" output="false" {
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					
 					// now override the setter with the new function that will set the dirty flag.					
-					this[ "set" & prop.name ] = setFunc;					
+					this[ "set" & prop.name ] = _getSetter( prop.type );					
 				}
 			}
 
@@ -166,14 +169,31 @@ component accessors="true" output="false" {
 					// copy the real setter function to a temp variable.
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					// now override the setter with the new function that will set the dirty flag.
-					this[ "set" & prop.name ] = setFunc;        		
+
+					this[ "set" & prop.name ] = _getSetter( prop.type );;
 				}
 			}
 		}
 
 	    return this;
 	}
+	/**
+	* Convenience method for choosing the correct setter for the type. 
+	**/
+	private function _getSetter( any type = "" ){
+		switch ( type ){
+			case 'numeric':
+			setter = setNumberFunc;
+			case 'date':
+			setter = setDateFunc;
+			case 'boolean':
+			setter = setBooleanFunc;
+			default:
+			setter = setFunc;
+		}
 
+		return setter;
+	}
 	/**
 	* This function will replace each public setter so that the isDirty
 	* flag will be set to true anytime data changes.
@@ -207,6 +227,16 @@ component accessors="true" output="false" {
 		}
 
 	}
+	private function setNumberFunc( required numeric v ){
+		setFunc( v );
+	}
+	private function setBooleanFunc( required boolean v ){
+		setFunc( v );
+	}
+	private function setDateFunc( required date v ){
+		setFunc( v );
+	}
+
 	private any function getFunc( any name = "" ){
 
 		if( len( trim( name ) ) ){
@@ -216,8 +246,7 @@ component accessors="true" output="false" {
 		if( left( getFunctionCalledName(), 3) == "get" && getFunctionCalledName() != 'getterFunc' ){
 
 			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
-
-			return this[propName];
+			return variables[ propName ];
 		}
 
 		return "";
@@ -359,7 +388,7 @@ component accessors="true" output="false" {
 		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
 			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
 			if ( structKeyExists( arguments.ID, getIDField() ) && arguments.ID[ getIDField() ] != -1 ){
-				load( ID = arguments.ID[ getIDField() ] );
+				this.load( ID = arguments.ID[ getIDField() ] );				
 			}
 			// Load the object based on the pased in struct. This may be a new record, or an update to an existing one.
 			for ( var prop in props ){			
@@ -779,11 +808,11 @@ component accessors="true" output="false" {
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
-				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;			
+				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;				
 				DATA[ LOCAL.columnName ] = DATA[col];
 			}
-
-            DATA[getIDField()] = getID();
+			
+			DATA[getIDField()] = this.getID();
 			if (structCount(arguments.overrides) > 0){
 				for ( var override in overrides ){
 					DATA[override] = overrides[override];
@@ -1044,7 +1073,7 @@ component accessors="true" output="false" {
 		return breezeMetaData;
 	}
 
-	public function listAsBreezeData( string filter = "", string orderby = "" ){
+	public array function listAsBreezeData( string filter = "", string orderby = "" ){
 		if( len(trim( filter ) ) ){
 			/* parse breezejs filter operators */
 			filter = reReplaceNoCase( filter, ' (eq|==|Equals) (\b.*\w)(\)|)', ' = $queryParam(value=\2)$\3', 'all' );
@@ -1072,6 +1101,14 @@ component accessors="true" output="false" {
 		return data;
 
 	}
+
+	public array function toBreezeJSON(){
+		var data  = this.toStruct();
+		data["$type"] = "#getBreezeNameSpace()#.#getBreezeEntityName()#, DAOBreezeService";				
+		data["$id"] = data[ getIDField() ];
+
+		return [data];
+	}
 	
 	public boolean function breezeSave( required any entities ){
 		try{
@@ -1081,7 +1118,12 @@ component accessors="true" output="false" {
 				if( entity.entityAspect.EntityState == "Deleted" ){ // other states: Added, Modified
 					this.delete();
 				}else{
-					this.save();					
+					try{
+						this.save();
+					} catch( any e ){
+						writeDump(this.toStruct());
+						writeDump(e);abort;
+					}
 				}
 			}
 
@@ -1098,7 +1140,7 @@ component accessors="true" output="false" {
 	private function getBreezeNameSpace(){
 		var basePath = getDirectoryFromPath(getbaseTemplatePath());
 		var curpath = expandPath('/');		
-		var m = replaceNoCase(curpath, basepath, '');
+		var m = reReplace( basepath, "^#curpath#","");		
 		var reversed = "";
 		m = listChangeDelims(m ,".", '/');
 		for( var i = listLen( m ); i GT 0; i-- ){
@@ -1138,11 +1180,10 @@ component accessors="true" output="false" {
 		//var prop = { "validators" = [] };
 		var prop = { };
 
-		variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
-
+		//variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );		
 		for ( var col in variables.meta.properties ){
 			/* TODO: flesh out relationships here */
-			if( !structKeyExists( col, 'type') ){ 
+			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'persistent' ) && !col.persistent ) ){ 
 				continue;
 			} 
 			prop["name"] = col.name;
@@ -1152,7 +1193,7 @@ component accessors="true" output="false" {
 			prop["nullable"] = structKeyExists( col, 'notnull' ) ? !col.notnull : true;
 
 			/* is part of a key? */
-			 if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' 
+			if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' 
 				|| structKeyExists( col, 'uniquekey' ) ){
 			 	prop["name"] = lcase( col.name );
 				//prop["isPartOfKey"] = true;
@@ -1169,12 +1210,14 @@ component accessors="true" output="false" {
 			/* max length */
 			if( structKeyExists( col, 'length' ) ){
 				prop["fixedLength"] = "false";
-				prop["unicode"] = "true";
 				prop["maxLength"] = col.length;
 				/* arrayAppend( validators, {
 											"maxLength"= col.length,
                         					"validatorName"= "maxLength"
                         				});	 */
+			}
+			if( prop["type"] == "Edm.String" ){
+				prop["unicode"] = "true";
 			}
 			/* if( arrayLen( validators ) ){
 			//	arrayAppend( prop["validators"], validators );
@@ -1189,9 +1232,15 @@ component accessors="true" output="false" {
 	private function getBreezeType( required string type ){
 		var CfToBreezeTypes = {
 			"string" = "String",
+			"varchar" = "String",
+			"char" = "String",
 			"boolean" = "Boolean",
+			"bit" = "Boolean",
 			"numeric" = "Int32",
+			"int" = "Int32",
+			"integer" = "Int32",
 			"date" = "DateTime",
+			"datetime" = "DateTime",
 			"guid" = "Guid"
 		};
 

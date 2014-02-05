@@ -4,7 +4,7 @@ component persistent="true" extends="com.database.BaseModelObject" accessors="tr
 	property name="description" type="string" length="30";
 	property name="isDone" type="boolean";
 	property name="isArchived" type="boolean";	
-	property name="createdAt" type="date";	
+	property name="createdAt" type="date";
 
 	/* Relationships */
 	//property name="userID" type="numeric";
