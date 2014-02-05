@@ -358,13 +358,13 @@ component accessors="true" output="false" {
 		
 		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
 			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
-			if ( structKeyExists( arguments.ID, getIDField() ) ){
+			if ( structKeyExists( arguments.ID, getIDField() ) && arguments.ID[ getIDField() ] != -1 ){
 				load( ID = arguments.ID[ getIDField() ] );
 			}
 			// Load the object based on the pased in struct. This may be a new record, or an update to an existing one.
 			for ( var prop in props ){			
 				//Load the properties based on the passed in struct.
-				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name ) ){
+				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name ) && prop.name != getIDField() ){
 					// We'll need to check some data types first though.					
 					if ( prop.type == 'date' && findNoCase( 'Z', arguments.ID[ prop.name ] ) ){
 						variables[ prop.name ] = convertHttpDate( arguments.ID[ prop.name ] );
@@ -1046,9 +1046,20 @@ component accessors="true" output="false" {
 
 	public function listAsBreezeData( string filter = "", string orderby = "" ){
 		if( len(trim( filter ) ) ){
-			filter = reReplaceNoCase( filter, ' eq ', ' = ', 'all' );
+			/* parse breezejs filter operators */
+			filter = reReplaceNoCase( filter, ' (eq|==|Equals) (\b.*\w)(\)|)', ' = $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (ne|\!=|NotEquals) (\b.*\w)(\)|)', ' != $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (lte|<=|LessThanOrEqual) (\b.*\w)(\)|)', ' <= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (gte|>=|GreaterThanOrEqual) (\b.*\w)(\)|)', ' >= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (lt|<|LessThan) (\b.*\w)(\)|)', ' < $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (gt|>|GreaterThan) (\b.*\w)(\)|)', ' > $queryParam(value=\2)$\3', 'all' );
+			/* fuzzy operators */
+			filter = reReplaceNoCase( filter, ' (substringof|contains) (\b.*\w)(\)|)', ' like $queryParam(value="%\2%")$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (startswith) (\b.*\w)(\)|)', ' like $queryParam(value="\2%")$\3', 'all' );
+			filter = reReplaceNoCase( filter, ' (endswith) (\b.*\w)(\)|)', ' like $queryParam(value="%\2")$\3', 'all' );
+			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
-		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & filter : "", orderby = arguments.orderby );		
+		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "", orderby = arguments.orderby );		
 		var row = "";
 		var data = [];
 		for( var i = 1; i LTE arrayLen( list ); i++ ){

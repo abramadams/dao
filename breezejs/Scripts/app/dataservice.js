@@ -30,11 +30,14 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
     function getAllTodos(includeArchived) {
         var query = breeze.EntityQuery
                 .from("Todos")
-                .orderBy("createdAt");
+                .orderBy("description");
 
         if (!includeArchived) { // exclude archived Todos
             // add filter clause limiting results to non-archived Todos
-            query = query.where("isArchived", "==", false);            
+            var pred = breeze.Predicate.create("isArchived", "==", false)
+                                        .and("description", "!=", "boogers");
+            query = query.where(pred);
+            //query = query.where("isArchived", "eq", false, "description", "!=", "boogers");
         }
 
         return manager.executeQuery(query);
