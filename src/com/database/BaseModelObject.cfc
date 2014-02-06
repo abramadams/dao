@@ -1029,14 +1029,14 @@ component accessors="true" output="false" {
 	}
 	/* Utilities */
 	/**
-	* @Hint tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
+	* @hint tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
 	**/
 	private function camelCase( required string str ){
 		str = lcase( str );
 		return reReplaceNoCase( str, '\b(is|has)(\w)', '\1\u\2', 'all' );
 	}
 	/**
-	* @Hint Converts http date to CF date object (since one cannot natively in CF9).
+	* @hint Converts http date to CF date object (since one cannot natively in CF9).
 	* @TODO Make this better :)
 	**/
 	private date function convertHttpDate( required string httpDate ){
@@ -1121,7 +1121,7 @@ component accessors="true" output="false" {
 	}
 	
 	/**
-	* @Hint I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
+	* @hint I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
 	* 	KeyMappings: An array of objects that tell Breeze which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
 	* 	Errors (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
