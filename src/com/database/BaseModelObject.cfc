@@ -1162,28 +1162,37 @@ component accessors="true" output="false" {
 		return ret;
 	}
 
+	/**
+	* @hint I return the namespace to be used by breeze to contain this entity. To ensure uniqueness I use a reverse dir path plus the DSN (in dot notation). Example: Com.Model.Dao
+	**/
 	private function getBreezeNameSpace(){
 		var basePath = getDirectoryFromPath(getbaseTemplatePath());
 		var curpath = expandPath('/');		
 		var m = reReplace( basepath, "#curpath#",chr(888));
 		m = listRest( m, chr(888) );
-		var reversed = "";
 		m = listChangeDelims(m ,".", '/');
+		var reversed = "";
 		for( var i = listLen( m ); i GT 0; i-- ){
 			reversed = listAppend( reversed, listGetAt( m, i ) );
 		}
-		return "#reReplace( len( trim( reversed ) ) ? reversed : 'model', '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";		
+		return "#reReplace( len( trim( reversed ) ) ? reversed : 'model', '\b(\w)', '\u\1', 'all')#.#reReplace( dao.getDSN(), '\b(\w)' ,'\u\1', 'all')#";
 	}
+
+	/**
+	* @hint I return the name of the entity container, i.e. the table name. We'll use either the table name or a singularName if defined. 
+	**/
 	private function getBreezeEntityName(){
 		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
 	}
-	
-	public function generateBreezeProperties(){
+
+	/**
+	* @hint I return an array of structs containing all of the breeze friendly properties of the entity (table).
+	**/
+	private function generateBreezeProperties(){
 		var props = [];
 		//var prop = { "validators" = [] };
 		var prop = { };
-
-		//variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );		
+		
 		for ( var col in variables.meta.properties ){
 			/* TODO: flesh out relationships here */
 			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'persistent' ) && !col.persistent ) ){ 
@@ -1205,7 +1214,7 @@ component accessors="true" output="false" {
 			} 
 
 			/* define validators */
-		/* 	var validators = [];
+			/* 	var validators = [];
 			if ( !prop["nullable"] ){
 				arrayAppend( validators, {"validatorName" = "required"} );
 			} */
@@ -1232,6 +1241,9 @@ component accessors="true" output="false" {
 		return props;
 	}
 
+	/**
+	* @hint Given a CF or DB data type, I return the equivalent Breeze data type.
+	**/
 	private function getBreezeType( required string type ){
 		var CfToBreezeTypes = {
 			"string" = "String",
