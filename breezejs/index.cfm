@@ -66,18 +66,18 @@
     </div>
 
     <!-- 3rd party libraries -->
-    <script src="Scripts/jquery-1.8.3.min.js"></script>
-    <script src="Scripts/q.js"></script>
-    <script src="Scripts/breeze.debug.js"></script>
-    <script src="Scripts/breeze.savequeuing.js"></script>
-    <script src="Scripts/toastr.js"></script>
-    <script src="Scripts/angular.js"></script>
+    <script src="scripts/jquery-1.8.3.min.js"></script>
+    <script src="scripts/q.js"></script>
+    <script src="scripts/breeze.debug.js"></script>
+    <script src="scripts/breeze.savequeuing.js"></script>
+    <script src="scripts/toastr.js"></script>
+    <script src="scripts/angular.js"></script>
 
     <!-- App libraries -->
-    <script src="Scripts/app/main.js"></script>
-    <script src="Scripts/app/logger.js"></script>
-    <script src="Scripts/app/dataservice.js"></script>
-    <script src="Scripts/app/controller.js"></script>
+    <script src="scripts/app/main.js"></script>
+    <script src="scripts/app/logger.js"></script>
+    <script src="scripts/app/dataservice.js"></script>
+    <script src="scripts/app/controller.js"></script>
 
 </body>
 </html>

@@ -11,9 +11,7 @@ component extends="taffy.core.api" {
 		reloadPassword = "true",
 		disableDashboard = false,
 		disabledDashboardRedirect = "/",
-		debugKey = "debugonly",
-		representationClass = "taffy.core.genericRepresentation"
-
+		debugKey = "debugonly"	
 	};
 
 	// this function is called after the request has been parsed and all request details are known

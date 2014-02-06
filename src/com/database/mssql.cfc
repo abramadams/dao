@@ -103,6 +103,7 @@
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
@@ -158,7 +159,38 @@
 			<cfelse>
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
-						SELECT 
+
+						SELECT #arguments.columns#
+						FROM (
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : 1 )#) RowNr, #arguments.columns# 
+							FROM #arguments.table#
+							<cfif len( trim( arguments.where ) )>
+							<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>						
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								#tmpSQL.statements[idx].before#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam 
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+										value="#tmpSQL.statements[idx].value#" 
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>
+							<!--- /Parse out the queryParam calls inside the where statement --->
+							</cfif>
+							<cfif len( trim( arguments.orderby ) )>
+								ORDER BY #arguments.orderby#
+							</cfif>
+							) t
+						<cfif val( arguments.limit ) GT 0>
+							WHERE RowNr BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#	
+						</cfif>
+						<!--- SELECT 
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							TOP #val( arguments.limit )#
 						</cfif>	
@@ -185,11 +217,41 @@
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
-						</cfif>
+						</cfif> --->
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#variables.dsn#">
-						SELECT 
+						SELECT #arguments.columns#
+							FROM (
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : 1 )#) RowNr, #arguments.columns# 
+								FROM #arguments.table#
+								<cfif len( trim( arguments.where ) )>
+								<!--- 
+									Parse out the queryParam calls inside the where statement 
+									This has to be done this way because you cannot use 
+									cfqueryparam tags outside of a cfquery.
+									@TODO: refactor to use the query.cfc
+								--->
+								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>						
+								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+									#tmpSQL.statements[idx].before#
+									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+										<cfqueryparam 
+											cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+											value="#tmpSQL.statements[idx].value#" 
+											list="#tmpSQL.statements[idx].isList#">
+									</cfif>
+								</cfloop>
+								<!--- /Parse out the queryParam calls inside the where statement --->
+								</cfif>
+								<cfif len( trim( arguments.orderby ) )>
+									ORDER BY #arguments.orderby#
+								</cfif>
+								) t
+							<cfif val( arguments.limit ) GT 0>
+								WHERE RowNr BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#	
+							</cfif>
+						<!--- SELECT 
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							TOP #val( arguments.limit )#
 						</cfif>	
@@ -216,7 +278,7 @@
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
-						</cfif>
+						</cfif> --->
 					</cfquery>
 				</cfif>
 			</cfif>

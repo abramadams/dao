@@ -14646,7 +14646,7 @@ breeze.SaveOptions= SaveOptions;
                 var data = httpResponse.data;
                 httpResponse.saveContext = saveContext;
                 var entityErrors = data.Errors || data.errors;
-                if (entityErrors) {
+                if (entityErrors && entityErrors.length !== 0) {
                     handleHttpError(deferred, httpResponse);
                 } else {
                     var saveResult = that._prepareSaveResult(saveContext, data);

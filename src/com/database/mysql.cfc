@@ -103,6 +103,7 @@
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
@@ -185,10 +186,10 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY #arguments.orderby#
+							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-							LIMIT #val( arguments.limit )#
+							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
 				<cfelse>
@@ -217,11 +218,11 @@
 
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY #arguments.orderby#
+							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-							LIMIT #val( arguments.limit )#
-						</cfif>						
+							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
+						</cfif>
 					</cfquery>
 				</cfif>
 			</cfif>

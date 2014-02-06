@@ -115,7 +115,9 @@
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
+		
 
 		<cfset var tmpSQL = "" />
 		<cfset var tempCFSQLType = "" />
@@ -215,6 +217,7 @@
 																where = arguments.where,
 																orderby = arguments.orderby,
 																limit = arguments.limit,
+																offset = arguments.offset,
 																cachedwithin = arguments.cachedwithin
 															)/>
 						</cfif>

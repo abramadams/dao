@@ -58,9 +58,13 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
         }
 
         function saveFailed(error) {
+            /*if( typeOf( error, "undefined") ) {
+                logger.success("Todo saved!");
+                logger.log(error);       
+                return;
+            };*/
             var reason = error.message;
             var detail = error.detail;
-            console.log(error);
             if (error.entityErrors) {
                 reason = handleSaveValidationError(error);
             } else if (detail && detail.ExceptionType &&

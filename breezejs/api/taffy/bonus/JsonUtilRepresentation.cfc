@@ -1,6 +1,7 @@
 <cfcomponent extends="taffy.core.baseRepresentation">
-
-	<cfset variables.jsonUtil = application.jsonUtil />
+		
+	<cfset variables.jsonUtil = application._taffy.factory.beans.jsonUtil />
+	
 
 	<cffunction
 		name="getAsJson"
