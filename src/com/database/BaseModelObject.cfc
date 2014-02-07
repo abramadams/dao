@@ -987,7 +987,7 @@ component accessors="true" output="false" {
 						tmpstr = '`#col.name#` tinyint(1) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
 					break;
 					case 'boolean': case 'bit':
-						tmpstr = '`#col.name#` BIT #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? true : false) & "'": ''#';
+						tmpstr = '`#col.name#` BIT #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
 					break;
 					case 'text':
 						tmpstr = '`#col.name#` text #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
