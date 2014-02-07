@@ -55,17 +55,17 @@ component accessors="true" output="false" {
 			if( structKeyExists( variables.meta,'table' ) ){
 				setTable( variables.meta.table );				
 			/* If not, see if the table property was set on the component it extends */
-			}else if(structKeyExists(variables.meta.extends,'table')){
-				setTable(variables.meta.extends.table);	
+			}else if( structKeyExists( variables.meta.extends, 'table' ) ){
+				setTable( variables.meta.extends.table );
 			/* If not, use the component's name as the table name */
-			}else if(structKeyExists(variables.meta,'fullName')){
-                setTable(listLast(variables.meta.fullName, '.'));
+			}else if( structKeyExists( variables.meta, 'fullName' ) ){
+                setTable( listLast( variables.meta.fullName, '.') );
 			}else{
 				//writeDump(variables.meta); abort;
 				throw('Argument: "Table" is required if the component declaration does not indicate a table.','variables','If you don''t pass in the table argument, you must specify the table attribute of the component.  I.e.  component table="table_name" {...}');
 			}
 		}else{
-			setTable(arguments.table);
+			setTable( arguments.table );
 		}
 		
 		if( variables.dropcreate ){
@@ -75,10 +75,13 @@ component accessors="true" output="false" {
 			makeTable();
 		}else{
 			try{
-				variables.tabledef = new tabledef(tableName = getTable(), dsn = variables.dao.getDSN());
+				variables.tabledef = new tabledef( tableName = getTable(), dsn = getDao().getDSN() );
 			} catch (any e){
 				if( e.type eq 'Database' ){
-					//writeDump(e);abort;				
+					/* writeDump(e);
+					writeDump(arguments);
+					writeDump(variables.meta);
+					abort; */
 					makeTable();
 				}else{
 					writeDump(e);abort;				
@@ -935,7 +938,7 @@ component accessors="true" output="false" {
 				");	
 				
 			} */
-			this.init( dao = variables.dao );
+			this.init( dao = getDao(), table = getTable() );
 		}
 	}
 	
@@ -1145,13 +1148,14 @@ component accessors="true" output="false" {
 					}else if ( entity.entityAspect.entityState == 'Added' ){							
 						arrayAppend( keyMappings, { "EntityTypeName" = entity['$type'], "TempValue" = -1, "RealValue" = this.getID() } );
 					}
-					// remove the entityAspect key from the struct.  We don't need it in the returned data; in fact breeze will error if it exists..
-					structDelete( entity, 'entityAspect' );
 				} catch( any e ){	
 					// append any errors found to return data for breeze client;
 					arrayAppend( errors, {"ErrorName" = e.error, "EntityTypeName" = entity.entityAspect.entityTypeName, "KeyValues" = [], "PropertyName" = "", "ErrorMessage" = e.detail } );
 				}
 			}
+			
+			// remove the entityAspect key from the struct.  We don't need it in the returned data; in fact breeze will error if it exists..
+			structDelete( entity, 'entityAspect' );
 		}
 
 		var ret = { "Entities" = arguments.entities, "KeyMappings" = keyMappings };			
