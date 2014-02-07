@@ -114,7 +114,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
     function reset(callback) {
         // Todo: breeze should support commands to the controller
         // Simplified: fails silently
-        $.post(serviceName + '/reset', function () {
+        $.post(serviceName + '/Todos', function () {
             logger.success("database reset.");
             manager.clear();
             if (callback) callback();

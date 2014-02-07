@@ -4,10 +4,13 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 
 	remote function get(string $filter = "" ,string $orderby = "", string $skip = "", string $top = ""){
 		
-		//var todo = new model.TodoItem( dao = dao );	
+		//you could have a entity CFC and invoke such as:
+  		//var todo = new model.TodoItem( dao = dao );	
+    	//or just invoke the BaseModelObject and point it at a table
 		var todo = new com.database.BaseModelObject( dao = dao, table = "TodoItem");
 
 		return representationOf( 
+        //returns a breeze object containing all of the matching entities in our DB
 				todo.listAsBreezeData( 
 						filter = arguments.$filter, 
 						orderby = arguments.$orderby, 
@@ -17,4 +20,54 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 				).withStatus(200);
 
 	}
+  
+  remote function post(){
+    /*****************************
+    * Initialize Sample Table/Data
+    ******************************/
+    
+    // create instance o fthe TodoItem entity CFC.  This will create the table in the database
+    // if it does not already exist
+    todoItem = new model.TodoItem( dao = dao );
+    // if there is any data present in the TodoItem table, delete it
+    dao.delete("TodoItem","*");
+    
+    // now we'll add in our sample data
+    todoItem.setDescription('Food');
+    todoItem.setIsArchived(true);
+    todoItem.setIsDone(true);
+    todoItem.save();
+    
+    todoItem = new model.TodoItem( dao = dao );
+    todoItem.setDescription('Water');
+    todoItem.setIsArchived(true);
+    todoItem.setIsDone(true);
+    todoItem.save();
+    
+    todoItem = new model.TodoItem( dao = dao );
+    todoItem.setDescription('Shelter');
+    todoItem.setIsArchived(true);
+    todoItem.setIsDone(true);
+    todoItem.save();
+    
+    todoItem = new model.TodoItem( dao = dao );
+    todoItem.setDescription('Bread');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
+    
+    todoItem = new model.TodoItem( dao = dao );
+    todoItem.setDescription('Cheese');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(true);
+    todoItem.save();
+    
+    todoItem = new model.TodoItem( dao = dao );
+    todoItem.setDescription('Wine');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
+  
+    return representationOf( todoItem.listAsBreezeData( ) ).withStatus(200);
+  }
 }

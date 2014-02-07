@@ -15,7 +15,7 @@
     <div id="applicationHost"  class="ng-cloak">
         <header>
             <h1>Breeze Todos</h1>
-            <h2>with AngularJs & DI (Backed by CFML via DAO)</h2>
+            <h2>with AngularJs & DI (Backed by ColdFusion via DAO)</h2>
             <form data-ng-submit="addItem()">
                 <input type="text" data-ng-model="newTodo" placeholder="What needs to be done?" />
             </form>
@@ -53,7 +53,7 @@
             </ul>
 
             <div class="controlLinks">
-                <a href="#" data-ng-click="purge()">Purge</a>&nbsp;&nbsp;
+                <!--- <a href="#" data-ng-click="purge()">Purge</a>&nbsp;&nbsp; --->
                 <a href="#" data-ng-click="reset()">Reset</a>
             </div>
         </section>
