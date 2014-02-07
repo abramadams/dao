@@ -1,4 +1,5 @@
-=== DAO/BaseModelObject Integration with Breeze.js ===
+DAO/BaseModelObject Integration with Breeze.js 
+===
 
 This example application demonstrates the basic CRUD features provided by Breeze.js backed by a custom CFML library. The server-side code to make this nteraction work is surprisingly minimal.  For instance, to add, update or delete one or more records in the TodoItem table, one simply has to do this:
 
