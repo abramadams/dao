@@ -160,6 +160,7 @@ component accessors="true" output="false" {
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					
 					// now override the setter with the new function that will set the dirty flag.					
+					prop.type = structKeyExists( prop, 'type' ) ? prop.type : '';
 					this[ "set" & prop.name ] = _getSetter( prop.type );					
 				}
 			}
@@ -172,7 +173,7 @@ component accessors="true" output="false" {
 					// copy the real setter function to a temp variable.
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					// now override the setter with the new function that will set the dirty flag.
-
+					prop.type = structKeyExists( prop, 'type' ) ? prop.type : '';
 					this[ "set" & prop.name ] = _getSetter( prop.type );;
 				}
 			}
