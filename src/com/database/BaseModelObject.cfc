@@ -285,9 +285,11 @@ component accessors="true" output="false" {
 	* @hint I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
 	**/
 	public function reset(){
+		/* TODO: see if this is better:
 		for ( var prop in variables.meta.properties ){
 			variables[ prop.name ] = '';
-		}
+		} */
+		return load(0);
 	}
 
 	/**
@@ -547,7 +549,7 @@ component accessors="true" output="false" {
 		
 	}
 
-	public any function lazyLoad( required any ID, boolean lazy = false ){
+	public any function lazyLoad( required any ID ){
 		return load( ID = ID, lazy = true );
 	}
 
