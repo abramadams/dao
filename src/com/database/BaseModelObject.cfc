@@ -82,7 +82,11 @@ component accessors="true" output="false" {
 					writeDump(arguments);
 					writeDump(variables.meta);
 					abort; */
-					makeTable();
+					if (e.Message neq 'Datasource #getDao().getDSN()# could not be found.'){
+						makeTable();
+					}else{
+						throw( e.message );
+					}
 				}else{
 					writeDump(e);abort;				
 				}
@@ -258,14 +262,36 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint Returns true if the current state represents a new record/document 
+	* @hint I returns true if the current state represents a new record/document 
 	**/
 	public boolean function isNew(){
 		return variables._isNew;
 	}
 
 	/**
-	* @hint Returns true if any of the original data has changed
+	* @hint I set the current instance of the model object as a "new" record.  This will cause an insert instead of an update when the save() method is called, retaining the original data, but generating a new record with new primary key/generated ID values.  Use this when creating several records of the same entity type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')') 
+	**/
+	public function new(){
+		variables._isNew = true;
+		variables[ getIDField() ] = '';
+	}
+	/**
+	* @hint Alias method for "new()".
+	**/
+	public function clone(){
+		new();
+	}
+	/**
+	* @hint I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
+	**/
+	public function reset(){
+		for ( var prop in variables.meta.properties ){
+			variables[ prop.name ] = '';
+		}
+	}
+
+	/**
+	* @hint I return true if any of the original data has changed
 	**/
 	public boolean function isDirty(){
 		return variables._isDirty;
@@ -446,9 +472,9 @@ component accessors="true" output="false" {
 					//If lazy == true, we will just overload the "getter" method with an anonymous method that will instantiate the child entity when called.
 					}else{
 
-						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.getID(), childWhere )") );						
+						//setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.getID(), childWhere )") );						
 						/****** ACF9 Dies when the below code exists *******/
-						/* // First, set the property (child column in parent entity) to an array with a single index containing the empty child entity (to be loaded later)
+						// First, set the property (child column in parent entity) to an array with a single index containing the empty child entity (to be loaded later)
 						this[col.name] = ( structKeyExists( col, 'type' ) && col.type is 'array' ) ? [ duplicate( tmp ) ] : duplicate( tmp );					
 						// Add a helper property to the parent object.  This will store the data necessary for the "getter" function to instantiate
 						// the object when called.
@@ -471,7 +497,7 @@ component accessors="true" output="false" {
 							// getter funcction with a more sensible "return value" function. Much faster this way.
 							this[GetFunctionCalledName()] = function(){ return this[name];};							
 							return this[name]; 
-						}; */
+						};
 						
 					}
 
@@ -485,7 +511,7 @@ component accessors="true" output="false" {
 
 						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
 						/****** ACF9 Dies when the below code exists *******/
-						/* // First, set the property (child column in parent entity) as the empty child entity (to be loaded later)
+						// First, set the property (child column in parent entity) as the empty child entity (to be loaded later)
 						this[col.name] = duplicate( tmp );					
 						// Add a helper property to the parent object.  This will store the data necessary for the "getter" function to instantiate
 						// the object when called.
@@ -509,7 +535,7 @@ component accessors="true" output="false" {
 							// getter funcction with a more sensible "return value" function. Much faster this way.
 							this[GetFunctionCalledName()] = function(){ return this[name];};							
 							return this[name]; 
-						}; */
+						};
 
 
 					}
@@ -709,7 +735,7 @@ component accessors="true" output="false" {
 	/**
     * @hint I save the current state to the database. I either insert or update based on the isNew flag 
     **/
-	public any function save( struct overrides = {} ){
+	public any function save( struct overrides = {}, boolean force = false ){
 		// set the modified info
 /* 		this.setModified_Datetime(now());
 		this.setModified_By_Users_Id(getCurrentUserID()); */
@@ -792,7 +818,7 @@ component accessors="true" output="false" {
 			_saveTheChildren( tempID );
 
 
-		}else if( isDirty() ){
+		}else if( isDirty() || arguments.force ){
 
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
@@ -812,8 +838,8 @@ component accessors="true" output="false" {
 			// On updates, we only need to run the child save routine 
 			// once since the parent ID (this parent) already exists.
 			// Runing this routine now will inject the child ID(s) into
-			// this entity instance.
-			_saveTheChildren();
+			// this entity instance.			
+			_saveTheChildren();			
 
 			var DATA = duplicate( this.toStruct() );
 			for ( var col in DATA ){
@@ -862,9 +888,9 @@ component accessors="true" output="false" {
 						writeDump(e);
 						writeDump(child );
 						writeDump(variables[ col.name ] );abort;
-					}
+					}					
 					// call the child's save routine;
-					child.save();					
+					child.save( force = true );					
 					
 				}
 				
@@ -967,6 +993,7 @@ component accessors="true" output="false" {
 
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.		
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
+			writeDump( [arguments, variables.meta ]);abort;
 			throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
 		}
 		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
