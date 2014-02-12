@@ -293,7 +293,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint I return true if any of the original data has changed
+	* @hint I return true if any of the original data has changed.  This is a read-only property because the entity obejct properties' setters set this flag when data actually changes.
 	**/
 	public boolean function isDirty(){
 		return variables._isDirty;
