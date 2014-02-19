@@ -1,4 +1,4 @@
-﻿/**
+/**
 *	@hint Extend this component to add ORM like behavior to your model CFCs.  Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
 *   @version 0.0.54
 *   @updated 12/30/2013 
@@ -7,17 +7,19 @@
 component accessors="true" output="false" {
 
 	/* properties */
+	
 	property name="table" type="string" persistent="false";
+	
 	//property name="ID" type="numeric" getter="false" setter="false";
 	property name="IDField" type="string" persistent="false";
 	property name="IDFieldType" type="string" persistent="false";
-	property name="IDFieldGenerator" type="string" persistent="false";
+	property name="IDFieldGenerator" type="string" persistent="false" ;
 	/* property name="currentUserID" type="numeric" persistent="false"; */
 	property name="deleteStatusCode" type="numeric" persistent="false";
 	
-	/* Some global properties */
+	/* Some global properties */	
 	/* property name="Created_By_Users_Id" type="numeric" ;
-	property name="Created_Datetime" type="date" ;
+	property name="Created_Datetime" type="date"; 
 	property name="Modified_By_Users_Id" type="numeric" ;
 	property name="Modified_Datetime" type="date" ; */
 	
@@ -984,13 +986,7 @@ component accessors="true" output="false" {
     * @TODO Make the table creation db platform agnostic (using underlying dao)
     **/
 	private function makeTable(){
-		//writeDump(variables.meta);
-		var tableSQL = "CREATE TABLE `#this.getTable()#` (";
-		var columnsSQL = "";
-		var primaryKeys = "";
-		var indexes = "";
-		var autoIncrement = false;
-		var tmpstr = "";
+		
 		var col = {};
 
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.		
@@ -998,66 +994,83 @@ component accessors="true" output="false" {
 			writeDump( [arguments, variables.meta ]);abort;
 			throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
 		}
+		
+		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
+					
 		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
-		for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-			col = variables.meta.properties[ i ];
+		for ( col in variables.meta.properties ){
+			
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
 			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
 			col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
-			col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;
+			col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;			
+			col.isPrimaryKey = col.isIndex = structKeyExists( col, 'fieldType' ) && col.fieldType == 'id';
+			col.isNullable = !( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' );
+			col.defaultValue = structKeyExists( col, 'default' ) ? col.default : '';
+			col.generator = structKeyExists( col, 'generator' ) ? col.generator : '';
 			if( col.persistent && !structKeyExists( col, 'cfc' ) ){
+				
 				switch( col.type ){
 					case 'string':
-						tmpstr = '`#col.name#` varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						col.length = structKeyExists( col, 'length' ) ? col.length : 255;						
 					break;
 					case 'numeric':
-						tmpstr = '`#col.name#` int(#structKeyExists( col, 'length' ) ? col.length : '11'#) unsigned #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+						col.length = structKeyExists( col, 'length' ) ? col.length : 11;						
 					break;
 					case 'date':
-						tmpstr = '`#col.name#` datetime #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						col.length = '';						
 					break;
 					case 'tinyint':
-						tmpstr = '`#col.name#` tinyint(1) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+						col.length = structKeyExists( col, 'length' ) ? col.length : 1;						
 					break;
 					case 'boolean': case 'bit':
-						tmpstr = '`#col.name#` BIT #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+						col.length = ''; 						
 					break;
 					case 'text':
-						tmpstr = '`#col.name#` text #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+						col.length = '';
 					break;
 					default:
-						tmpstr = '`#col.name#` #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						col.length = structKeyExists( col, 'length' ) ? col.length : 255;						
 					break;
 				}
 
-				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
-					autoIncrement = true;
-					columnsSQL = listPrepend( columnsSQL, tmpstr );
-				}else{
-					columnsSQL = listAppend( columnsSQL, tmpstr );
-				}
-
-				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'id' ){
-					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
-						primaryKeys = listPrepend(primaryKeys, '`#col.name#`');
-					}else{
-						primaryKeys = listAppend(primaryKeys, '`#col.name#`');
-					}
-				}
+//				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+//					autoIncrement = true;
+//					columnsSQL = listPrepend( columnsSQL, tmpstr );
+//				}else{
+//					columnsSQL = listAppend( columnsSQL, tmpstr );
+//				}
+//
+//				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'id' ){
+//					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+//						primaryKeys = listPrepend(primaryKeys, '`#col.name#`');
+//					}else{
+//						primaryKeys = listAppend(primaryKeys, '`#col.name#`');
+//					}
+//				}
+				
 			}
+			
+			tableDef.addColumn(
+				column = col.name,
+				dataType =  col.type,
+				length = col.length,
+				isIndex = col.isIndex,
+				isPrimaryKey = col.isPrimaryKey,
+				isNullable = col.isNullable,
+				defaultValue = col.defaultValue,
+				generator = col.generator,
+				comment = '',
+				isDirty = false
+			);
 
 		}
 
-		tableSQL &= columnsSQL;
 		
-		if( listLen( primaryKeys ) ){
-			tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
-		}
-		tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
-	
-		//writeDump(tablesql);abort;
-		variables.dao.execute(tableSQL);
-		this.setTabledef( new tabledef(tableName = getTable(), dsn = dao.getDSN()) );
+		//writeDump(tableDef);abort;
+		//variables.dao.execute(tableSQL);
+		//this.setTabledef( new tabledef(tableName = getTable(), dsn = dao.getDSN()) );
+		this.setTabledef( getDao().makeTable( tableDef ) );		
 
 	}
 	/* Utilities */

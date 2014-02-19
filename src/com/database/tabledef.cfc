@@ -59,304 +59,208 @@
 
 	  ********************************************************** --->
 
-<cfcomponent hint="Instantiates a single table definition" output="true">
-	<cffunction name="init" returntype="tabledef" output="false">
-		<cfargument name="tablename" type="string" required="yes" >
-		<cfargument name="dsn" type="string" required="yes">
+<cfcomponent hint="Instantiates a single table definition" output="false" accessors="true">
+	<cfproperty name="dsn" type="string">
+	<cfproperty name="tableName" type="string">
+	<cfscript>
 		
-			<cfscript>
-				this.instance = {};
-				this.instance.table = queryNew('');
-				this.instance.name = arguments.tablename;
-				this.instance.tabledef = {};
-				setTableName(arguments.tablename);
-				this.instance.tablemeta.columns = {};
-				this.dsn = arguments.dsn;
+	public tabledef function init( required string tablename, required string dsn, boolean loadMeta = true ){
+		this.instance = {
+				table = queryNew( '' ),
+				name = arguments.tablename,
+				tabledef = {},
+				tablemeta.columns = {}					
+		};
 
-				/* Uses coldfusion.server.ServiceFactory to grab the table metadata */
-				loadTableMetaData();
+		setTableName( arguments.tablename );
+		
+		setDSN( arguments.dsn );
+
+		/* grab the table metadata, unless told not to */
+		if( loadMeta ){
+			loadTableMetaData();			
+		}
+	
+		return this;
+	}
+	
+	public function addColumn( required string column,
+							   required string datatype,
+							   string length = "", 
+							   boolean isPrimaryKey = false,
+							   string generator = "",
+							   boolean isIndex = false,
+							   boolean isNullable = true,
+							   string defaultValue = "",
+							   string comment = "",
+							   boolean isDirty = false ){
+		
+		
+			var arrPadding = [];			
+			// need to make serializable
+			// Store Column Definition in structure for later use
+			
+			this.instance.tablemeta.columns[ arguments.column ] = {
+				type = getValidDataType( arguments.datatype ),
+				length = arguments.length,
+				isIndex = arguments.isIndex,
+				isPrimaryKey = arguments.isPrimaryKey,
+				isNullable = arguments.isNullable,
+				defaultValue = arguments.defaultValue,
+				generator = arguments.generator,
+				comment = arguments.comment,
+				isDirty = arguments.isDirty
+			};
+			
+			QueryAddColumn( this.instance.table, arguments.column, getDummyType( arguments.datatype ), arrPadding );
+	}
+	
+	public function setColumn( required string column, required any value, required numeric row ){
+		return querySetCell( this.instance.table, arguments.column, arguments.value, arguments.row );
+	}
+	
+	public function setColumnComment( required string column, required any comment ){
+		this.instance.tablemeta.columns[ arguments.column ].comment = arguments.comment;
+	}
+	
+	public function setColumnIsDirty( required string column, required boolean isDirty ){
+		this.instance.tablemeta.columns[ arguments.column ].isDirty = arguments.isDirty;
+	}
+	
+	public function setColumnPrimaryKeyGenerator( required string column, required string generator ){
+		this.instance.tablemeta.columns[ arguments.column ].generator = arguments.generator;
+	}
+	/**
+	* @hint I add a blank row to the tabledef object and return the new row count.
+	**/	
+	public numeric function addRow(){
+		var ret = queryAddRow( this.instance.table );
+		return getRowCount();
+	}
+
+	//	GETTERS
+	public string function getColumns(){
+		return this.instance.table.columnlist;
+	}
+	
+	public query function getRows(){
+		return this.instance.table;
+	}
+	
+	public numeric function getRowCount(){
+		return this.instance.table.recordcount;
+	}
+	
+	public string function getValidDataType( required string type ){
+		if( arguments.type is "datetime" ){			
+			arguments.type = "timestamp";
+		}		
+		if( findNoCase( "int", arguments.type ) ){
+			arguments.type = "INTEGER";
+		}
+		if( findNoCase( "text", arguments.type ) || arguments.type is "string" ){
+			arguments.type = "VARCHAR";
+		}
+		try{
+			var cfsqltype = jdbcType( typeid = arguments.type );			
+		}catch (any e){
+			writeDump(e);
+			writeDump(arguments);abort;
+		}
+		
+		return cfsqltype;
+	}
+	
+	public function getDummyType( required string type ){
+		var dummyType = "Varchar";
+		switch ( arguments.type ){
+			// Integer | BigInt | Double | Decimal | VarChar | Binary | Bit | Time | Date] 
+			case 4: case 5: case "-6":
+				dummyType = "Integer";
+				break;
+			case 93:
+				dummyType = "Date";
+				break;			
+			case 12: case "-4": case "-1": case 1:
+				dummyType = "VarChar";
+				break;			
+			case "-7":
+				dummyType = "Bit";
+				break;			
+			case 8:
+				dummyType = "Double";
+				break;
+			case 2:
+				dummyType = "Decimal";
+				break;			
+			default:
+				dummyType = "VarChar";
+				break;
+		}
+		
+		return dummyType;
+	}
+	/**
+	* @hint I return the given column's data type
+	**/
+	public function getColumnType( required string column ){
+		var type = "varchar";
+		
+		if( structKeyExists( this.instance.tablemeta.columns, arguments.column ) ){
+			type = this.instance.tablemeta.columns[ arguments.column ].type;
+		}
+		
+		return type;
+	}
+	
+	/**
+	* @hint I return a null value based on the passed column's type.
+	**/
+	public string function getColumnNullValue( required string column ){
+		var ret = getColumnDefaultValue( arguments.column );
+		
+		if( !len( trim( ret ) ) ){
+			switch ( lcase( getDummyType( getColumnType( arguments.column ) ) ) ){
+				case "date":
+					ret = "0000-00-00 00:00";
+					break;
 				
-			</cfscript>
-
-
-		<cfreturn this />
-	</cffunction>
-
-	<cffunction name="setTableName" access="public" returntype="void" output="false">
-		<cfargument name="tablename" type="string" hint="Table Name" required="yes">
-		<!--- <cfset this.instance.table.name = trim(arguments.tablename)> --->
-		<cfset this.instance.name = trim(arguments.tablename)>
-	</cffunction>
-
-	<cffunction name="addColumn" access="public" returntype="void" output="false">
-		<cfargument name="column" type="string" hint="Table column name" required="yes">
-		<cfargument name="datatype" type="string" hint="Table column data type" required="yes">
-		<!---
-			Integer: 32-bit integer
-			BigInt: 64-bit integer
-			Double: 64-bit decimal number
-			Decimal: Variable length decimal, as specified by java.math.BigDecimal
-			VarChar: String
-			Binary: Byte array
-			Bit: Boolean (1=True, 0=False)
-			Time: Time
-			Data: Date (can include time information)
-		 --->
-		<cfargument name="length" type="string" hint="Table column max length" required="yes">
-		<cfargument name="isPrimaryKey" type="boolean" hint="Is table column the primary key?" required="yes">
-		<cfargument name="generator" type="string" hint="Genertor method for field (i.e. increment or uuid)" required="false" default="">
-		<cfargument name="isIndex" type="boolean" hint="Is table column an index?" required="yes">		
-		<cfargument name="isNullable" type="boolean" hint="Is table column nullable?" required="yes">
-		<cfargument name="defaultvalue" type="string" hint="Table column default value" required="no" default="">
-		<cfargument name="comment" type="string" hint="Table column comment" required="no" default="">
-		<cfargument name="isDirty" type="boolean" hint="Used to identify columns that had data changed" required="no" default="false">
-
-		<cfset var arrPadding = arrayNew(1)>
-		<cfscript>
-			//<!--- need to make serializable --->
-			/* Store Column Definition in structure for later use*/
-			StructInsert(this.instance.tablemeta.columns,arguments.column,{});
-			this.instance.tablemeta.columns[arguments.column].type = getValidDataType(arguments.datatype);
-			this.instance.tablemeta.columns[arguments.column].length = arguments.length;
-			this.instance.tablemeta.columns[arguments.column].isIndex = arguments.isIndex;
-			this.instance.tablemeta.columns[arguments.column].isPrimaryKey = arguments.isPrimaryKey;			
-			this.instance.tablemeta.columns[arguments.column].isNullable = arguments.isNullable;
-			this.instance.tablemeta.columns[arguments.column].defaultValue = arguments.defaultValue;
-			this.instance.tablemeta.columns[arguments.column].generator = arguments.generator;
-			this.instance.tablemeta.columns[arguments.column].comment = arguments.comment;
-			this.instance.tablemeta.columns[arguments.column].isDirty = arguments.isDirty;
-
-			QueryAddColumn(this.instance.table,arguments.column,getDummyType(arguments.datatype),arrPadding);
-
-		</cfscript>
-	</cffunction>
-
-	<cffunction name="setColumn" access="public" returntype="void" hint="I add data to the given column" output="false">
-		<cfargument name="column" required="yes" type="string">
-		<cfargument name="value" required="yes" type="any">
-		<cfargument name="row" required="yes" type="numeric">
+				case "double": case "decimal":
+					ret = "0.00";
+					break;				
+				case "bit":
+					ret = "NULL";
+					break;				
+				case "integer": case "tinyint": case "int": case "boolean":
+					ret = "0";
+					break;
+				case "varchar":
+					ret = "";
+					break;				
+				default:
+					ret = "";
+					break;
+			}
+		}
 		
-		<cfset var ret = "">
-
-		<cfset ret = querySetCell(this.instance.table, arguments.column,arguments.value,arguments.row)>
-
-	</cffunction>
-
-	<cffunction name="setColumnComment" access="public" returntype="void" hint="I add data to the given column" output="false">
-		<cfargument name="column" required="yes" type="string">
-		<cfargument name="comment" required="yes" type="any">
-
-		<cfset this.instance.tablemeta.columns[arguments.column].comment = arguments.comment>
-
-	</cffunction>
+		return ret;
+	}
 	
-	<cffunction name="setColumnIsDirty" access="public" returntype="void" hint="I add data to the given column" output="false">
-		<cfargument name="column" required="yes" type="string">
-		<cfargument name="isDirty" required="no" type="boolean" default="true">
-
-		<cfset this.instance.tablemeta.columns[arguments.column].isDirty = arguments.isDirty>
-
-	</cffunction>
-	
-	<cffunction name="setColumnPrimaryKeyGenerator" access="public" returntype="void" hint="I add data to the given column" output="false">
-		<cfargument name="column" required="yes" type="string">
-		<cfargument name="generator" required="no" type="string" default="increment">
-
-		<cfset this.instance.tablemeta.columns[arguments.column].primaryKeyGenerator = arguments.generator/>
-
-	</cffunction>
-
-	<cffunction name="addRow" access="public" returntype="numeric" hint="I add a blank row to the tabledef object and return the new row count." output="false">
-
-		<cfset var ret = "">
+	public function getCFSQLType( required string col ){
+		var cfsqltype = "";
+		cfsqltype = jdbcType( typeid = getColumnType( arguments.col ) );
 		
-		<cfset ret = queryAddRow(this.instance.table)>
-
-		<cfreturn getRowCount() />
-	</cffunction>
-
-
+		if( cfsqltype is "datetime" ){
+			cfsqltype = "timestamp";
+		}
+		return "cf_sql_" & cfsqltype;
+		
+	}
+		
+	</cfscript>
+			
 
 <!--- GETTERS --->
-	<cffunction name="getTableName" access="public" returntype="string" output="false">
-		<cfreturn this.instance.name />
-	</cffunction>
-
-	<cffunction name="getColumns" access="public" returntype="string" output="false">
-		<cfreturn this.instance.table.columnlist />
-	</cffunction>
-
-	<cffunction name="getRows" access="public" returntype="query" output="false">
-		<cfreturn duplicate(this.instance.table) />
-	</cffunction>
-
-	<cffunction name="getRowCount" access="public" returntype="numeric" output="false">
-		<cfreturn this.instance.table.recordcount />
-	</cffunction>
-
-	<cffunction name="getValidDataType" output="false" returntype="string">
-		<cfargument name="type" required="yes" type="string">
-			<!---ARRAY
-			BIGINT
-			BINARY
-			BIT
-			BLOB
-			BOOLEAN
-			CHAR
-			CLOB
-			DATALINK
-			DATE
-			DECIMAL
-			DISTINCT
-			DOUBLE
-			FLOAT
-			INTEGER
-			JAVA_OBJECT
-			LONGNVARCHAR
-			LONGVARBINARY
-			LONGVARCHAR
-			NCHAR
-			NCLOB
-			NULL
-			NUMERIC
-			NVARCHAR
-			OTHER
-			REAL
-			REF
-			ROWID
-			SMALLINT
-			SQLXML
-			STRUCT
-			TIME
-			TIMESTAMP
-			TINYINT
-			VARBINARY
-			VARCHAR--->
-		<cfif arguments.type is "datetime">
-			<cfset arguments.type = "timestamp">
-		</cfif>		
-		<cfif findNoCase("int",arguments.type)>
-			<cfset arguments.type = "INTEGER"/>
-		</cfif>
-		<cfif findNoCase("text",arguments.type)>
-			<cfset arguments.type = "VARCHAR"/>
-		</cfif>
-		<cfset var cfsqltype = jdbcType(typeid = arguments.type)/>
-		
-		<cfreturn cfsqltype/>
-		
-	</cffunction>
-	<cffunction name="getDummyType" output="false">
-		<cfargument name="type" required="yes" type="string">
-
-		<cfswitch expression="#arguments.type#">
-		<!--- Integer | BigInt | Double | Decimal | VarChar | Binary | Bit | Time | Date]  --->
-			<cfcase value="4">
-				<cfset dummytype = "Integer">
-			</cfcase>
-			<cfcase value="5">
-				<cfset dummytype = "Integer">
-			</cfcase>
-			<cfcase value="93">
-				<cfset dummytype = "Date">
-			</cfcase>
-			<cfcase value="12">
-				<cfset dummytype = "VarChar">
-			</cfcase>
-			<cfcase value="-4">
-				<cfset dummytype = "VarChar">
-			</cfcase>
-			<cfcase value="-1">
-				<cfset dummytype = "VarChar">
-			</cfcase>
-			<cfcase value="-7">
-				<cfset dummytype = "Bit">
-			</cfcase>
-			<cfcase value="8">
-				<cfset dummytype = "Double">
-			</cfcase>
-			<cfcase value="1">
-				<cfset dummytype = "VarChar">
-			</cfcase>
-			<cfcase value="-6">
-				<cfset dummytype = "Integer">
-			</cfcase>
-			<cfcase value="2">
-				<cfset dummytype = "Decimal">
-			</cfcase>
-			<cfdefaultcase>
-				<cfset dummytype = "VarChar">
-			</cfdefaultcase>
-		</cfswitch>
-		<cfreturn dummytype />
-	</cffunction>
-
-	<cffunction name="getColumnType" access="public" returntype="any" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-		<cfset var type = "varchar">
-
-		<cfif structKeyExists(this.instance.tablemeta.columns,arguments.column)>
-			<cfset type = this.instance.tablemeta.columns[arguments.column].type>
-		</cfif>
-
-		<cfreturn  type />
-	</cffunction>
-
-	<cffunction name="getColumnNullValue" access="public" returntype="string" hint="I return a null value based on the passed column's type." output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-		<cfset var ret = getColumnDefaultValue(arguments.column)>
-
-		<cfif not len(trim(ret))>
-			<cfswitch expression="#lcase(getDummyType(getColumnType(arguments.column)))#">
-				<cfcase value="date">
-					<cfset ret = "0000-00-00 00:00">
-				</cfcase>
-				<cfcase value="double">
-					<cfset ret = "0.00">
-				</cfcase>
-				<cfcase value="decimal">
-					<cfset ret = "0.00">
-				</cfcase>
-				<cfcase value="bit">
-					<cfset ret = "NULL">
-				</cfcase>
-				<cfcase value="integer">
-					<cfset ret = "0">
-				</cfcase>
-				<cfcase value="tinyint">
-					<cfset ret = "0">
-				</cfcase>
-				<cfcase value="int">
-					<cfset ret = "0">
-				</cfcase>
-				<cfcase value="boolean">
-					<cfset ret = "0">
-				</cfcase>
-				<cfcase value="varchar">
-					<cfset ret = "">
-				</cfcase>
-				<cfdefaultcase>
-					<cfset ret = "">
-				</cfdefaultcase>
-			</cfswitch>
-		</cfif>
-
-		<cfreturn  ret />
-	</cffunction>
-
-
-	<cffunction name="getCFSQLType" output="false">
-		<cfargument name="col" required="yes" type="string">
-		<cfset var cfsqltype = "">
-		
-		<cfset cfsqltype = jdbcType(typeid = getColumnType(arguments.col))/>
-		
-		<cfif cfsqltype is "datetime">
-			<cfset cfsqltype = "timestamp">
-		</cfif>		
-		<cfreturn "cf_sql_" & cfsqltype>
-	</cffunction>
-
 	<cffunction name="getColumnLength" access="public" returntype="numeric" output="false">
 		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
 
@@ -398,6 +302,10 @@
 
 	<cffunction name="getTableMeta" access="public" returntype="struct" output="false">
 		<cfreturn this.instance.tablemeta />
+	</cffunction>
+
+	<cffunction name="getTable" access="public" returntype="struct" output="false">
+		<cfreturn this.instance.table />
 	</cffunction>
 
 	<cffunction name="getNonPrimaryKeyColumns" access="public" returntype="string" output="false">
@@ -477,7 +385,7 @@
 			var LOCAL = {};
 
 			// get the columns for the table for any schema
-			d = new dbinfo( datasource = this.dsn );
+			d = new dbinfo( datasource = this.getDsn() );
 			columns = d.columns( table = getTableName() );			
 			// get a full indexes query for the table
 			indexqryfull = d.index( table = getTableName() );
@@ -549,7 +457,7 @@
 	
 	<cffunction name="jdbcType" output="false" returntype="string"  hint="returns the name or number for a given Java JDBC data type">
 		<cfargument name="typeid" type="string" required="true">
-		
+				
 		<cfset var sqltype = createobject("java","java.sql.Types")>
 		<cfset var types = {}>
 		<cfset var x = ""/>		
@@ -565,8 +473,7 @@
 			<cfset types[arguments.typeid] = "datetime">		
 		</cfif>
 		
-		
-		<cfreturn types[arguments.typeid]>
+		<cfreturn types[ arguments.typeid ]>
 	</cffunction>
 
 </cfcomponent>

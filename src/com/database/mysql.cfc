@@ -492,5 +492,85 @@
 		<cfreturn ret />
 
 	</cffunction>
-
+	
+		<cfscript>
+			/**
+		    * @hint I create a table based on the current object's properties.
+		    * @TODO Make the table creation db platform agnostic (using underlying dao)
+		    **/
+			package function makeTable( required tabledef tabledef ){
+				//writeDump(variables.meta);
+				var tableSQL = "CREATE TABLE `#tabledef.getTableName()#` (";
+				var columnsSQL = "";
+				var primaryKeys = "";
+				var indexes = "";
+				var autoIncrement = false;
+				var tmpstr = "";
+				var col = {};
+		
+				// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
+				for ( var colName in tableDef.getTableMeta().columns ){
+					col = tableDef.getTableMeta().columns[ colName ];
+					col.name = colName;
+					writeDump( col );abort;					
+//					col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
+//					col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
+//					col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
+					col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;
+					if( col.persistent && !structKeyExists( col, 'cfc' ) ){
+						switch( col.type ){
+							case 'string':
+								tmpstr = '`#col.name#` varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+							break;
+							case 'numeric':
+								tmpstr = '`#col.name#` int(#structKeyExists( col, 'length' ) ? col.length : '11'#) unsigned #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+							break;
+							case 'date':
+								tmpstr = '`#col.name#` datetime #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+							break;
+							case 'tinyint':
+								tmpstr = '`#col.name#` tinyint(1) #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+							break;
+							case 'boolean': case 'bit':
+								tmpstr = '`#col.name#` BIT #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+							break;
+							case 'text':
+								tmpstr = '`#col.name#` text #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+							break;
+							default:
+								tmpstr = '`#col.name#` #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #structKeyExists(col,'fieldType') && col.fieldType eq 'id' ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+							break;
+						}
+		
+						if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+							autoIncrement = true;
+							columnsSQL = listPrepend( columnsSQL, tmpstr );
+						}else{
+							columnsSQL = listAppend( columnsSQL, tmpstr );
+						}
+		
+						if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'id' ){
+							if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+								primaryKeys = listPrepend(primaryKeys, '`#col.name#`');
+							}else{
+								primaryKeys = listAppend(primaryKeys, '`#col.name#`');
+							}
+						}
+					}
+		
+				}
+		
+				tableSQL &= columnsSQL;
+				
+				if( listLen( primaryKeys ) ){
+					tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
+				}
+				tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+			
+				
+				getDao().execute( tableSQL );				
+		
+			}
+			
+		</cfscript>
 </cfcomponent>

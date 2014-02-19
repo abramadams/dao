@@ -2,6 +2,9 @@
 
     dao = new com.database.dao( dsn = "dao" );
 
+	todo = new examples.breezejs.model.TodoItem( dao = dao );
+	//todo.makeTable();
+	writeDump(todo);abort;
     //eventLog = new model.EventLog( dao = dao );
     //eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
    /**  

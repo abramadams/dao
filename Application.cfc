@@ -1,5 +1,6 @@
-component output="false" {	
-	this.name = "DAO-Test";	
+component output="false" {  	
+	this.name = "DAO-Tests";	
 	this.mappings['/com'] = expandPath( 'src/com/' );
-	this.mappings['/'] = expandPath( 'model' );
+	this.mappings['/model'] = expandPath( 'model' );
+	
 }

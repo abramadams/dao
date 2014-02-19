@@ -1137,4 +1137,10 @@
 		<cfset variables.tabledefs[arguments.tabledef.instance.name] = arguments.tabledef/>
 	</cffunction>
 
+	<cffunction name="makeTable">
+		<cfargument name="tabledef" required="true" type="tabledef">
+		
+		<cfreturn this.conn.makeTable( arguments.tabledef )/>
+	</cffunction>
+
 </cfcomponent>
