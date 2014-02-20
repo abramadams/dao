@@ -2,7 +2,11 @@
 
     dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
 	todoItem = new examples.breezejs.model.TodoItem( dao = dao );
-	writeDump(todoItem);abort;
+	test = todoItem.listAsBreezeData( 
+						filter = url.$filter, 
+						orderby = url.$orderby
+					);
+	writeDump(test);abort;
     //eventLog = new model.EventLog( dao = dao );
     //eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
    /**  

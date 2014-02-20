@@ -122,16 +122,16 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>						
+						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
-								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-									<cfqueryparam 
-										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
-										value="#tmpSQL.statements[idx].value#" 
-										list="#tmpSQL.statements[idx].isList#">
-								</cfif>
-						</cfloop>
+							#tmpSQL.statements[idx].before#
+							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+								<cfqueryparam 
+									cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+									value="#tmpSQL.statements[idx].value#" 
+									list="#tmpSQL.statements[idx].isList#">
+							</cfif>
+						</cfloop>	
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
@@ -143,16 +143,16 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>						
+						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
-								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-									<cfqueryparam 
-										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
-										value="#tmpSQL.statements[idx].value#" 
-										list="#tmpSQL.statements[idx].isList#">
-								</cfif>
-						</cfloop>
+							#tmpSQL.statements[idx].before#
+							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+								<cfqueryparam 
+									cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+									value="#tmpSQL.statements[idx].value#" 
+									list="#tmpSQL.statements[idx].isList#">
+							</cfif>
+						</cfloop>	
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				</cfif>
@@ -171,7 +171,7 @@
 								cfqueryparam tags outside of a cfquery.
 								@TODO: refactor to use the query.cfc
 							--->
-							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>						
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 								#tmpSQL.statements[idx].before#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -180,7 +180,7 @@
 										value="#tmpSQL.statements[idx].value#" 
 										list="#tmpSQL.statements[idx].isList#">
 								</cfif>
-							</cfloop>
+							</cfloop>	
 							<!--- /Parse out the queryParam calls inside the where statement --->
 							</cfif>
 							<cfif len( trim( arguments.orderby ) )>
@@ -224,7 +224,7 @@
 						SELECT #arguments.columns#
 							FROM (
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : 1 )#) RowNr, #arguments.columns# 
-								FROM #arguments.table#
+								FROM #arguments.table# 
 								<cfif len( trim( arguments.where ) )>
 								<!--- 
 									Parse out the queryParam calls inside the where statement 
@@ -232,7 +232,8 @@
 									cfqueryparam tags outside of a cfquery.
 									@TODO: refactor to use the query.cfc
 								--->
-								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>						
+								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+								<cfdump var="#tmpSQL.statements#" abort>							
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									#tmpSQL.statements[idx].before#
 									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -241,16 +242,18 @@
 											value="#tmpSQL.statements[idx].value#" 
 											list="#tmpSQL.statements[idx].isList#">
 									</cfif>
-								</cfloop>
+								</cfloop>	
 								<!--- /Parse out the queryParam calls inside the where statement --->
 								</cfif>
-								<cfif len( trim( arguments.orderby ) )>
-									ORDER BY #arguments.orderby#
-								</cfif>
 								) t
+								
 							<cfif val( arguments.limit ) GT 0>
 								WHERE RowNr BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#	
 							</cfif>
+							<cfif len( trim( arguments.orderby ) )>
+								ORDER BY #arguments.orderby#
+							</cfif>
+							
 						<!--- SELECT 
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							TOP #val( arguments.limit )#

@@ -360,10 +360,13 @@ component accessors="true" output="false" {
 				where = missingMethodArguments[ arrayLen( queryArguments ) + 1 ];
 				where = len( trim( where ) ) ? where : '1=1';
 			}
-
+			
+			var columns = this.getTableDef().getColumns( exclude = 'ID' );
+			columns = listPrepend( columns, this.getIDField() & ' as ID');
+			
 			record = variables.dao.read( 
 				table = this.getTable(), 
-				columns = "#( this.getIDField() NEQ 'ID' ) ? this.getIDField() & ' as ID,' : ''# #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", 
+				columns = "#this.getDAO().getSafeColumnNames( columns )#", 
 				where = "WHERE #where# #recordSQL#", 
 				orderby = orderby, 
 				limit = limit, 
@@ -558,7 +561,7 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : getID();
 		var record = variables.dao.read( "
-					SELECT #getIDField()# as ID, #variables.tabledef.getNonAutoIncrementColumns()# FROM #this.getTable()#
+					SELECT #getIDField()# as ID, #variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' )# FROM #this.getTable()#
 					WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
 				");
 		variables._isNew = record.recordCount EQ 0;
@@ -574,7 +577,7 @@ component accessors="true" output="false" {
     * @hint The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)" 
     **/    
 	public query function list(	
-		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() )#", 
+		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#", 
 		string where = "", 
 		string limit = "", 
 		string orderby = "", 
@@ -982,12 +985,8 @@ component accessors="true" output="false" {
 
 	/**
     * @hint I create a table based on the current object's properties.
-    * @TODO Make the table creation db platform agnostic (using underlying dao)
     **/
 	private function makeTable(){
-		
-		var col = {};
-
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.		
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
 			writeDump( [arguments, variables.meta ]);abort;
@@ -996,7 +995,7 @@ component accessors="true" output="false" {
 		
 		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
 				
-		for ( col in variables.meta.properties ){
+		for ( var col in variables.meta.properties ){
 			
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
 			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
@@ -1113,19 +1112,20 @@ component accessors="true" output="false" {
 	public array function listAsBreezeData( string filter = "", string orderby = "", string skip = "", string top = "" ){
 		if( len(trim( filter ) ) ){
 			/* parse breezejs filter operators */
-			filter = reReplaceNoCase( filter, ' (eq|==|Equals) (\b.*\w)(\)|)', ' = $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (ne|\!=|NotEquals) (\b.*\w)(\)|)', ' != $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (lte|<=|LessThanOrEqual) (\b.*\w)(\)|)', ' <= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (gte|>=|GreaterThanOrEqual) (\b.*\w)(\)|)', ' >= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (lt|<|LessThan) (\b.*\w)(\)|)', ' < $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (gt|>|GreaterThan) (\b.*\w)(\)|)', ' > $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$)', ' != $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lte|<=|LessThanOrEqual)\s(.*?)(\)|$)', ' <= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gte|>=|GreaterThanOrEqual)\s(.*?)(\)|$)', ' >= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$)', ' < $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$)', ' > $queryParam(value=\2)$\3', 'all' );
 			/* fuzzy operators */
-			filter = reReplaceNoCase( filter, ' (substringof|contains) (\b.*\w)(\)|)', ' like $queryParam(value="%\2%")$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (startswith) (\b.*\w)(\)|)', ' like $queryParam(value="\2%")$\3', 'all' );
-			filter = reReplaceNoCase( filter, ' (endswith) (\b.*\w)(\)|)', ' like $queryParam(value="%\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(substringof|contains)\s(.*?)(\)|$)', ' like $queryParam(value="%\2%")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(startswith)\s(.*?)(\)|$)', ' like $queryParam(value="\2%")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(endswith)\s(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
 		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "", orderby = arguments.orderby, offset = arguments.skip, limit = arguments.top );		
+		
 		var row = "";
 		var data = [];
 		for( var i = 1; i LTE arrayLen( list ); i++ ){

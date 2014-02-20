@@ -1,6 +1,6 @@
 component extends="taffy.core.resource" taffy_uri="breeze/todos/SaveChanges" {
 	
-	dao = new com.database.dao( dsn = "dao" );
+	dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
 
 	remote function post(){
 		

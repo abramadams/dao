@@ -51,7 +51,7 @@
 
 	  ********************************************************** --->
 
-<cfcomponent displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="false" accessors="true">
+<cfcomponent displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="true" accessors="true">
 			   
 	<cfproperty name="dsn" type="string">	
 	<cfproperty name="dbtype" type="string">	
@@ -965,7 +965,7 @@
 		<cfreturn returnStruct />
 	</cffunction>
 
-	<cffunction name="parameterizeSQL" output="false" access="public" returntype="struct" hint="I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.">
+	<cffunction name="parameterizeSQL" output="true" access="public" returntype="struct" hint="I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.">
 		<cfargument name="sql" type="string" required="true" hint="SQL statement (or partial SQL statement) which contains tokenized queryParam calls">
 		
 		<cfset var LOCAL = {}/>
@@ -976,8 +976,7 @@
 		<cfset var tempCFSQLType = ""/>		
 		<cfset var tempParam = ""/>		
 		<cfset var tmpSQL = parseQueryParams( arguments.sql ) />
-
-	
+			<!---<cfdump var="#tmpSQL#" abort>--->
 			<cfset LOCAL.statements = []/>
 
 			<cfif listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) >
@@ -1025,7 +1024,6 @@
 				<!--- Reset tmp struct --->
 				<cfset tmp = {}/>
 			</cfloop>
-
 			<cfreturn LOCAL />
 
 	</cffunction>
@@ -1058,7 +1056,7 @@
 			if (nStartPos){
 				//If so, we'll recursively parse all CF code (code between #'s)
 				nStartPos 	= nStartPos + 1;
-				nEndPos 	= evaluate(findnocase(')$',arguments.str,nStartPos) - nStartPos)+1;
+				nEndPos 	= (findnocase(')$',arguments.str,nStartPos) - nStartPos)+1;
 				// If no end $ (really #) was found, pass back original string.
 				if (NOT nEndPos GT 0){
 					return arguments.str;
@@ -1092,7 +1090,7 @@
 					tmpString = reReplaceNoCase(tmpString,'(.*?)cfsqltype.*?\=.*?["|\''](.*?)["|\''](.*)','\1 \3','all');
 					// Determine if a double or single quote was used when
 					// passing the value in the original queryparam call.
-					valueQuote = mid(tmpString,reFindNoCase('value(.*?)=',tmpString,1,true).pos[2]+1,10);
+					valueQuote = mid(tmpString,reFindNoCase('value(\s|\t*?)=',tmpString,1,true).pos[2]+1,10);
 					valueQuote = left(trim(valueQuote),1);
 					// Replace the first and last valueQuote with a character
 					// that is never going to be in the string itself.  This

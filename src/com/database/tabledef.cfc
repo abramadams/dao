@@ -141,7 +141,10 @@
 	}
 
 	//	GETTERS
-	public string function getColumns(){
+	public string function getColumns( string exclude = "" ){
+		if( len( trim( exclude ) ) ){
+			return listDeleteAt( this.instance.table.columnlist, listFindNoCase( this.instance.table.columnlist, exclude ) );
+		}
 		return this.instance.table.columnlist;
 	}
 	
@@ -259,110 +262,101 @@
 		
 	}
 		
+	public numeric function getColumnLength( required string column ){
+		return this.instance.tablemeta.columns[arguments.column].length;
+	}
+	
+	public boolean function getColumnIsDirty( required string column ){
+		return this.instance.tablemeta.columns[arguments.column].isDirty;
+	}
+	
+	public string function getColumnDefaultValue( required string column ){
+		
+		if( structKeyExists( this.instance.tablemeta.columns, arguments.column ) ){
+			return this.instance.tablemeta.columns[arguments.column].defaultValue;
+		}
+		
+		return "";
+	}
+	
+	public boolean function isColumnIndex( required string column ){
+		return this.instance.tablemeta.columns[arguments.column].isIndex;
+	}
+	
+	public boolean function isColumnNullable( required string column ){
+		if( structKeyExists( this.instance.tablemeta.columns,arguments.column ) ){		
+			return this.instance.tablemeta.columns[arguments.column].isNullable;
+		}
+		
+		return true;
+	}
+	
+	public struct function getTableMeta(){
+		return this.instance.tablemeta;
+	}	
+	
+	public struct function getTable(){
+		return this.instance.table;
+	}	
+			
+	public string function getNonPrimaryKeyColumns(){
+		var nokeys = [];
+		for ( var col in this.instance.tablemeta.columns ){
+			if( this.instance.tablemeta.columns[col].isPrimaryKey != "YES" ){
+				arrayAppend( noKeys, col );
+			}			
+		}
+		
+		return arrayToList( nokeys );
+	}
+	
+	public string function getNonAutoIncrementColumns(){
+		var nokeys = [];
+		for ( var col in this.instance.tablemeta.columns ){
+			if( !( len( trim( this.instance.tablemeta.columns[col].generator ) ) && !this.instance.tablemeta.columns[col].isPrimaryKey ) || this.instance.tablemeta.columns[col].generator == "uuid" ){
+				arrayAppend( noKeys, col );
+			}			
+		}
+		
+		return arrayToList( nokeys );
+	}
+	
+	public string function getIndexColumns(){
+		var keys = [];
+		for ( var col in this.instance.tablemeta.columns ){
+			if( this.instance.tablemeta.columns[col].isIndex == "YES" ){
+				arrayAppend( Keys, col );
+			}			
+		}
+		
+		return arrayToList( keys );
+	}
+	
+	public string function getPrimaryKeyColumns(){
+		var keys = [];
+		for ( var col in this.instance.tablemeta.columns ){
+			if( this.instance.tablemeta.columns[col].isPrimaryKey == "YES" ){
+				arrayAppend( Keys, col );
+			}			
+		}
+		
+		return arrayToList( keys );
+	}
+	
+	public string function getPrimaryKeyColumn(){
+		var keys = [];
+		for ( var col in this.instance.tablemeta.columns ){
+			if( this.instance.tablemeta.columns[col].isPrimaryKey == "YES" ){
+				arrayAppend( Keys, col );
+				break;
+			}			
+		}
+		
+		return arrayToList( keys );
+	}
+	
 	</cfscript>
 			
-
-<!--- GETTERS --->
-	<cffunction name="getColumnLength" access="public" returntype="numeric" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-
-		<cfreturn this.instance.tablemeta.columns[arguments.column].length />
-	</cffunction>
-
-
-	<cffunction name="getColumnIsDirty" access="public" returntype="boolean" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine if data changed.">
-
-		<cfreturn this.instance.tablemeta.columns[arguments.column].isDirty />
-	</cffunction>
-
-	<cffunction name="getColumnDefaultValue" access="public" returntype="string" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-		<cfset var ret = ""/>
-		<cfif structKeyExists(this.instance.tablemeta.columns, arguments.column)>
-			<cfset ret = this.instance.tablemeta.columns[arguments.column].defaultValue>
-		<cfelse>
-			<cfset ret = "">
-		</cfif>
-		<cfreturn ret />
-	</cffunction>
-
-	<cffunction name="isColumnIndex" access="public" returntype="any" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-
-		<cfreturn this.instance.tablemeta.columns[arguments.column].isIndex />
-	</cffunction>
-
-	<cffunction name="isColumnNullable" access="public" returntype="boolean" output="false">
-		<cfargument name="column" required="yes" type="string" hint="Column in which to determine data type.">
-		<cfset var nullable = true>
-		<cfif structKeyExists(this.instance.tablemeta.columns,arguments.column)>
-			<cfset nullable = this.instance.tablemeta.columns[arguments.column].isNullable>
-		</cfif>
-		<cfreturn nullable />
-	</cffunction>
-
-	<cffunction name="getTableMeta" access="public" returntype="struct" output="false">
-		<cfreturn this.instance.tablemeta />
-	</cffunction>
-
-	<cffunction name="getTable" access="public" returntype="struct" output="false">
-		<cfreturn this.instance.table />
-	</cffunction>
-
-	<cffunction name="getNonPrimaryKeyColumns" access="public" returntype="string" output="false">
-		<cfset var noKeys = "">
-		<cfset var col = ""/>
-		
-		<cfloop collection="#this.instance.tablemeta.columns#" item="col">
-			<cfif this.instance.tablemeta.columns[col].isPrimaryKey is not "YES">
-				<!--- <cfdump var="#this.instance.tablemeta.columns[col]#"> --->
-				<cfset nokeys = listAppend(noKeys,col)>
-				<!--- <cfdump var="#nokeys#"> --->
-			</cfif>
-		</cfloop>
-		<cfreturn noKeys />
-	</cffunction>
-
-	<cffunction name="getNonAutoIncrementColumns" access="public" returntype="string" output="false">
-		<cfset var noKeys = "">
-		<cfset var col = ""/>
-		
-		<cfloop collection="#this.instance.tablemeta.columns#" item="col">
-			<cfif !( len( trim( this.instance.tablemeta.columns[col].generator ) ) && !this.instance.tablemeta.columns[col].isPrimaryKey )|| this.instance.tablemeta.columns[col].generator eq "uuid">
-				<!--- <cfdump var="#this.instance.tablemeta.columns[col]#"> --->
-				<cfset nokeys = listAppend(noKeys,col)>
-				<!--- <cfdump var="#nokeys#"> --->
-			</cfif>
-		</cfloop>
-
-		<cfreturn noKeys />
-	</cffunction>
-	
-	<cffunction name="getIndexColumns" access="public" returntype="string" output="false" hint="I return the index key fields for the current table.">
-		<cfset var Keys = "">
-		<cfset var col = ""/>
-		<cfloop collection="#this.instance.tablemeta.columns#" item="col">
-			<cfif this.instance.tablemeta.columns[col].isIndex is "YES">
-				<cfset keys = listAppend(Keys,col)>
-			</cfif>
-		</cfloop>
-		<cfreturn Keys />
-	</cffunction>
-
-	<cffunction name="getPrimaryKeyColumn" access="public" returntype="string" output="false">
-		<cfset var Keys = "">
-		<cfset var col = ""/>
-		<cfloop collection="#this.instance.tablemeta.columns#" item="col">
-			<cfif this.instance.tablemeta.columns[col].isPrimaryKey is "YES">
-				<cfset keys = listAppend(Keys,col)>
-				<cfbreak>
-			</cfif>
-		</cfloop>
-		<cfreturn Keys />
-	</cffunction>
-
-<!--- END:GETTERS --->
 <!--- PRIVATE FUNCTIONS --->
 	<cffunction name="loadTableMetaData" output="false" access="public" returntype="void" hint="I load the metadata for the table.">
 		<cfscript>			
