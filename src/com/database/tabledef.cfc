@@ -85,7 +85,8 @@
 	}
 	
 	public function addColumn( required string column,
-							   required string datatype,
+							   required string type,
+							   string sqlType = arguments.type,
 							   string length = "", 
 							   boolean isPrimaryKey = false,
 							   string generator = "",
@@ -101,7 +102,8 @@
 			// Store Column Definition in structure for later use
 			
 			this.instance.tablemeta.columns[ arguments.column ] = {
-				type = getValidDataType( arguments.datatype ),
+				sqltype = arguments.type,
+				type = getValidDataType( arguments.type ),
 				length = arguments.length,
 				isIndex = arguments.isIndex,
 				isPrimaryKey = arguments.isPrimaryKey,
@@ -112,7 +114,7 @@
 				isDirty = arguments.isDirty
 			};
 			
-			QueryAddColumn( this.instance.table, arguments.column, getDummyType( arguments.datatype ), arrPadding );
+			QueryAddColumn( this.instance.table, arguments.column, getDummyType( arguments.type ), arrPadding );
 	}
 	
 	public function setColumn( required string column, required any value, required numeric row ){
@@ -443,7 +445,8 @@
 			<cfset generator = isPrimary && columntype contains "int" ? 'increment' : isPrimary && columnType is "varchar" ? 'uuid' : '' />
 			<cfset addColumn(column=columnname,
 							length=fieldsize,
-							datatype=columntype,
+							type=columntype,
+							sqltype=getDummyType( columntype ),
 							isIndex=isIndex,
 							isPrimaryKey=isprimary,
 							isNullable=isnullable,

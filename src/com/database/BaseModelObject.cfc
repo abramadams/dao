@@ -15,8 +15,7 @@ component accessors="true" output="false" {
 	property name="IDFieldType" type="string" persistent="false";
 	property name="IDFieldGenerator" type="string" persistent="false" ;
 	/* property name="currentUserID" type="numeric" persistent="false"; */
-	property name="deleteStatusCode" type="numeric" persistent="false";
-	
+	property name="deleteStatusCode" type="numeric" persistent="false" ;
 	/* Some global properties */	
 	/* property name="Created_By_Users_Id" type="numeric" ;
 	property name="Created_Datetime" type="date"; 
@@ -996,18 +995,17 @@ component accessors="true" output="false" {
 		}
 		
 		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
-					
-		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop				
+				
 		for ( col in variables.meta.properties ){
 			
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
 			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
 			col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
-			col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;			
+			col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;
 			col.isPrimaryKey = col.isIndex = structKeyExists( col, 'fieldType' ) && col.fieldType == 'id';
 			col.isNullable = !( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' );
 			col.defaultValue = structKeyExists( col, 'default' ) ? col.default : '';
-			col.generator = structKeyExists( col, 'generator' ) ? col.generator : '';
+			col.generator = structKeyExists( col, 'generator' ) ? col.generator : '';			
 			if( col.persistent && !structKeyExists( col, 'cfc' ) ){
 				
 				switch( col.type ){
@@ -1034,26 +1032,12 @@ component accessors="true" output="false" {
 					break;
 				}
 
-//				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
-//					autoIncrement = true;
-//					columnsSQL = listPrepend( columnsSQL, tmpstr );
-//				}else{
-//					columnsSQL = listAppend( columnsSQL, tmpstr );
-//				}
-//
-//				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'id' ){
-//					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
-//						primaryKeys = listPrepend(primaryKeys, '`#col.name#`');
-//					}else{
-//						primaryKeys = listAppend(primaryKeys, '`#col.name#`');
-//					}
-//				}
-				
 			}
-			
+			// Manually create the tabledef object (to be used to create the table in the DB)
 			tableDef.addColumn(
 				column = col.name,
-				dataType =  col.type,
+				type =  col.type,
+				sqlType = col.type,
 				length = col.length,
 				isIndex = col.isIndex,
 				isPrimaryKey = col.isPrimaryKey,
@@ -1066,10 +1050,7 @@ component accessors="true" output="false" {
 
 		}
 
-		
-		//writeDump(tableDef);abort;
-		//variables.dao.execute(tableSQL);
-		//this.setTabledef( new tabledef(tableName = getTable(), dsn = dao.getDSN()) );
+		// create table and set the tabledef property
 		this.setTabledef( getDao().makeTable( tableDef ) );		
 
 	}

@@ -520,5 +520,80 @@
 		<cfreturn ret />
 		
 	</cffunction>	
+	<cfscript>
+		/**
+	    * @hint I create a table based on the passed in tabledef object's properties.		    
+	    **/
+		package tabledef function makeTable( required tabledef tabledef ){
+			
+			var tableSQL = "CREATE TABLE [#tabledef.getTableName()#] (";
+			var columnsSQL = "";
+			var primaryKeys = "";
+			var indexes = "";
+			var autoIncrement = false;
+			var tmpstr = "";
+			var col = {};
+	
+						
+			for ( var colName in tableDef.getTableMeta().columns ){
+				col = tableDef.getTableMeta().columns[ colName ];
+				col.name = colName;
+				
+				switch( col.sqltype ){
+					case 'string':
+						tmpstr = '[#col.name#] varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'numeric':
+						tmpstr = '[#col.name#] int #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #col.isPrimaryKey ? ' PRIMARY KEY' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'date':
+						tmpstr = '[#col.name#] datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'tinyint':
+						tmpstr = '[#col.name#] tinyint(1) #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+					break;
+					case 'boolean': case 'bit':
+						tmpstr = '[#col.name#] BIT #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+					break;
+					case 'text':
+						tmpstr = '[#col.name#] text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+					break;
+					default:
+						tmpstr = '[#col.name#] #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+				}
+
+				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+					autoIncrement = true;
+					columnsSQL = listPrepend( columnsSQL, tmpstr );
+				}else{
+					columnsSQL = listAppend( columnsSQL, tmpstr );
+				}
+
+				if( col.isPrimaryKey ){
+					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+						primaryKeys = listPrepend(primaryKeys, '[#col.name#]');
+					}else{
+						primaryKeys = listAppend(primaryKeys, '[#col.name#]');
+					}
+				}
+				
+	
+			}
+	
+			tableSQL &= columnsSQL & ')';
+			
+			/*if( listLen( primaryKeys ) ){
+				tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
+			}
+			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';*/
 		
+			
+			getDao().execute( tableSQL );
+			
+			return tabledef;				
+	
+		}
+		
+	</cfscript>
 </cfcomponent>

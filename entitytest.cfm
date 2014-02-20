@@ -1,10 +1,8 @@
 <cfscript>
 
-    dao = new com.database.dao( dsn = "dao" );
-
-	todo = new examples.breezejs.model.TodoItem( dao = dao );
-	//todo.makeTable();
-	writeDump(todo);abort;
+    dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
+	todoItem = new examples.breezejs.model.TodoItem( dao = dao );
+	writeDump(todoItem);abort;
     //eventLog = new model.EventLog( dao = dao );
     //eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
    /**  
@@ -27,7 +25,7 @@
     user.setLastName('Bond');
     user.save();
 
-    todoItem = new breezejs.model.TodoItem( dao = dao );
+    todoItem = new examples.breezejs.model.TodoItem( dao = dao );
     todoItem.setDescription('Food');
     todoItem.setIsArchived(false);
     todoItem.setIsDone(false);
