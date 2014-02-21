@@ -42,7 +42,7 @@
 		
 	</cffunction>
 
-	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MySQL specific." returntype="any" output="false">
 	
 		<cfset var get = "" />
 		
@@ -238,7 +238,7 @@
 		<cfreturn get />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="numeric" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 		
 		<cfset var curRow = 0 />
@@ -299,7 +299,7 @@
 								</cfif>
 							</cfif>
 							
-							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
+							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#						
 							<cfset cfsqltype = "bad">
 						</cfloop>
 						)
@@ -314,7 +314,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="true">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">

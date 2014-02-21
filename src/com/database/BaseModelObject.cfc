@@ -350,23 +350,25 @@ component accessors="true" output="false" {
 					recordSQL &= " AND #LOCAL.columnName# = #getDao().queryParam(value="#arguments.missingMethodArguments[ i ]#")#";
 					//Setup defaults
 					LOCAL.functionName = "set" & queryArguments[ i ];
+
 					try{
 						LOCAL.tmpFunc = this[LOCAL.functionName];
 						LOCAL.tmpFunc(arguments.missingMethodArguments[ i ]);
 					} catch ( any err ){}
 				}											
 			}
+			
 			if( structCount( missingMethodArguments ) GT arrayLen( queryArguments ) ){
 				where = missingMethodArguments[ arrayLen( queryArguments ) + 1 ];
 				where = len( trim( where ) ) ? where : '1=1';
 			}
 			
-			var columns = this.getTableDef().getColumns( exclude = 'ID' );
-			columns = listPrepend( columns, this.getIDField() & ' as ID');
-			
+			var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) );			
+			columns = listPrepend( columns, this.getDAO().getSafeColumnName( getIDField() ) & (getIDField() != 'ID' ? ' as ID' : ''));
+
 			record = variables.dao.read( 
 				table = this.getTable(), 
-				columns = "#this.getDAO().getSafeColumnNames( columns )#", 
+				columns = columns, 
 				where = "WHERE #where# #recordSQL#", 
 				orderby = orderby, 
 				limit = limit, 
@@ -561,7 +563,7 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : getID();
 		var record = variables.dao.read( "
-					SELECT #getIDField()# as ID, #variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' )# FROM #this.getTable()#
+					SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' )# FROM #this.getTable()#
 					WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
 				");
 		variables._isNew = record.recordCount EQ 0;
@@ -577,7 +579,7 @@ component accessors="true" output="false" {
     * @hint The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)" 
     **/    
 	public query function list(	
-		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #( this.getIDField() NEQ 'ID' ) ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#", 
+		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #this.getIDField() NEQ 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#", 
 		string where = "", 
 		string limit = "", 
 		string orderby = "", 
@@ -787,7 +789,9 @@ component accessors="true" output="false" {
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
 				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;			
-				DATA[ LOCAL.columnName ] = DATA[col];
+				// we can only send simple values to be saved.  If the value is a struct/array that means it was a relationship entity and 
+				// should already have been taken care of in the _saveTheChildren() method above.
+				DATA[ LOCAL.columnName ] = isSimpleValue( DATA[col] ) ? DATA[col] : '';
 			}
 			
 			if (structCount(arguments.overrides) > 0){
@@ -814,7 +818,7 @@ component accessors="true" output="false" {
 				table = this.getTable(),
 				data = DATA
 			); 
-			//this.setID(newID);
+			
 			variables['ID'] = this['ID'] = newID;			
             tempID = newID;
 
@@ -877,10 +881,8 @@ component accessors="true" output="false" {
 	}
 
 	private void function _saveTheChildren( any tempID = getID() ){
-	 /* Now save any child records */        
-		// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
-		for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-			col = variables.meta.properties[ i ]; 
+	 /* Now save any child records */
+		for ( var col in variables.meta.properties ){			
 			if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && val( tempID ) ){
 				for ( var child in variables[ col.name ] ){
 					//var FKFunc = duplicate( child["set" & col.fkcolumn] );					
@@ -927,10 +929,8 @@ component accessors="true" output="false" {
 
 		if( len( trim( getID() ) ) gt 0 && !isNew() ){
 
-			/* First delete any child records */        
-			// NOTE: In CF9 you cannot use a for-in loop on meta properties, so we're using the old style for loop
-			for ( var i = 1; i LTE arrayLen( variables.meta.properties ); i++ ){
-				var col = variables.meta.properties[ i ];
+			/* First delete any child records */
+			for ( var col in variables.meta.properties ){				
 				if( structKeyExists( col, 'fieldType' ) 
 					&& ( col.fieldType eq 'one-to-many' || col.fieldType eq 'one-to-one' ) 
 					&& ( !structKeyExists( col, 'cascade') || col.cascade != 'save-update') 
@@ -988,37 +988,38 @@ component accessors="true" output="false" {
     **/
 	private function makeTable(){
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.		
-		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			writeDump( [arguments, variables.meta ]);abort;
+		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){			
 			throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
 		}
 		
 		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
-				
-		for ( var col in variables.meta.properties ){
-			
-			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
-			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
-			col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
-			col.persistent = structKeyExists( col, 'persistent' ) ? col.persistent : true;
-			col.isPrimaryKey = col.isIndex = structKeyExists( col, 'fieldType' ) && col.fieldType == 'id';
-			col.isNullable = !( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' );
-			col.defaultValue = structKeyExists( col, 'default' ) ? col.default : '';
-			col.generator = structKeyExists( col, 'generator' ) ? col.generator : '';			
-			if( col.persistent && !structKeyExists( col, 'cfc' ) ){
+		
+		for ( var prop in variables.meta.properties ){
+			var col = {};
+			col.type = structKeyExists( prop, 'type' ) ? prop.type : 'string';
+			col.type = structKeyExists( prop, 'sqltype' ) ? prop.sqltype : col.type;
+			col.name = structKeyExists( prop, 'column' ) ? prop.column : prop.name;
+			col.persistent = !structKeyExists( prop, 'persistent' ) ? true : prop.persistent;
+			col.isPrimaryKey = col.isIndex = structKeyExists( prop, 'fieldType' ) && prop.fieldType == 'id';
+			col.isNullable = !( structKeyExists( prop, 'fieldType' ) && prop.fieldType == 'id' );
+			col.defaultValue = structKeyExists( prop, 'default' ) ? prop.default : '';
+			col.generator = structKeyExists( prop, 'generator' ) ? prop.generator : '';
+			col.length = structKeyExists( prop, 'length' ) ? prop.length : '';
+
+			if( col.persistent && !structKeyExists( col, 'CFC' ) ){
 				
 				switch( col.type ){
-					case 'string':
-						col.length = structKeyExists( col, 'length' ) ? col.length : 255;						
+					case 'string': case 'varchar':
+						col.length = structKeyExists( col, 'length' ) && val( col.length ) > 0 ? col.length : 255;						
 					break;
-					case 'numeric':
-						col.length = structKeyExists( col, 'length' ) ? col.length : 11;						
+					case 'numeric': case 'int':
+						col.length = structKeyExists( col, 'length' ) && val( col.length ) > 0 ? col.length : 11;						
 					break;
 					case 'date':
 						col.length = '';						
 					break;
 					case 'tinyint':
-						col.length = structKeyExists( col, 'length' ) ? col.length : 1;						
+						col.length = structKeyExists( col, 'length' ) && val( col.length ) > 0 ? col.length : 1;						
 					break;
 					case 'boolean': case 'bit':
 						col.length = ''; 						
@@ -1027,25 +1028,25 @@ component accessors="true" output="false" {
 						col.length = '';
 					break;
 					default:
-						col.length = structKeyExists( col, 'length' ) ? col.length : 255;						
+						col.length = structKeyExists( col, 'length' ) && val( col.length ) > 0 ? col.length : 255;						
 					break;
 				}
 
+				// Manually create the tabledef object (to be used to create the table in the DB)
+				tableDef.addColumn(
+					column = col.name,
+					type =  col.type,
+					sqlType = col.type,
+					length = col.length,
+					isIndex = col.isIndex,
+					isPrimaryKey = col.isPrimaryKey,
+					isNullable = col.isNullable,
+					defaultValue = col.defaultValue,
+					generator = col.generator,
+					comment = '',
+					isDirty = false
+				);
 			}
-			// Manually create the tabledef object (to be used to create the table in the DB)
-			tableDef.addColumn(
-				column = col.name,
-				type =  col.type,
-				sqlType = col.type,
-				length = col.length,
-				isIndex = col.isIndex,
-				isPrimaryKey = col.isPrimaryKey,
-				isNullable = col.isNullable,
-				defaultValue = col.defaultValue,
-				generator = col.generator,
-				comment = '',
-				isDirty = false
-			);
 
 		}
 
@@ -1112,7 +1113,7 @@ component accessors="true" output="false" {
 	public array function listAsBreezeData( string filter = "", string orderby = "", string skip = "", string top = "" ){
 		if( len(trim( filter ) ) ){
 			/* parse breezejs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$)', ' != $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lte|<=|LessThanOrEqual)\s(.*?)(\)|$)', ' <= $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gte|>=|GreaterThanOrEqual)\s(.*?)(\)|$)', ' >= $queryParam(value=\2)$\3', 'all' );

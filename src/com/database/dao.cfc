@@ -99,7 +99,7 @@
 		<cfreturn this />
 	</cffunction>
 
-	<cffunction name="getLastID" hint="I return the ID of the last inserted record." returntype="numeric" output="true">
+	<cffunction name="getLastID" hint="I return the ID of the last inserted record." returntype="any" output="true">
 
 		<cfset var ret = this.conn.getLastID()/>
 
@@ -225,7 +225,7 @@
 				<cfelse>
 					<cfset setVariable( arguments.qoq.name, arguments.qoq.query)>					
 					<cfquery name="LOCAL.#arguments.name#" dbtype="query">
-						#PreserveSingleQuotes(sql)#
+						#PreserveSingleQuotes( sql )#
 					</cfquery>
 				</cfif>
 				</cftimer>
@@ -253,7 +253,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value." returntype="numeric" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 			<cfset var ret = 0/>
@@ -288,11 +288,12 @@
 				if (structKeyExists(arguments.data,LOCAL.col)){
 					if(LOCAL.col eq LOCAL.table.getPrimaryKeyColumn() && LOCAL.table.getTableMeta().columns[LOCAL.col].type != 4 && !len(trim(arguments.data[LOCAL.col]))){
 						LOCAL.table.setColumn(column=LOCAL.col,value=createUUID(),row=LOCAL.row);
-					}else{
+					}else{						
 						LOCAL.table.setColumn(column=LOCAL.col,value=arguments.data[LOCAL.col],row=LOCAL.row);
 					}
 				}
-			}	
+			}
+
 			/// insert it				
 			if (not arguments.dryrun){
 				LOCAL.newRecord = this.conn.write(LOCAL.table);
@@ -314,7 +315,7 @@
 		
 	</cffunction>
 
-	<cffunction name="bulkInsert" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the number of records inserted." returntype="numeric" output="false">
+	<cffunction name="bulkInsert" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the number of records inserted." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 		<cfset var qry = arguments.tabledef.getRows()/>
@@ -608,7 +609,7 @@
 
 	</cffunction>
 
-	<cffunction name="execute" hint="I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert." returntype="numeric" output="false">
+	<cffunction name="execute" hint="I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert." returntype="any" output="false">
 		<cfargument name="sql" required="true" type="string" hint="SQL command to execute.  Can be any valid SQL command.">
 		<cfargument name="writeTransactionLog" required="false" default="#this.getWriteTransactionLog() eq true#" type="boolean" hint="Do you want to write the executed statement to the transaction log?">
 				
@@ -918,7 +919,7 @@
 	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
 		<cfargument name="cols" required="true" type="string">
 
-			<cfset var columns = this.conn.getSafeColumnNames(arguments.cols)>
+			<cfset var columns = this.conn.getSafeColumnNames( arguments.cols )/>
 
 		<cfreturn columns />
 
@@ -927,7 +928,7 @@
 	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
 		<cfargument name="col" required="true" type="string">
 
-		<cfset var ret = this.conn.getSafeColumnName(arguments.col)>
+		<cfset var ret = this.conn.getSafeColumnName( arguments.col )/>
 
 
 		<cfreturn ret />
@@ -1043,10 +1044,7 @@
 			var nEndPos = "";
 			var tmpStartString = "";
 			var tmpString = "";
-			var tmpEndString = "";
-			var thecfsqltype = "";
-			var valueQuote = "";
-			var thevalue = "";
+			var tmpEndString = "";			
 			var eval_string = "";
 			var returnString = "";
 			
@@ -1054,7 +1052,7 @@
 			arguments.str = arguments.str & " ";
 			
 			if (nStartPos){
-				//If so, we'll recursively parse all CF code (code between #'s)
+				//If so, we'll recursively parse all CF code (code between $'s)
 				nStartPos 	= nStartPos + 1;
 				nEndPos 	= (findnocase(')$',arguments.str,nStartPos) - nStartPos)+1;
 				// If no end $ (really #) was found, pass back original string.
@@ -1072,7 +1070,7 @@
 				// A little clean-up
 				tmpString = reReplaceNoCase(tmpString,'&quot;',"'",'all');
 				// If queryParam was passed in the SQL, lets' parse it
-				if (findNoCase("queryParam",tmpString)){
+				if (findNoCase("queryParam",tmpString)){					
 					// We need to normalize the cfml and to be parsed
 					// in order to ensure error free processing.  The
 					// following will extract the cfsqltype and value
@@ -1083,33 +1081,38 @@
 					// in the literal string.
 					// (i.e. value="this is'nt" my string") would break the
 					// code if we didn't do the following
-					tmpString = replaceNoCase(tmpString,'queryParam(','');
-					tmpString = replaceNoCase(tmpString,')','');
-					// Extract the cfsqltype
-					thecfsqltype = reReplaceNoCase(tmpString,'(.*?)cfsqltype.*?\=.*?["|\''](.*?)["|\''](.*)','\2','all');
-					tmpString = reReplaceNoCase(tmpString,'(.*?)cfsqltype.*?\=.*?["|\''](.*?)["|\''](.*)','\1 \3','all');
-					// Determine if a double or single quote was used when
-					// passing the value in the original queryparam call.
-					valueQuote = mid(tmpString,reFindNoCase('value(\s|\t*?)=',tmpString,1,true).pos[2]+1,10);
-					valueQuote = left(trim(valueQuote),1);
-					// Replace the first and last valueQuote with a character
-					// that is never going to be in the string itself.  This
-					// will be used as a delimiter when extracting the value.
-					tmpString = replace(tmpString,valueQuote,chr(777),"one");
-					tmpString = reverse(replace(reverse(tmpString),valueQuote,chr(777),"one"));
-					// Now extract the value
-					thevalue = reReplaceNoCase(tmpString,'(.*?)value.*?\=.*?#chr(777)#(.*?)#chr(777)#(.*)','\2','all');
-					// finally we can evaluate the queryParam.
-					eval_string = queryParamStruct(value=trim(thevalue),cfsqltype=thecfsqltype);
+					tmpString = reReplaceNoCase(tmpString,'^queryParam\(','');
+					tmpString = reReplaceNoCase(tmpString,'\)$','');					
+					var tmpArr = listToArray( tmpString );
+					// parse each passed in key/value pair and make sure they are proper JSON (i.e. quoted names/values)
+					for( var i = 1; i <= arrayLen( tmpArr ); i++ ){
+						tmpArr[ i ] = reReplaceNoCase( tmpArr[ i ], '[''|"]*(.+?)[''|"]*=[''|"]*(\b.*\b)[''|"|$]*', '"\1":"\2"', 'all') ;
+						// temporary hack for blank values until I can figure how to handle this in the regex above.
+						if( tmpArr[ i ] == "value=''" || tmpArr[ i ] == "value=" || tmpArr[ i ] == 'value=""'){
+							tmpArr[ i ] = '"value":""';
+						}
+					}
+					// turn the JSON into a CF struct
+					tmpString = deSerializeJSON( "{" & arrayToList( tmpArr ) & "}" );
+					
+					// finally we can evaluate the queryParam struct.  This will scrub the values (i.e. proper cfsql types, prevent sql injection, etc...).					
+					eval_string = queryParamStruct( 
+													value = structKeyExists( tmpString, 'value' ) ? tmpString.value : '',
+													cfsqltype = structKeyExists( tmpString, 'cfsqltype' ) ? tmpString.cfsqltype : '',
+													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
+													null = structKeyExists( tmpString, 'null' ) ? tmpString.null : false
+												);
+					
+					
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
-					if (isStruct(eval_string)){
+					if ( isStruct( eval_string ) ){
 						// Now we'll pass back a pseudo cfqueryparam.  The read() function will
 						// break this down and re-create it since the tag call itself has to be static
 						returnString = tmpStartString & chr(998) & 'cfsqltype=#chr(777)#' & reReplaceNoCase(eval_string.cfsqltype,'\$queryparam','INVALID','all') & '#chr(777)# value=#chr(777)#' & reReplaceNoCase(eval_string.value,'\$queryparam','INVALID','all') & '#chr(777)#' & chr(999) &  tmpEndString;
 						// Now the recursion.  Pass the string with the value we just parsed back
 						// this function to see if there is anything left to parse.  When there is
 						// nothing left to parse it will be returned to the calling function (read())
-						return parseQueryParams(returnString);
+						return parseQueryParams( returnString );
 						break;
 					}else{
 						// The evaluated string was not a simple object and could be malicious so we'll

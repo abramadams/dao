@@ -44,7 +44,7 @@
 	</cffunction>
 
 
-	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MSSQL specific." returntype="numeric" output="true">
+	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MSSQL specific." returntype="any" output="false">
 		<cfquery name="get" datasource="#variables.dsn#">
 			SELECT Scope_Identity() as thekey
 		</cfquery>
@@ -162,7 +162,7 @@
 
 						SELECT #arguments.columns#
 						FROM (
-							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : 1 )#) RowNr, #arguments.columns# 
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns# 
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
 							<!--- 
@@ -223,7 +223,7 @@
 					<cfquery name="get" datasource="#variables.dsn#">
 						SELECT #arguments.columns#
 							FROM (
-								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : 1 )#) RowNr, #arguments.columns# 
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns# 
 								FROM #arguments.table# 
 								<cfif len( trim( arguments.where ) )>
 								<!--- 
@@ -233,7 +233,6 @@
 									@TODO: refactor to use the query.cfc
 								--->
 								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
-								<cfdump var="#tmpSQL.statements#" abort>							
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									#tmpSQL.statements[idx].before#
 									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -297,7 +296,7 @@
 		<cfreturn get />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="numeric" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 		
 		<cfset var curRow = 0 />
@@ -311,8 +310,10 @@
 		<cfset var col = "" />
 		<cfset var ret = "" />
 
+		
 		<cfset qry = arguments.tabledef.getRows()/>
-		<cfset columns = arguments.tabledef.getNonPrimaryKeyColumns() />
+		<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
+		
 		<cfif !qry.recordCount>
 			<cfdump var="#arguments#" abort>
 		</cfif>
@@ -356,13 +357,13 @@
 								</cfif>
 							</cfif>
 							
-							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
+							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#
 							<cfset cfsqltype = "bad">
 						</cfloop>
 						)
 				</cfsavecontent>	
 								
-				<cfset ret = getDao().execute(ins)/>
+				<cfset ret = getDao().execute( ins )/>
 
 
 		</cfoutput>
@@ -371,7 +372,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="true">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
@@ -497,32 +498,37 @@
 	
 	<!--- GETTERS --->
 	
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within [].  This is MSSQL Specific." output="true">
+
+	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
 		<cfargument name="cols" required="true" type="string">
 
-		<cfset var i = 0>
-		
+		<cfset var i = 0 />
+		<cfset var columns = "" />
+		<cfset var colname = "" />
+	
 		<cfsavecontent variable="columns">
 			<cfoutput>
-				<cfloop list="#arguments.cols#" index="name">
-					<cfset i = i + 1>[#name#]<cfif i lt listLen(cols)>,</cfif>
+				<cfloop list="#arguments.cols#" index="colname">
+					<cfset i = i + 1>[#colname#]<cfif i lt listLen(cols)>,</cfif>
 				</cfloop>
 			</cfoutput>
 		</cfsavecontent>
 		
 		<cfreturn columns />
-		
+
 	</cffunction>
-	
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within [].  This is MSSQL Specific." output="true">
+
+	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
 		<cfargument name="col" required="true" type="string">
-
-		<cfset var ret = "[" & arguments.col & "]" >
-
 		
+		<cfset var ret = "" />
+		
+		<cfset ret = "[" & arguments.col & "]" >
+
 		<cfreturn ret />
-		
-	</cffunction>	
+
+	</cffunction>
+
 	<cfscript>
 		/**
 	    * @hint I create a table based on the passed in tabledef object's properties.		    
@@ -535,11 +541,10 @@
 			var indexes = "";
 			var autoIncrement = false;
 			var tmpstr = "";
-			var col = {};
-	
+				
 						
 			for ( var colName in tableDef.getTableMeta().columns ){
-				col = tableDef.getTableMeta().columns[ colName ];
+				var col = tableDef.getTableMeta().columns[ colName ];
 				col.name = colName;
 				
 				switch( col.sqltype ){
@@ -591,8 +596,13 @@
 			}
 			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';*/
 		
-			
+			try{
+
 			getDao().execute( tableSQL );
+			}catch(any e){
+				writeDump( tableDef.getTableMeta().columns );
+				writeDump( e );abort;
+			}
 			
 			return tabledef;				
 	

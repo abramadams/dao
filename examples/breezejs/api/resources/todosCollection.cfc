@@ -1,6 +1,6 @@
 component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 	
-	dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
+	dao = new com.database.dao( dsn = "dao" );
 
 	remote function get(string $filter = "" ,string $orderby = "", string $skip = "", string $top = ""){
 		

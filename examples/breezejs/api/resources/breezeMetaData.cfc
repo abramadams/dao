@@ -1,6 +1,6 @@
 component extends="taffy.core.resource" taffy_uri="breeze/todos/Metadata" {
 	
-	dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
+	dao = new com.database.dao( dsn = "dao" );
 
 	remote function get(){
 

@@ -117,8 +117,8 @@
 			QueryAddColumn( this.instance.table, arguments.column, getDummyType( arguments.type ), arrPadding );
 	}
 	
-	public function setColumn( required string column, required any value, required numeric row ){
-		return querySetCell( this.instance.table, arguments.column, arguments.value, arguments.row );
+	public function setColumn( required string column, required any value, required numeric row ){		
+		return querySetCell( this.instance.table, arguments.column, arguments.value, arguments.row );		
 	}
 	
 	public function setColumnComment( required string column, required any comment ){
@@ -313,7 +313,7 @@
 	public string function getNonAutoIncrementColumns(){
 		var nokeys = [];
 		for ( var col in this.instance.tablemeta.columns ){
-			if( !( len( trim( this.instance.tablemeta.columns[col].generator ) ) && !this.instance.tablemeta.columns[col].isPrimaryKey ) || this.instance.tablemeta.columns[col].generator == "uuid" ){
+			if( !len( trim( this.instance.tablemeta.columns[col].generator ) ) || this.instance.tablemeta.columns[col].generator == "uuid" ){
 				arrayAppend( noKeys, col );
 			}			
 		}
@@ -355,6 +355,28 @@
 		return arrayToList( keys );
 	}
 	
+	/**
+	* @hint Returns the name or number for a given Java JDBC data type 
+	**/
+	private string function jdbcType( required string typeId ){
+		var sqltype = createobject("java","java.sql.Types");
+		var types = {};		
+
+		for( var x in sqltype ){
+			types[ x ] = sqltype[ x ];
+			types[ sqltype[ x ] ] = x;
+		}
+		if( left( arguments.typeID, 3 ) is "INT" ){
+			arguments.typeID = "integer";
+		}
+		if( structKeyExists(types, arguments.typeID) && types[arguments.typeId] is "timestamp" ){
+			types[ arguments.typeId ] = "datetime";
+		}
+		
+		return types[ arguments.typeId]
+	}
+		
+
 	</cfscript>
 			
 <!--- PRIVATE FUNCTIONS --->
@@ -451,26 +473,6 @@
 		</cfoutput>
 						
 	</cffunction>
-	
-	<cffunction name="jdbcType" output="false" returntype="string"  hint="returns the name or number for a given Java JDBC data type">
-		<cfargument name="typeid" type="string" required="true">
-				
-		<cfset var sqltype = createobject("java","java.sql.Types")>
-		<cfset var types = {}>
-		<cfset var x = ""/>		
-		<cfloop item="x" collection="#sqltype#">
-			<cfset types[x] = sqltype[x]>
-			<cfset types[sqltype[x]] = x>
-		</cfloop>
-		
-		<cfif left(arguments.typeID,3) is "INT">
-			<cfset arguments.typeID = "integer"/>
-		</cfif> 
-		<cfif structKeyExists(types, arguments.typeID) && types[arguments.typeid] is "timestamp">
-			<cfset types[arguments.typeid] = "datetime">		
-		</cfif>
-		
-		<cfreturn types[ arguments.typeid ]>
-	</cffunction>
+
 
 </cfcomponent>
