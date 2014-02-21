@@ -373,7 +373,7 @@
 			types[ arguments.typeId ] = "datetime";
 		}
 		
-		return types[ arguments.typeId]
+		return types[ arguments.typeId];
 	}
 		
 
