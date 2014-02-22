@@ -1009,6 +1009,11 @@
 				</cfif>
 
 				<cfset tmp.cfSQLType = mid( tempParam, tempCFSQLType.pos[2], tempCFSQLType.len[2] ) />
+				<!--- Default the cfsqltype if one wasn't provided --->
+				<cfif !len( trim( tmp.cfSQLType ) )>
+					<cfset tmp.cfSQLType = "cf_sql_varchar" />					
+				</cfif>
+				
 				<cfset tempValue = reFindNoCase( 'value\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true ) />
 				<!--- Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777)) --->
 				<cfset tmp.value = reReplaceNoCase( mid( PreserveSingleQuotes( tempParam ), tempValue.pos[2], tempValue.len[2] ), chr( 777 ), '', 'all' ) />
