@@ -42,7 +42,7 @@
 		
 	</cffunction>
 
-	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MySQL specific." returntype="any" output="false">
 	
 		<cfset var get = "" />
 		
@@ -103,6 +103,7 @@
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
@@ -185,10 +186,10 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY #arguments.orderby#
+							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-							LIMIT #val( arguments.limit )#
+							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
 				<cfelse>
@@ -217,11 +218,11 @@
 
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY #arguments.orderby#
+							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-							LIMIT #val( arguments.limit )#
-						</cfif>						
+							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
+						</cfif>
 					</cfquery>
 				</cfif>
 			</cfif>
@@ -237,7 +238,7 @@
 		<cfreturn get />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="numeric" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 		
 		<cfset var curRow = 0 />
@@ -298,7 +299,7 @@
 								</cfif>
 							</cfif>
 							
-							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
+							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#						
 							<cfset cfsqltype = "bad">
 						</cfloop>
 						)
@@ -313,7 +314,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="true">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
@@ -491,5 +492,81 @@
 		<cfreturn ret />
 
 	</cffunction>
+	
+	<cfscript>
+		/**
+	    * @hint I create a table based on the passed in tabledef object's properties.		    
+	    **/
+		package tabledef function makeTable( required tabledef tabledef ){
+			
+			var tableSQL = "CREATE TABLE `#tabledef.getTableName()#` (";
+			var columnsSQL = "";
+			var primaryKeys = "";
+			var indexes = "";
+			var autoIncrement = false;
+			var tmpstr = "";
+			var col = {};
+	
+						
+			for ( var colName in tableDef.getTableMeta().columns ){
+				col = tableDef.getTableMeta().columns[ colName ];
+				col.name = colName;
+				
+				switch( col.sqltype ){
+					case 'string':
+						tmpstr = '`#col.name#` varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'numeric':
+						tmpstr = '`#col.name#` int(#structKeyExists( col, 'length' ) ? col.length : '11'#) unsigned #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+					break;
+					case 'date':
+						tmpstr = '`#col.name#` datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'tinyint':
+						tmpstr = '`#col.name#` tinyint(1) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+					break;
+					case 'boolean': case 'bit':
+						tmpstr = '`#col.name#` BIT #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+					break;
+					case 'text':
+						tmpstr = '`#col.name#` text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
+					break;
+					default:
+						tmpstr = '`#col.name#` #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+				}
 
+				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+					autoIncrement = true;
+					columnsSQL = listPrepend( columnsSQL, tmpstr );
+				}else{
+					columnsSQL = listAppend( columnsSQL, tmpstr );
+				}
+
+				if( col.isPrimaryKey ){
+					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+						primaryKeys = listPrepend(primaryKeys, '`#col.name#`');
+					}else{
+						primaryKeys = listAppend(primaryKeys, '`#col.name#`');
+					}
+				}
+				
+	
+			}
+	
+			tableSQL &= columnsSQL;
+			
+			if( listLen( primaryKeys ) ){
+				tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
+			}
+			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+		
+			
+			getDao().execute( tableSQL );
+			
+			return tabledef;				
+	
+		}
+		
+	</cfscript>
 </cfcomponent>

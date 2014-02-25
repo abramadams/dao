@@ -44,7 +44,7 @@
 	</cffunction>
 
 
-	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MSSQL specific." returntype="numeric" output="true">
+	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MSSQL specific." returntype="any" output="false">
 		<cfquery name="get" datasource="#variables.dsn#">
 			SELECT Scope_Identity() as thekey
 		</cfquery>
@@ -103,6 +103,7 @@
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
@@ -121,16 +122,16 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>						
+						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
-								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-									<cfqueryparam 
-										cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
-										value="#tmpSQL.statements[idx].value#" 
-										list="#tmpSQL.statements[idx].isList#">
-								</cfif>
-						</cfloop>
+							#tmpSQL.statements[idx].before#
+							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+								<cfqueryparam 
+									cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+									value="#tmpSQL.statements[idx].value#" 
+									list="#tmpSQL.statements[idx].isList#">
+							</cfif>
+						</cfloop>	
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
@@ -142,8 +143,36 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>						
+						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+							#tmpSQL.statements[idx].before#
+							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+								<cfqueryparam 
+									cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+									value="#tmpSQL.statements[idx].value#" 
+									list="#tmpSQL.statements[idx].isList#">
+							</cfif>
+						</cfloop>	
+						<!--- /Parse out the queryParam calls inside the where statement --->
+					</cfquery>
+				</cfif>
+			<cfelse>
+				<cfif len(trim(arguments.cachedwithin))>
+					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
+
+						SELECT #arguments.columns#
+						FROM (
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns# 
+							FROM #arguments.table#
+							<cfif len( trim( arguments.where ) )>
+							<!--- 
+								Parse out the queryParam calls inside the where statement 
+								This has to be done this way because you cannot use 
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>							
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 								#tmpSQL.statements[idx].before#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam 
@@ -151,14 +180,17 @@
 										value="#tmpSQL.statements[idx].value#" 
 										list="#tmpSQL.statements[idx].isList#">
 								</cfif>
-						</cfloop>
-						<!--- /Parse out the queryParam calls inside the where statement --->
-					</cfquery>
-				</cfif>
-			<cfelse>
-				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
-						SELECT 
+							</cfloop>	
+							<!--- /Parse out the queryParam calls inside the where statement --->
+							</cfif>
+							<cfif len( trim( arguments.orderby ) )>
+								ORDER BY #arguments.orderby#
+							</cfif>
+							) t
+						<cfif val( arguments.limit ) GT 0>
+							WHERE RowNr BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#	
+						</cfif>
+						<!--- SELECT 
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							TOP #val( arguments.limit )#
 						</cfif>	
@@ -185,11 +217,43 @@
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
-						</cfif>
+						</cfif> --->
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#variables.dsn#">
-						SELECT 
+						SELECT #arguments.columns#
+							FROM (
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns# 
+								FROM #arguments.table# 
+								<cfif len( trim( arguments.where ) )>
+								<!--- 
+									Parse out the queryParam calls inside the where statement 
+									This has to be done this way because you cannot use 
+									cfqueryparam tags outside of a cfquery.
+									@TODO: refactor to use the query.cfc
+								--->
+								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+									#tmpSQL.statements[idx].before#
+									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+										<cfqueryparam 
+											cfsqltype="#tmpSQL.statements[idx].cfSQLType#" 
+											value="#tmpSQL.statements[idx].value#" 
+											list="#tmpSQL.statements[idx].isList#">
+									</cfif>
+								</cfloop>	
+								<!--- /Parse out the queryParam calls inside the where statement --->
+								</cfif>
+								) t
+								
+							<cfif val( arguments.limit ) GT 0>
+								WHERE RowNr BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#	
+							</cfif>
+							<cfif len( trim( arguments.orderby ) )>
+								ORDER BY #arguments.orderby#
+							</cfif>
+							
+						<!--- SELECT 
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							TOP #val( arguments.limit )#
 						</cfif>	
@@ -216,7 +280,7 @@
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
-						</cfif>
+						</cfif> --->
 					</cfquery>
 				</cfif>
 			</cfif>
@@ -232,7 +296,7 @@
 		<cfreturn get />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="numeric" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 		
 		<cfset var curRow = 0 />
@@ -246,8 +310,10 @@
 		<cfset var col = "" />
 		<cfset var ret = "" />
 
+		
 		<cfset qry = arguments.tabledef.getRows()/>
-		<cfset columns = arguments.tabledef.getNonPrimaryKeyColumns() />
+		<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
+		
 		<cfif !qry.recordCount>
 			<cfdump var="#arguments#" abort>
 		</cfif>
@@ -291,13 +357,13 @@
 								</cfif>
 							</cfif>
 							
-							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#								
+							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#
 							<cfset cfsqltype = "bad">
 						</cfloop>
 						)
 				</cfsavecontent>	
 								
-				<cfset ret = getDao().execute(ins)/>
+				<cfset ret = getDao().execute( ins )/>
 
 
 		</cfoutput>
@@ -306,7 +372,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="numeric" output="true">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="true">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
@@ -432,31 +498,115 @@
 	
 	<!--- GETTERS --->
 	
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within [].  This is MSSQL Specific." output="true">
+
+	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
 		<cfargument name="cols" required="true" type="string">
 
-		<cfset var i = 0>
-		
+		<cfset var i = 0 />
+		<cfset var columns = "" />
+		<cfset var colname = "" />
+	
 		<cfsavecontent variable="columns">
 			<cfoutput>
-				<cfloop list="#arguments.cols#" index="name">
-					<cfset i = i + 1>[#name#]<cfif i lt listLen(cols)>,</cfif>
+				<cfloop list="#arguments.cols#" index="colname">
+					<cfset i = i + 1>[#colname#]<cfif i lt listLen(cols)>,</cfif>
 				</cfloop>
 			</cfoutput>
 		</cfsavecontent>
 		
 		<cfreturn columns />
-		
+
 	</cffunction>
-	
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within [].  This is MSSQL Specific." output="true">
+
+	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
 		<cfargument name="col" required="true" type="string">
-
-		<cfset var ret = "[" & arguments.col & "]" >
-
 		
+		<cfset var ret = "" />
+		
+		<cfset ret = "[" & arguments.col & "]" >
+
 		<cfreturn ret />
+
+	</cffunction>
+
+	<cfscript>
+		/**
+	    * @hint I create a table based on the passed in tabledef object's properties.		    
+	    **/
+		package tabledef function makeTable( required tabledef tabledef ){
+			
+			var tableSQL = "CREATE TABLE [#tabledef.getTableName()#] (";
+			var columnsSQL = "";
+			var primaryKeys = "";
+			var indexes = "";
+			var autoIncrement = false;
+			var tmpstr = "";
+				
+						
+			for ( var colName in tableDef.getTableMeta().columns ){
+				var col = tableDef.getTableMeta().columns[ colName ];
+				col.name = colName;
+				
+				switch( col.sqltype ){
+					case 'string':
+						tmpstr = '[#col.name#] varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'numeric':
+						tmpstr = '[#col.name#] int #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #col.isPrimaryKey ? ' PRIMARY KEY' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'date':
+						tmpstr = '[#col.name#] datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+					case 'tinyint':
+						tmpstr = '[#col.name#] tinyint(1) #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+					break;
+					case 'boolean': case 'bit':
+						tmpstr = '[#col.name#] BIT #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+					break;
+					case 'text':
+						tmpstr = '[#col.name#] text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+					break;
+					default:
+						tmpstr = '[#col.name#] #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+					break;
+				}
+
+				if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+					autoIncrement = true;
+					columnsSQL = listPrepend( columnsSQL, tmpstr );
+				}else{
+					columnsSQL = listAppend( columnsSQL, tmpstr );
+				}
+
+				if( col.isPrimaryKey ){
+					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
+						primaryKeys = listPrepend(primaryKeys, '[#col.name#]');
+					}else{
+						primaryKeys = listAppend(primaryKeys, '[#col.name#]');
+					}
+				}
+				
+	
+			}
+	
+			tableSQL &= columnsSQL & ')';
+			
+			/*if( listLen( primaryKeys ) ){
+				tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
+			}
+			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';*/
 		
-	</cffunction>	
+			try{
+
+			getDao().execute( tableSQL );
+			}catch(any e){
+				writeDump( tableDef.getTableMeta().columns );
+				writeDump( e );abort;
+			}
+			
+			return tabledef;				
+	
+		}
 		
+	</cfscript>
 </cfcomponent>
