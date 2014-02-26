@@ -74,7 +74,7 @@
 			variables.writeTransactionLog = arguments.writeTransactionLog;
 
 			// auto-detect the database type.
-			d = new dbinfo( datasource = arguments.dsn );
+			var d = new dbinfo( datasource = arguments.dsn );
 			variables.dbversion = d.version();
 
 			if ( !len( trim( arguments.dbtype ) ) ){
