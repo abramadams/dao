@@ -1,8 +1,14 @@
 <cfscript>
-    // if MSSQL datasource - use the dao below
-    dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
-    // if MySQL datasource - use the dao below
-    //dao = new com.database.dao( dsn = "dao" );
+
+    dao = new com.database.dao( dsn = "dao" );
+    /*
+     By default the dao will detect the dbtype based on the datasource
+     and will use the appropriate "connector" if available ( currently
+     only mssql and mysql are supported ). However you can optionally
+     pass it in ( i.e. if using a third party driver/JDBC driver )
+     i.e.:
+        dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
+    */
 
 
     todoItem = new examples.breezejs.model.TodoItem( dao = dao );
@@ -32,7 +38,7 @@
     * automatically create the table based on the properties if the table does not
     * exist
     **/
-    
+
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
@@ -60,7 +66,7 @@
     writeDump(pet);
     pet.save();
 
-    eventLog = new model.eventLog( dao = dao );
+    eventLog = new model.EventLog( dao = dao );
     eventLog.setevent('event');
     eventLog.setDescription('Long description goes here');
     eventLog.setUser(user);

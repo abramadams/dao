@@ -55,11 +55,12 @@
 
 	<cfproperty name="dsn" type="string">
 	<cfproperty name="dbtype" type="string">
+	<cfproperty name="dbversion" type="string">
 	<cfproperty name="writeTransactionLog" type="boolean">
 
 	<cffunction name="init" access="public" returntype="DAO" output="false" displayname="DAO Constructor" hint="I initialize DAO.">
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
-		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mysql" />
+		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="" />
 		<cfargument name="user" type="string" required="false" default="" hint="Data Source User Name" />
 		<cfargument name="password" type="string" required="false" default="" hint="Data Source Password" />
 		<cfargument name="writeTransactionLog" type="boolean" required="false" hint="Write transactions to log (for replication)?" default="false" />
@@ -72,6 +73,13 @@
 			variables.dsn = arguments.dsn;
 			variables.writeTransactionLog = arguments.writeTransactionLog;
 
+			// auto-detect the database type.
+			d = new dbinfo( datasource = arguments.dsn );
+			variables.dbversion = d.version();
+
+			if ( !len( trim( arguments.dbtype ) ) ){
+				arguments.dbtype = getConnecterType();
+			}
 			// This will define the type of database you are using (i.e. MySQL, MSSQL, etc)
 			variables.dbType = Arguments.dbType;
 			this.user=arguments.user;
@@ -97,6 +105,21 @@
 		</cfscript>
 
 		<cfreturn this />
+	</cffunction>
+
+	<cffunction name="getConnecterType">
+
+		<cfswitch expression="#variables.dbVersion.database_productname#">
+			<cfcase value="Microsoft SQL Server">
+				<cfreturn "mssql"/>
+				<cfbreak/>
+			</cfcase>
+			<cfcase value="MySQL">
+				<cfreturn "mysql"/>
+				<cfbreak/>
+			</cfcase>
+		</cfswitch>
+
 	</cffunction>
 
 	<cffunction name="getLastID" hint="I return the ID of the last inserted record." returntype="any" output="true">
@@ -697,7 +720,7 @@
 				<!--- Grab the last inserted ID if it was an insert --->
 				<cfif refindNoCase('INSERT(.*?)INTO (.*?)\(',LOCAL.tmpSQL)>
 
-					<cfif structkeyExists(LOCAL.result,'GENERATED_KEY')>
+					<cfif structkeyExists(LOCAL.result,'GENERATED_KEY')><!--- MySQL --->
 
 						<cfset LOCAL.lastInsertedID = LOCAL.result.GENERATED_KEY/>
 
@@ -706,7 +729,23 @@
 
 						<cfset LOCAL.lastInsertedID = LOCAL.result.GENERATEDKEY/>
 
-					<cfelse>
+					<cfelseif structkeyExists(LOCAL.result,'IDENTITYCOL')><!--- MSSQL --->
+
+						<cfset LOCAL.lastInsertedID = LOCAL.result.IDENTITYCOL/>
+
+					<cfelseif structkeyExists(LOCAL.result,'ROWID')><!--- Oracle --->
+
+						<cfset LOCAL.lastInsertedID = LOCAL.result.ROWID/>
+
+					<cfelseif structkeyExists(LOCAL.result,'SYB_IDENTITY')><!--- Sybase --->
+
+						<cfset LOCAL.lastInsertedID = LOCAL.result.SYB_IDENTITY/>
+
+					<cfelseif structkeyExists(LOCAL.result,'SERIAL_COL')><!--- Informix --->
+
+						<cfset LOCAL.lastInsertedID = LOCAL.result.SERIAL_COL/>
+
+					<cfelse><!--- Rely on db connector cfc to provide last ID --->
 
 						<cfset LOCAL.lastInsertedID = getLastID()/>
 

@@ -50,6 +50,8 @@ component accessors="true" output="false" {
 		}
 		variables.dropcreate = arguments.dropcreate;
 		variables.meta = getMetaData( this );
+		// Hack to make variables.meta a true CF data type
+        variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
 
 		if( !len( trim( arguments.table ) ) ){
 			/* If the table name was not passed in, see if the table property was set on the component */
@@ -103,8 +105,6 @@ component accessors="true" output="false" {
 
         variables.dao.addTableDef( variables.tabledef );
 
-        // Hack to make variables.meta a true CF data type
-        variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
         variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
 
 		/*
@@ -1002,14 +1002,13 @@ component accessors="true" output="false" {
 		}
 
 		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
-		var propLen = ArrayLen(variables.meta.properties);
+		/* var propLen = ArrayLen(variables.meta.properties);
 		var prop = [];
 		var col = {};
-
 		// the for (prop in variables.meta.properties) loop was throwing a java error for me (-sy)
 		for ( var loopVar=1; loopVar <= propLen; loopVar += 1 ){
-			prop = variables.meta.properties[loopVar];
-			col = {};
+			prop = variables.meta.properties[loopVar]; */
+		for ( var col in variables.meta.properties ){
 			col.type = structKeyExists( prop, 'type' ) ? prop.type : 'string';
 			col.type = structKeyExists( prop, 'sqltype' ) ? prop.sqltype : col.type;
 			col.name = structKeyExists( prop, 'column' ) ? prop.column : prop.name;

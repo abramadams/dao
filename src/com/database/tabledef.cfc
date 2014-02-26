@@ -317,7 +317,7 @@
 		//  but generator is not consistent  (-sy)
 		for ( var col in this.instance.tablemeta.columns ){
 			if( !len( trim( this.instance.tablemeta.columns[col].generator ) ) || this.instance.tablemeta.columns[col].generator == "uuid" ){
-				if ( FindNoCase('identity', this.instance.tablemeta.columns[col].SQLTYPE) eq 0 ){
+				if ( !findNoCase( 'identity', this.instance.tablemeta.columns[ col ].sqltype ) ){
 					arrayAppend( noKeys, col );
 				}
 			}
