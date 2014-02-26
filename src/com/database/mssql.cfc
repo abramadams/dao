@@ -157,6 +157,10 @@
 					</cfquery>
 				</cfif>
 			<cfelse>
+				<!--- Table select --->
+				<cfif !len( trim( arguments.columns ) ) >
+					<cfset arguments.columns = getSafeColumnNames(variables.dao.getColumns(arguments.table))/>
+				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
 

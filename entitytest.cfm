@@ -1,6 +1,6 @@
 <cfscript>
     // if MSSQL datasource - use the dao below
-    dao = new com.database.dao( dsn = "breezejs", dbtype = "mssql" );
+    dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );
     // if MySQL datasource - use the dao below
     //dao = new com.database.dao( dsn = "dao" );
 
@@ -32,13 +32,17 @@
     * automatically create the table based on the properties if the table does not
     * exist
     **/
-
+    
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
 
-    writeDump(var=user, label="user James");
+    todoItem = new examples.breezejs.model.TodoItem( dao = dao );
+    todoItem.setDescription('Food');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');

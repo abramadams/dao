@@ -1,19 +1,45 @@
 <cfscript>
 	// Pure dao examples:	
-	dao = new com.database.dao( dsn = "dao" );
+	dao = new com.database.dao( dsn = "daoSQL", dbtype = "mssql" );  
+
+	// Generate the event log table used to track data interaction
+	// MSSQL specific
+	dao.execute( "
+		IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'eventLog' AND xtype = 'U' )
+			CREATE TABLE eventLog (
+				ID int NOT NULL IDENTITY (1, 1),
+				userID int NULL,
+				event varchar(50) NULL,
+				description text NULL,
+				eventDate date NULL
+			)
+		" );
+	// MySQL specific
+	/* dao.execute( "
+		CREATE TABLE IF NOT EXISTS `eventLog` (
+		  `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+		  `userID` varchar(255) DEFAULT NULL,
+		  `event` varchar(255) DEFAULT NULL,
+		  `description` varchar(255) DEFAULT NULL,
+		  `eventDate` datetime DEFAULT NULL,
+		  PRIMARY KEY (`ID`)
+		)
+	" ); */
+
+
 
 	// Insert data
 	writeOutput("<h2>Insert data via table def</h2>");
 	DATA = { "_id" = lcase(createUUID()), "first_name" = "Abram" , "last_name" = "Adams", "email" = "aadams@cfxchange.com", "created_datetime" = now()};
+	
 	newID = dao.insert(table = "users", data = DATA, onFinish = afterInsert );
 	writeDump('Created record ID: ' & newID);
 
-	// Insert data (using mysql specific replace into syntax )
+	// Insert data
 	writeOutput("<h2>Insert data via SQL</h2>");
 	newID2 = dao.execute("
-		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
-		VALUES ( 1
-				,#dao.queryParam(lcase(createUUID()),'varchar')#
+		INSERT INTO users (_id, first_name, last_name, email, created_datetime)
+		VALUES ( #dao.queryParam(lcase(createUUID()),'varchar')#
 				,#dao.queryParam('john')#
 				,#dao.queryParam('deere')#
 				,#dao.queryParam('jdeere@tractor.com')#
@@ -79,7 +105,7 @@
 	// Callback functions for insert/update/delete
 	public function afterUpdate( data ){		
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('update')#
 				,#this.queryParam('updated #data.ID#')#
@@ -89,7 +115,7 @@
 	}
 	public function afterInsert( data ){	
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('insert')#
 				,#this.queryParam('inserted #data.ID#')#
@@ -99,7 +125,7 @@
 	}
 	public function afterDelete( data ){	
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('delete')#
 				,#this.queryParam('deleted #data.ID#')#
