@@ -517,7 +517,7 @@ component accessors="true" output="false" {
 						
 					}else{
 
-						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
+						//setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
 						/****** ACF9 Dies when the below code exists *******/
 						// First, set the property (child column in parent entity) as the empty child entity (to be loaded later)
 						this[col.name] = duplicate( tmp );					
