@@ -370,7 +370,7 @@
 		<cfset LOCAL.columns = LOCAL.table.getColumns()/>
 
 		<cfset LOCAL.currentData = this.read("
-			SELECT #LOCAL.columns#
+			SELECT #this.getSafeColumnNames(LOCAL.columns)#
 			FROM #arguments.table#
 			WHERE #LOCAL.table.getPrimaryKeyColumn()# = #this.queryParam(value=arguments.data[LOCAL.table.getPrimaryKeyColumn()],cfsqltype=local.table.instance.tablemeta.columns[LOCAL.table.getPrimaryKeyColumn()].type eq 4 ? 'int' : 'varchar')#
 		")>

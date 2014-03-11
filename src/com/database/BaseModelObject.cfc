@@ -1,6 +1,6 @@
 /**
 *	@hint Extend this component to add ORM like behavior to your model CFCs.  Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
-*   @version 0.0.54
+*   @version 0.0.55
 *   @updated 12/30/2013
 *   @author Abram Adams
 **/
@@ -329,10 +329,6 @@ component accessors="true" output="false" {
 
 			var loadAll = ( left( originalMethodName, 7 ) is "loadAll"
 						  	|| left( originalMethodName , 11 ) is "lazyLoadAll" );
-			/* if( left( originalMethodName, 7 ) is "loadAll" && arrayLen( arguments.missingMethodArguments ) EQ 1 ){
-				loadAll = false;
-				limit = arguments.missingMethodArguments[ 1 ];
-			} */
 
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
@@ -341,9 +337,11 @@ component accessors="true" output="false" {
 				for ( i = 1; i LTE arrayLen( queryArguments ); i++ ){
 					args[ queryArguments[ i ] ] = arguments.missingMethodArguments[ i ];
 					// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
-					LOCAL.columnName = structFindValue( variables.meta, queryArguments[ i ], 'all' )[ 1 ];
+					LOCAL.tmpCol = structFindValue( variables.meta, queryArguments[ i ], 'all' );
+					LOCAL.columnName = arrayLen( tmpCol ) ? tmpCol[ 1 ] : {};
 					if( !structKeyExists( LOCAL.columnName, 'owner' ) ){
-						LOCAL.columnName = structFindValue( variables.meta, ListChangeDelims( queryArguments[ i ], '', '_', false ), 'all' )[ 1 ];
+						LOCAL.tmpCol = structFindValue( variables.meta, ListChangeDelims( queryArguments[ i ], '', '_', false ), 'all' );
+						LOCAL.columnName = arrayLen( tmpCol ) ? tmpCol[ 1 ] : {};
 					}
 
 					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[ i ];
@@ -565,7 +563,7 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : getID();
 		var record = variables.dao.read( "
-					SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' )# FROM #this.getTable()#
+					SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' ) )# FROM #this.getTable()#
 					WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
 				");
 		variables._isNew = record.recordCount EQ 0;

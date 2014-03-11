@@ -5,7 +5,7 @@
 todo.factory('dataservice', function (breeze, logger, $timeout) {
 
     breeze.config.initializeAdapterInstance("modelLibrary", "backingStore", true);
-   
+
 
     var serviceName = 'api/index.cfm/breeze/todos'; // route to the same origin Web Api controller
 
@@ -52,7 +52,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
             .then(saveSucceeded)
             .fail(saveFailed);
 
-        function saveSucceeded(saveResult) {           
+        function saveSucceeded(saveResult) {
             logger.success("# of Todos saved = " + saveResult.entities.length);
             logger.log(saveResult);
         }
@@ -60,7 +60,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
         function saveFailed(error) {
             /*if( typeOf( error, "undefined") ) {
                 logger.success("Todo saved!");
-                logger.log(error);       
+                logger.log(error);
                 return;
             };*/
             var reason = error.message;
@@ -69,7 +69,7 @@ todo.factory('dataservice', function (breeze, logger, $timeout) {
                 reason = handleSaveValidationError(error);
             } else if (detail && detail.ExceptionType &&
                 detail.ExceptionType.indexOf('OptimisticConcurrencyException') !== -1) {
-                // Concurrency error 
+                // Concurrency error
                 reason =
                     "Another user, perhaps the server, " +
                     "may have deleted one or all of the todos." +
