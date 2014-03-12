@@ -196,7 +196,8 @@
 										--->
 										<cfset tmpSQL = parameterizeSQL( arguments.sql )/>
 										<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-											#tmpSQL.statements[idx].before#
+											<cfset SqlPart = tmpSQL.statements[idx].before />
+											#preserveSingleQuotes( SqlPart )#
 											<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 												<cfqueryparam
 													cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -219,7 +220,8 @@
 										--->
 										<cfset tmpSQL = parameterizeSQL( arguments.sql )/>
 										<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-											#tmpSQL.statements[idx].before#
+											<cfset SqlPart = tmpSQL.statements[idx].before />
+											#preserveSingleQuotes( SqlPart )#
 											<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 												<cfqueryparam
 													cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
