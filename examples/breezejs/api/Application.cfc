@@ -1,5 +1,5 @@
-component extends="taffy.core.api" {    
-    this.name = hash(getCurrentTemplatePath());    
+component extends="taffy.core.api" {
+    this.name = hash(getCurrentTemplatePath());
     this.mappings['/com'] = expandPath( '/src/com/' );
     this.mappings['/model'] = expandPath( '../model' );
     this.mappings['/taffy'] = expandPath( './taffy' );
@@ -10,12 +10,12 @@ component extends="taffy.core.api" {
         reloadPassword = "true",
         disableDashboard = false,
         disabledDashboardRedirect = "/",
-        debugKey = "debugonly"  
+        debugKey = "debugonly"
     };
 
     // this function is called after the request has been parsed and all request details are known
     function onTaffyRequest(verb, cfc, requestArguments, mimeExt){
-        // this would be a good place for you to check API key validity and other non-resource-specific validation        
+        // this would be a good place for you to check API key validity and other non-resource-specific validation
         return true;
     }
 
@@ -43,31 +43,31 @@ component extends="taffy.core.api" {
         todoItem.setCreatedAt( now() );
         todoItem.save();
 
-        todoItem.clone();
+        todoItem.copy();
         todoItem.setDescription('Water');
         todoItem.setIsArchived(true);
         todoItem.setIsDone(true);
         todoItem.save();
 
-        todoItem.clone();
+        todoItem.copy();
         todoItem.setDescription('Shelter');
         todoItem.setIsArchived(true);
         todoItem.setIsDone(true);
         todoItem.save();
 
-        todoItem.clone();
+        todoItem.copy();
         todoItem.setDescription('Bread');
         todoItem.setIsArchived(false);
         todoItem.setIsDone(false);
         todoItem.save();
 
-        todoItem.clone();
+        todoItem.copy();
         todoItem.setDescription('Cheese');
         todoItem.setIsArchived(false);
         todoItem.setIsDone(true);
         todoItem.save();
 
-        todoItem.clone();
+        todoItem.copy();
         todoItem.setDescription('Wine');
         todoItem.setIsArchived(false);
         todoItem.setIsDone(false);

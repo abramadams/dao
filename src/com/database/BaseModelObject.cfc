@@ -274,15 +274,21 @@ component accessors="true" output="false" {
 	/**
 	* @hint I set the current instance of the model object as a "new" record.  This will cause an insert instead of an update when the save() method is called, retaining the original data, but generating a new record with new primary key/generated ID values.  Use this when creating several records of the same entity type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
 	**/
-	public function new(){
+	public function copy(){
 		variables._isNew = true;
 		variables[ getIDField() ] = '';
 	}
 	/**
-	* @hint Alias method for "new()".
+	* @hint I create a new empty instance of the entity
+	**/
+	public function new(){
+		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() );
+	}
+	/**
+	* @hint Shortcut to create a new instantiated instance of the entity - essentially a safe deep-copy.
 	**/
 	public function clone(){
-		new();
+		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() ).load( this.getID() );
 	}
 	/**
 	* @hint I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
@@ -382,19 +388,24 @@ component accessors="true" output="false" {
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
-				var recordArray = [];
-				var qn = queryNew( record.columnList );
-				queryAddRow( qn, 1 );
+					var recordArray = [];
+					var qn = queryNew( record.columnList );
+					var recCount = record.recordCount;
+					queryAddRow( qn, 1 );
 
-				for ( var rec = 1; rec LTE record.recordCount; rec++ ){
-					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
-					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-					for( var col in listToArray( record.columnList ) ){
-						querySetCell( qn, col, record[ col ][ rec ] );
+					for ( var rec = 1; rec LTE recCount; rec++ ){
+						// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
+						// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
+						for( var col in listToArray( record.columnList ) ){
+							querySetCell( qn, col, record[ col ][ rec ] );
+						}
+						var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 ;
+						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
+						// does not appear to be thread safe and ends up causing concurrency issues.
+						var tmpNewEntity = this.new(); //createObject("component", variables.meta.fullName ).init( dao = this.getDao() );
+						tmpNewEntity.load( ID = qn , lazy = tmpLazy );
+						arrayAppend( recordArray, tmpNewEntity );
 					}
-					arrayAppend( recordArray, duplicate( this.load( ID = qn , lazy = ( left( originalMethodName , 4 ) is "lazy" ) || record.recordCount GTE 100 ) ) );
-
-				}
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
@@ -475,12 +486,12 @@ component accessors="true" output="false" {
 					// If lazy == false we will aggressively load all child entities (this is expensive, so use sparingly)
 					if( !lazy ){
 						// Using evaluate because the onMissingMethod doesn't exist when using the dynamic function method (i.e.: func = this['getsomething']; func())
-						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.getID(), childWhere )") );
+						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
 
 					//If lazy == true, we will just overload the "getter" method with an anonymous method that will instantiate the child entity when called.
 					}else{
 
-						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.getID(), childWhere )") );
+						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
 						/****** ACF9 Dies when the below code exists *******/
 						// // First, set the property (child column in parent entity) to an array with a single index containing the empty child entity (to be loaded later)
 						// this[col.name] = ( structKeyExists( col, 'type' ) && col.type is 'array' ) ? [ duplicate( tmp ) ] : duplicate( tmp );
@@ -883,10 +894,14 @@ component accessors="true" output="false" {
 		return this;
 	}
 
-	private void function _saveTheChildren( any tempID = getID() ){
+	private void function _saveTheChildren( any tempID = this.getID() ){
 	 /* Now save any child records */
 		for ( var col in variables.meta.properties ){
-			if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && val( tempID ) ){
+			if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && structKeyExists( arguments, 'tempID' ) && ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
+				//writeDump([col,arguments, this]);abort;
+				if ( !structKeyExists( variables , col.name ) || !isArray( variables[ col.name ] ) ){
+					continue;
+				}
 				for ( var child in variables[ col.name ] ){
 					//var FKFunc = duplicate( child["set" & col.fkcolumn] );
 					//FKFunc( tempID );
@@ -894,7 +909,7 @@ component accessors="true" output="false" {
 					// on a nested object otherwise I'd use the above to set the fk col value
 					try{
 						/* TODO: when we no longer need to support ACF9, change this to use invoke() */
-						evaluate("child.set#col.fkcolumn#( tempID )");
+						evaluate("child.set#col.fkcolumn#( #tempID# )");
 					}catch (any e){
 						writeDump('Error in setFunc');
 						writeDump(e);
