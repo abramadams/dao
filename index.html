@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Dao : A ColdFusion library for easy Data Access and Object Mapping" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Dao</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/abramadams/dao">View on GitHub</a>
+
+          <h1 id="project_title">Dao</h1>
+          <h2 id="project_tagline">A ColdFusion library for easy Data Access and Object Mapping</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/abramadams/dao/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/abramadams/dao/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="dao---a-coldfusion-library-for-easy-data-access-and-object-mapping" class="anchor" href="#dao---a-coldfusion-library-for-easy-data-access-and-object-mapping"><span class="octicon octicon-link"></span></a>dao - A ColdFusion library for easy Data Access and Object Mapping.</h1>
+
+<h1>
+<a name="disclaimer" class="anchor" href="#disclaimer"><span class="octicon octicon-link"></span></a>Disclaimer</h1>
+
+<p>Though I have been using this library for many years on many, many projects, it has never been used or tested outside
+of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
+a lot of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )</p>
+
+<p>Also, the bulk of the dao.cfc stuff was developed in CF7-8 erra, and has been patched CF9/10 features started creeping in.  I 
+am in the process of re-writing the library using the query.cfc and some other things that will break the pre-CF9 compatibility.
+For instance, this will be re-written using all script based code.</p>
+
+<h1>
+<a name="introduction" class="anchor" href="#introduction"><span class="octicon octicon-link"></span></a>Introduction</h1>
+
+<p>The goal of this library is to allow one to interact with the database in a DB platform agnostic way, 
+while making it super easy.  </p>
+
+<p>There are two parts to this library, the first is for a more traditional DAO
+type interaction where one uses a handful of CRUD functions:</p>
+
+<ul>
+<li><code>dao.insert()</code></li>
+<li><code>dao.read()</code></li>
+<li><code>dao.update()</code></li>
+<li><code>dao.delete()</code></li>
+</ul><p>as well as a general <code>dao.execute()</code> to run arbitrary SQL against the database.</p>
+
+<p>Using the built-in methods for CRUD provides some benefits such as being database agnostic,
+providing optional "onFinish" callbacks functions, transaction logging (for custom replication).</p>
+
+<h1>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h1>
+
+<p>Copy the "database" folder <code>(/src/com/database)</code> into your project (or into the folder you place your components)</p>
+
+<h1>
+<a name="dao-examples" class="anchor" href="#dao-examples"><span class="octicon octicon-link"></span></a>DAO Examples:</h1>
+
+<div class="highlight highlight-javascript"><pre>    <span class="c1">// create instance of DAO - must feed it a datasource name</span>
+    <span class="nx">dao</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">com</span><span class="p">.</span><span class="nx">database</span><span class="p">.</span><span class="nx">dao</span><span class="p">(</span> <span class="nx">dsn</span> <span class="o">=</span> <span class="s2">"dao"</span> <span class="p">);</span> <span class="c1">// note: dbtype is optional and defaults to MySQL</span>
+
+    <span class="c1">// Insert data (could have easily been a form struct)</span>
+    <span class="nx">DATA</span> <span class="o">=</span> <span class="p">{</span> 
+            <span class="s2">"_id"</span> <span class="o">=</span> <span class="nx">lcase</span><span class="p">(</span><span class="nx">createUUID</span><span class="p">()),</span> 
+            <span class="s2">"first_name"</span> <span class="o">=</span> <span class="s2">"Joe"</span> <span class="p">,</span> 
+            <span class="s2">"last_name"</span> <span class="o">=</span> <span class="s2">"Shmo"</span><span class="p">,</span> 
+            <span class="s2">"email"</span> <span class="o">=</span> <span class="s2">"jshmo@blahblah.com"</span><span class="p">,</span> 
+            <span class="s2">"created_datetime"</span> <span class="o">=</span> <span class="nx">now</span><span class="p">()</span>
+        <span class="p">};</span>
+
+    <span class="nx">newID</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">.</span><span class="nx">insert</span><span class="p">(</span> <span class="nx">table</span> <span class="o">=</span> <span class="s2">"users"</span><span class="p">,</span> <span class="nx">data</span> <span class="o">=</span> <span class="nx">DATA</span> <span class="p">);</span>
+    <span class="c1">// newID would contain the record's auto-incremented PK value</span>
+
+    <span class="c1">// DAO has a method queryParam() that wraps your values in </span>
+    <span class="c1">// appropriate cfqueryparam tags.  The method takes 4 args:</span>
+    <span class="c1">// value - required</span>
+    <span class="c1">// cfsqltype - optional, will be guessed based on value.  Uses</span>
+    <span class="c1">// common data type names, no need for the cf_sql_type... crap.</span>
+    <span class="c1">// list - true/false; will pass to cfqueryparam list attribute</span>
+    <span class="c1">// null - true/false; will pass to the cfqueryparam null attribute</span>
+
+    <span class="c1">// Insert data (using mysql specific replace into syntax )</span>
+    <span class="nx">newID2</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">.</span><span class="nx">execute</span><span class="p">(</span><span class="s2">"</span>
+<span class="s2">        REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)</span>
+<span class="s2">        VALUES ( 1</span>
+<span class="s2">                ,#dao.queryParam(lcase(createUUID()),'varchar')#</span>
+<span class="s2">                ,#dao.queryParam('john')#</span>
+<span class="s2">                ,#dao.queryParam('deere')#</span>
+<span class="s2">                ,#dao.queryParam('jdeere@tractor.com')#</span>
+<span class="s2">                ,#dao.queryParam(now(), 'timestamp')#</span>
+<span class="s2">               )</span>
+<span class="s2">    "</span><span class="p">);</span>
+    <span class="c1">// newID2 would also contain the record's new PK value</span>
+    <span class="c1">//This is true for insert and replace statements only.</span>
+
+    <span class="c1">// Return all records in a table</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span> <span class="s2">"users"</span> <span class="p">);</span>
+
+    <span class="c1">// Return all records using SQL - and cache it</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">.</span><span class="nx">read</span><span class="p">(</span> 
+        <span class="nx">sql</span> <span class="o">=</span> <span class="s2">"SELECT first_name, last_name FROM users"</span><span class="p">,</span>
+        <span class="nx">cachedWithin</span> <span class="o">=</span> <span class="nx">createTimeSpan</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+    <span class="p">);</span>
+
+</pre></div>
+
+<h1>
+<a name="the-ormsh-side-of-dao" class="anchor" href="#the-ormsh-side-of-dao"><span class="octicon octicon-link"></span></a>The ORM'sh side of DAO</h1>
+
+<p>The second part of this library is an ORM'sh implementation of entity management.  It internally uses the 
+dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
+the following examples:</p>
+
+<div class="highlight highlight-javascript"><pre>    <span class="c1">// create instance of dao ( could be injected via your favorite DI library )</span>
+    <span class="nx">dao</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">dao</span><span class="p">(</span> <span class="nx">dsn</span> <span class="o">=</span> <span class="s2">"dao"</span> <span class="p">);</span>
+
+    <span class="c1">// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"</span>
+    <span class="nx">user</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">model</span><span class="p">.</span><span class="nx">User</span><span class="p">(</span> <span class="nx">dao</span> <span class="p">);</span>
+
+    <span class="c1">// Create a new user named john.</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">setFirstName</span><span class="p">(</span> <span class="s1">'john'</span> <span class="p">);</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">setLastName</span><span class="p">(</span> <span class="s1">'deere'</span> <span class="p">);</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">setEmail</span><span class="p">(</span><span class="s1">'jdeere@tractor.com'</span><span class="p">);</span>
+
+    <span class="c1">// Save will insert the new record because it doesn't exist.  </span>
+    <span class="c1">// If we had loaded the entity with a user record, it would perform an update.</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">save</span><span class="p">();</span>
+
+    <span class="c1">// So the entity has been persisted to the database.  If we wanted</span>
+    <span class="c1">// to at this point, we could use the user.getID() method to get the</span>
+    <span class="c1">// value of the newly created PK.  Or we could do another update</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">setFirstName</span><span class="p">(</span><span class="s1">'Johnny'</span><span class="p">);</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">save</span><span class="p">();</span> <span class="c1">// Now the entity has been "updated" and persisted to the databse.</span>
+
+    <span class="c1">// Now, to load data into an entity it's as simple as:</span>
+    <span class="nx">user</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">model</span><span class="p">.</span><span class="nx">User</span><span class="p">(</span> <span class="nx">dao</span> <span class="p">);</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">load</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>  <span class="c1">// assuming our record's ID == 1</span>
+
+    <span class="c1">// We can also do crazy stuff like:</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">loadByFirstNameAndLastName</span><span class="p">(</span><span class="s1">'Johnny'</span><span class="p">,</span> <span class="s1">'deere'</span><span class="p">);</span>
+    <span class="c1">// Every property/field in the entity can be included in this dynamic load function </span>
+    <span class="c1">// just prefix the function name as "loadBy" and delimit the field name criteria by "And"</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate</span><span class="p">(....);</span>
+
+    <span class="c1">// A model entity can also be used to load collections, not just a single member</span>
+    <span class="nx">user</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">model</span><span class="p">.</span><span class="nx">User</span><span class="p">(</span> <span class="nx">dao</span> <span class="p">);</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">user</span><span class="p">.</span><span class="nx">loadAll</span><span class="p">();</span> <span class="c1">// &lt;--- returns array of intitialized entity objects - one for each record</span>
+
+    <span class="c1">// you can also filter using the dynamic load function</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">user</span><span class="p">.</span><span class="nx">loadAllByFirstName</span><span class="p">(</span><span class="s1">'Johnny'</span><span class="p">);</span>
+
+    <span class="c1">// there is also a list function that will return a query object</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">user</span><span class="p">.</span><span class="nx">list</span><span class="p">(</span> <span class="nx">where</span> <span class="o">=</span> <span class="s2">"FirstName = 'Johnny' "</span><span class="p">);</span>
+
+    <span class="c1">// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">toStruct</span><span class="p">();</span>
+    <span class="nx">user</span><span class="p">.</span><span class="nx">toJSON</span><span class="p">();</span> <span class="c1">// &lt;--- know that this is not the ACF to JSON crap, it's real serialized JSON.</span>
+
+    <span class="c1">// Collection return types</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">user</span><span class="p">.</span><span class="nx">listAsArray</span><span class="p">(</span> <span class="nx">where</span> <span class="o">=</span> <span class="s2">"FirstName = 'Johnny' "</span><span class="p">);</span>
+    <span class="nx">users</span> <span class="o">=</span> <span class="nx">user</span><span class="p">.</span><span class="nx">listAsJSON</span><span class="p">(</span> <span class="nx">where</span> <span class="o">=</span> <span class="s2">"FirstName = 'Johnny' "</span><span class="p">);</span>
+
+</pre></div>
+
+<p>That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
+relationships.  By-in-large I have adopted the property syntax used by CF ORM to define
+entity properties and describe relationships.  Example: </p>
+
+<div class="highlight highlight-javascript"><pre><span class="cm">/* Pet.cfc */</span>
+<span class="nx">component</span> <span class="nx">persistent</span><span class="o">=</span><span class="s2">"true"</span> <span class="nx">table</span><span class="o">=</span><span class="s2">"pets"</span> <span class="kr">extends</span><span class="o">=</span><span class="s2">"com.database.BaseModelObject"</span> <span class="nx">accessors</span><span class="o">=</span><span class="s2">"true"</span> <span class="p">{</span>
+
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"ID"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"numeric"</span> <span class="nx">fieldtype</span><span class="o">=</span><span class="s2">"id"</span> <span class="nx">generator</span><span class="o">=</span><span class="s2">"increment"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"_id"</span> <span class="nx">fieldtype</span><span class="o">=</span><span class="s2">"id"</span> <span class="nx">generator</span><span class="o">=</span><span class="s2">"uuid"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span> <span class="nx">length</span><span class="o">=</span><span class="s2">"45"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"userID"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"numeric"</span> <span class="nx">sqltype</span><span class="o">=</span><span class="s2">"int"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"firstName"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span> <span class="nx">column</span><span class="o">=</span><span class="s2">"first_name"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"lastName"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span> <span class="nx">column</span><span class="o">=</span><span class="s2">"last_name"</span><span class="p">;</span>  
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"createdDate"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"date"</span> <span class="nx">column</span><span class="o">=</span><span class="s2">"created_datetime"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"modifiedDate"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"date"</span> <span class="nx">column</span><span class="o">=</span><span class="s2">"modified_datetime"</span> <span class="nx">formula</span><span class="o">=</span><span class="s2">"now()"</span><span class="p">;</span>
+
+    <span class="cm">/* Relationships */</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"user"</span> <span class="nx">inverseJoinColumn</span><span class="o">=</span><span class="s2">"ID"</span> <span class="nx">cascade</span><span class="o">=</span><span class="s2">"save-update"</span> <span class="nx">fieldType</span><span class="o">=</span><span class="s2">"one-to-one"</span> <span class="nx">fkcolumn</span><span class="o">=</span><span class="s2">"userID"</span> <span class="nx">cfc</span><span class="o">=</span><span class="s2">"model.User"</span><span class="p">;</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"offspring"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"array"</span> <span class="nx">fieldType</span><span class="o">=</span><span class="s2">"one-to-many"</span> <span class="nx">singularname</span><span class="o">=</span><span class="s2">"kid"</span> <span class="nx">fkcolumn</span><span class="o">=</span><span class="s2">"offspringID"</span> <span class="nx">cfc</span><span class="o">=</span><span class="s2">"model.Offspring"</span><span class="p">;</span>
+
+    <span class="kr">public</span> <span class="nx">string</span> <span class="kd">function</span> <span class="nx">getFullName</span><span class="p">(){</span>
+        <span class="k">return</span> <span class="nx">variables</span><span class="p">.</span><span class="nx">firstName</span> <span class="o">&amp;</span> <span class="s2">" "</span> <span class="o">&amp;</span> <span class="nx">variables</span><span class="p">.</span><span class="nx">lastName</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>When in development you can have dao create your tables for you by passing the dropcreate = true to the initializer.  Exmaple:</p>
+
+<div class="highlight highlight-javascript"><pre>    <span class="nx">user</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">User</span><span class="p">(</span> <span class="nx">dao</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">,</span> <span class="nx">dropCreate</span> <span class="o">=</span> <span class="kc">true</span> <span class="p">);</span>
+</pre></div>
+
+<p>This will inspect your CFC properties and create a table based on those details.  This supports having different property names vs column names, table names, data types, etc...</p>
+
+<p>The "Pet.cfc" above would create a table named <code>pets</code> with an auto incrementing PK name <code>ID</code>, a "varchar(45)" <code>_id</code> field, a <code>userID</code> field with the type "Int"
+varchar fields named <code>first_name</code> and <code>last_name</code> a datetime field named <code>created_datetime</code> and a datetime field named <code>modified_datetime</code>.</p>
+
+<ul>
+<li>The _id field, will automatically generate a UUID value when a record is first created because we specified a generator UUID.</li>
+<li>The getters/setters for first_name, last_name, craeted_datetime, modified_datetime would be:
+
+<ul>
+<li>get/setFirstName();</li>
+<li>get/setLastName();</li>
+<li>get/setCreatedDate();</li>
+<li>get/setModifiedDate();</li>
+</ul>
+</li>
+<li>The modifiedDate will update with the evaluated value of "now()" each time the data is updated.</li>
+<li>The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"</li>
+</ul><h2>
+<a name="dynamic-entities" class="anchor" href="#dynamic-entities"><span class="octicon octicon-link"></span></a>Dynamic Entities</h2>
+
+<p>Sometimes it's a pain in the arse to create entity CFCs that just point to a single table.  You must create properties for each field in the table.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="cm">/* EventLog.cfc */</span>
+<span class="nx">component</span> <span class="nx">persistent</span><span class="o">=</span><span class="s2">"true"</span> <span class="nx">table</span><span class="o">=</span><span class="s2">"eventLog"</span> <span class="kr">extends</span><span class="o">=</span><span class="s2">"com.database.BaseModelObject"</span><span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>That's all we <em>need</em>.  Now say I created a table named eventLog in my databse with the following:</p>
+
+<div class="highlight highlight-sql"><pre><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="o">`</span><span class="n">eventLog</span><span class="o">`</span> <span class="p">(</span>
+  <span class="o">`</span><span class="n">ID</span><span class="o">`</span> <span class="nb">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span> <span class="k">NOT</span> <span class="k">NULL</span> <span class="n">AUTO_INCREMENT</span><span class="p">,</span>
+  <span class="o">`</span><span class="n">event</span><span class="o">`</span> <span class="nb">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span> <span class="k">DEFAULT</span> <span class="k">NULL</span><span class="p">,</span>
+  <span class="o">`</span><span class="n">description</span><span class="o">`</span> <span class="nb">text</span><span class="p">,</span>
+  <span class="o">`</span><span class="n">eventDate</span><span class="o">`</span> <span class="n">datetime</span> <span class="k">DEFAULT</span> <span class="k">NULL</span><span class="p">,</span>
+  <span class="k">PRIMARY</span> <span class="k">KEY</span> <span class="p">(</span><span class="o">`</span><span class="n">ID</span><span class="o">`</span><span class="p">)</span>
+<span class="p">);</span>
+</pre></div>
+
+<p>When I instantiate the EventLog.cfc with:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">eventLog</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">model</span><span class="p">.</span><span class="nx">EventLog</span><span class="p">(</span> <span class="nx">dao</span> <span class="o">=</span> <span class="nx">dao</span> <span class="p">);</span>
+</pre></div>
+
+<p>I'll get an instance of EventLog as if the CFC had included the following properties:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"ID"</span> <span class="nx">fieldtype</span><span class="o">=</span><span class="s2">"id"</span> <span class="nx">generator</span><span class="o">=</span><span class="s2">"increment"</span><span class="p">;</span>
+<span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"event"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span><span class="p">;</span>
+<span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"description"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span><span class="p">;</span>
+<span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"eventDate"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"date"</span><span class="p">;</span>
+</pre></div>
+
+<p>To make this work, just make sure you set the table attribute to point to the actual table in the database, extend BaseModelObject and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.</p>
+
+<p>You can also mix and match.  You can statically define properties:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">component</span> <span class="nx">persistent</span><span class="o">=</span><span class="s2">"true"</span> <span class="nx">table</span><span class="o">=</span><span class="s2">"eventLog"</span> <span class="kr">extends</span><span class="o">=</span><span class="s2">"com.database.BaseModelObject"</span> <span class="nx">accessors</span><span class="o">=</span><span class="s2">"true"</span><span class="p">{</span>
+    <span class="nx">property</span> <span class="nx">name</span><span class="o">=</span><span class="s2">"description"</span> <span class="nx">type</span><span class="o">=</span><span class="s2">"string"</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)</p>
+
+<h3>
+<a name="dynamic-entity---a-step-further" class="anchor" href="#dynamic-entity---a-step-further"><span class="octicon octicon-link"></span></a>Dynamic Entity - A step further</h3>
+
+<p>I believe it's best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">eventLog</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">com</span><span class="p">.</span><span class="nx">database</span><span class="p">.</span><span class="nx">BaseModelObject</span><span class="p">(</span> <span class="nx">dao</span> <span class="o">=</span> <span class="nx">dao</span><span class="p">,</span> <span class="nx">table</span> <span class="o">=</span> <span class="s1">'eventLog'</span> <span class="p">);</span>
+</pre></div>
+
+<p>That would have returned an entity instance with all the properties from the eventLog table.  I'm not saying this is a best practice, but it is possible.  It hasn't been tested in the wild, so YMMV - but it passes our internal manual tests.</p>
+
+<h2>
+<a name="relationships" class="anchor" href="#relationships"><span class="octicon octicon-link"></span></a>Relationships</h2>
+
+<p>Since this Pet.cfc defines a one-to-one relationship with the user, this will automatically load the correct "User" object into the Pet object
+when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User
+is also evaluated and saved (if any changes were detected ).</p>
+
+<p>One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
+relationship creates an Array of whatever object it is related to, and adds the <code>add&lt;Entity Name&gt;()</code> method to the instance so you can add instances to the array.  Notice in 
+our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".</p>
+
+<h2>
+<a name="lazy-loading" class="anchor" href="#lazy-loading"><span class="octicon octicon-link"></span></a>lazy loading</h2>
+
+<p>If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related
+entities, or are loading a collection of entities that have related entities.  What it will do is load the parent entity and "overload" the getters methods of the child entities
+with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.</p>
+
+<p>To lazy load, you simply use the dynamic load method, prefixed with "lazy"</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">pet</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Pet</span><span class="p">(</span> <span class="nx">dao</span> <span class="p">).</span><span class="nx">lazyLoadAll</span><span class="p">();</span>
+<span class="c1">// then, if I only need the first name of the "user" for the second pet I'd just:</span>
+<span class="nx">ownerName</span> <span class="o">=</span> <span class="nx">pet</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="nx">getFirstName</span><span class="p">();</span>  <span class="c1">// That would trigger the "load" on only the that pet's user object.</span>
+</pre></div>
+
+<h1>
+<a name="requirements" class="anchor" href="#requirements"><span class="octicon octicon-link"></span></a>Requirements</h1>
+
+<p>Currently this library has been actively used and tested on Railo 4x, CF9 and CF10 (though the dao.cfc stuff should work with CF8 - for now). 
+There are some features that are disabled by default ( such as lazy loading child entities ), but can be "turned on" by un-commenting
+a few lines if you are running on CF10+ or Railo 4+ (uses anonymous functions)</p>
+
+<h1>
+<a name="database-platform-agnostic" class="anchor" href="#database-platform-agnostic"><span class="octicon octicon-link"></span></a>Database Platform Agnostic</h1>
+
+<p>Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
+creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
+argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
+instantiate as: dao = new dao( dbType = 'otherrdbs' );</p>
+
+<h1>
+<a name="more-examples" class="anchor" href="#more-examples"><span class="octicon octicon-link"></span></a>More examples</h1>
+
+<p>Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Dao maintained by <a href="https://github.com/abramadams">abramadams</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
