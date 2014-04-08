@@ -13,7 +13,8 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 						filter = arguments.$filter,
 						orderby = arguments.$orderby,
 						skip = arguments.$skip,
-						top = arguments.$top
+						top = arguments.$top,
+                        excludeKeys = [ "_id", "other_field_you_want_to_hide" ]
 					)
 				).withStatus(200);
 

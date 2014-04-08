@@ -981,6 +981,14 @@
 
 	</cffunction>
 
+	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
+		<cfreturn this.conn.getSafeIdentifierStartChar() />
+	</cffunction>
+
+	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
+		<cfreturn this.conn.getSafeIdentifierEndChar() />
+	</cffunction>
+
 	<cffunction name="queryParam" hint="I create the values to build the cfqueryparam tag." output="false" returntype="string">
 		<cfargument name="value" type="string" required="true">
 		<cfargument name="cfsqltype" type="string" required="false" default="cf_sql_varchar" hint="This can be a standard RDBS datatype or a cf_sql_type (see getCFSQLType())">

@@ -590,16 +590,20 @@ component accessors="true" output="false" {
     * @hint The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
     **/
 	public query function list(
-		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )# #this.getIDField() NEQ 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#",
+		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#",
 		string where = "",
 		string limit = "",
 		string orderby = "",
-		string offset = ""){
-
-		var LOCAL = {};
+		string offset = "",
+		array excludeKeys = []){
+		
+		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
+		cols = reReplace( cols, "#this.getDao().getSafeIdentifierStartChar()##this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
+		cols = arrayToList( listToArray( cols, ',', false ) );
+	
 		var record = variables.dao.read(
 				table = this.getTable(),
-				columns = columns,
+				columns = cols,
 				where = where,
 				orderby = orderby,
 				limit = limit,
@@ -608,13 +612,13 @@ component accessors="true" output="false" {
 		return record;
 	}
 
-    public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = ""){
-        return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset ) );
+    public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+        return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys ) );
     }
 
-    public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = ""){
+    public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
         var LOCAL = {};
-        var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset );
+        var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys );
 
         // Determine the indexes that we will need to loop over.
         // To do so, check to see if we are working with a given row,
@@ -1020,17 +1024,17 @@ component accessors="true" output="false" {
 		var col = {};
 		// the for (prop in variables.meta.properties) loop was throwing a java error for me (-sy)
 		for ( var loopVar=1; loopVar <= propLen; loopVar += 1 ){
-			prop = variables.meta.properties[loopVar]; */
+			prop = variables.meta.properties[loopVar]; */		
 		for ( var col in variables.meta.properties ){
-			col.type = structKeyExists( prop, 'type' ) ? prop.type : 'string';
-			col.type = structKeyExists( prop, 'sqltype' ) ? prop.sqltype : col.type;
-			col.name = structKeyExists( prop, 'column' ) ? prop.column : prop.name;
-			col.persistent = !structKeyExists( prop, 'persistent' ) ? true : prop.persistent;
-			col.isPrimaryKey = col.isIndex = structKeyExists( prop, 'fieldType' ) && prop.fieldType == 'id';
-			col.isNullable = !( structKeyExists( prop, 'fieldType' ) && prop.fieldType == 'id' );
-			col.defaultValue = structKeyExists( prop, 'default' ) ? prop.default : '';
-			col.generator = structKeyExists( prop, 'generator' ) ? prop.generator : '';
-			col.length = structKeyExists( prop, 'length' ) ? prop.length : '';
+			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
+			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
+			col.name = structKeyExists( col, 'column' ) ? col.column : col.name;
+			col.persistent = !structKeyExists( col, 'persistent' ) ? true : col.persistent;
+			col.isPrimaryKey = col.isIndex = structKeyExists( col, 'fieldType' ) && col.fieldType == 'id';
+			col.isNullable = !( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id' );
+			col.defaultValue = structKeyExists( col, 'default' ) ? col.default : '';
+			col.generator = structKeyExists( col, 'generator' ) ? col.generator : '';
+			col.length = structKeyExists( col, 'length' ) ? col.length : '';
 
 			if( col.persistent && !structKeyExists( col, 'CFC' ) ){
 
@@ -1100,7 +1104,7 @@ component accessors="true" output="false" {
 /* *************************************************************************** */
 /* BreezeJS interface */
 /* *************************************************************************** */
-	public function getBreezeMetaData(){
+	public function getBreezeMetaData( array excludeKeys = [] ){
     	var breezeMetaData = {
 		    "schema" = {
 		        "namespace" = "#getBreezeNameSpace()#",
@@ -1121,7 +1125,7 @@ component accessors="true" output="false" {
 		                    "name" = lcase( getIDField() )
 		                }
 		            },
-		            "property" = generateBreezeProperties()
+		            "property" = generateBreezeProperties( excludeKeys =  excludeKeys )
 		        },
 		        "entityContainer" = {
 		            "name" = "#getDao().getDSN()#Context",
@@ -1136,7 +1140,7 @@ component accessors="true" output="false" {
 		return breezeMetaData;
 	}
 
-	public array function listAsBreezeData( string filter = "", string orderby = "", string skip = "", string top = "" ){
+	public array function listAsBreezeData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = [] ){
 		if( len(trim( filter ) ) ){
 			/* parse breezejs filter operators */
 			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
@@ -1151,7 +1155,14 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\s(endswith)\s(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
-		var list = listAsArray( where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "", orderby = arguments.orderby, offset = arguments.skip, limit = arguments.top );
+
+		var list = listAsArray( 
+								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "", 
+								orderby = arguments.orderby, 
+								offset = arguments.skip, 
+								limit = arguments.top, 
+								excludeKeys = arguments.excludeKeys 
+							);
 
 		var row = "";
 		var data = [];
@@ -1166,8 +1177,8 @@ component accessors="true" output="false" {
 
 	}
 
-	public array function toBreezeJSON(){
-		var data  = this.toStruct();
+	public array function toBreezeJSON( array excludeKey = [] ){
+		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
 		data["$type"] = "#getBreezeNameSpace()#.#getBreezeEntityName()#, DAOBreezeService";
 		data["$id"] = data[ getIDField() ];
 
@@ -1252,14 +1263,14 @@ component accessors="true" output="false" {
 	/**
 	* @hint I return an array of structs containing all of the breeze friendly properties of the entity (table).
 	**/
-	private function generateBreezeProperties(){
+	private function generateBreezeProperties( array excludeKeys = [] ){
 		var props = [];
 		//var prop = { "validators" = [] };
 		var prop = { };
 
 		for ( var col in variables.meta.properties ){
 			/* TODO: flesh out relationships here */
-			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'persistent' ) && !col.persistent ) ){
+			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'persistent' ) && !col.persistent ) || arrayFindNoCase( excludeKeys, col.name ) ){
 				continue;
 			}
 			prop["name"] = col.name;

@@ -5,7 +5,7 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Metadata" {
 		//var todo = new model.TodoItem( dao = dao );	
 		var todo = new com.database.BaseModelObject( dao = application.dao, table = "TodoItem");
 		
-		return representationOf( todo.getBreezeMetaData() ).withStatus(200);
+		return representationOf( todo.getBreezeMetaData( excludeKeys = [ "_id" ] ) ).withStatus(200);
 
 	}
 }

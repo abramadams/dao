@@ -52,7 +52,7 @@
 	</cffunction>
 
 
-	<cffunction name="delete" hint="I delete records from the database.  I am MySQL specific." returntype="boolean" output="true">
+	<cffunction name="delete" hint="I delete records from the database.  I am MySQL specific." returntype="boolean" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
 		<cfargument name="recordID" required="true" type="string" hint="Record ID of record to be deleted.">
 		<cfargument name="IDField" required="false" type="string" hint="ID field of record to be deleted.">
@@ -77,7 +77,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="deleteAll" hint="I delete all records from the passed tablename.  I am MySQL specific." returntype="boolean" output="true">
+	<cffunction name="deleteAll" hint="I delete all records from the passed tablename.  I am MySQL specific." returntype="boolean" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
 
 		<cfset var ret = true />
@@ -95,7 +95,7 @@
 	</cffunction>
 
 
-	<cffunction name="select" hint="I select records from the database.  I am MSSQL specific." returntype="query" output="true">
+	<cffunction name="select" hint="I select records from the database.  I am MSSQL specific." returntype="query" output="false">
 		<cfargument name="sql" required="false" type="string" default="" hint="Either Table to select from or sql statement.">
 		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="sel_#listFirst(createUUID(),'-')#">
 		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
@@ -236,7 +236,7 @@
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
-				<cfsetting showdebugoutput="true">
+				<cfsetting showdebugoutput="false">
 				<cfabort>
 			</cfcatch>
 		</cftry>
@@ -319,7 +319,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="true">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
@@ -410,7 +410,7 @@
 	</cffunction>
 
 <!--- Data Definition Functions --->
-	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="query" output="true">
+	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="query" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to define.">
 
 		<cfset var table = new tabledef(arguments.TableName)>
@@ -419,14 +419,14 @@
 		<cfreturn def />
 	</cffunction>
 
-	<cffunction name="getTables" hint="I return a list of tables for the current database." returntype="query" access="public" output="true">
+	<cffunction name="getTables" hint="I return a list of tables for the current database." returntype="query" access="public" output="false">
 
 		<cfset var tables = read('SHOW TABLES')>
 
 		<cfreturn tables />
 	</cffunction>
 
-	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MSSQL specific." returntype="struct" output="true">
+	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MSSQL specific." returntype="struct" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to return primary key.">
 
 		<cfset var def = define(arguments.tablename)>
@@ -446,7 +446,7 @@
 	<!--- GETTERS --->
 
 
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
+	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
 		<cfargument name="cols" required="true" type="string">
 
 		<cfset var i = 0 />
@@ -456,7 +456,7 @@
 		<cfsavecontent variable="columns">
 			<cfoutput>
 				<cfloop list="#arguments.cols#" index="colname">
-					<cfset i = i + 1>[#colname#]<cfif i lt listLen(cols)>,</cfif>
+					<cfset i = i + 1>#getSafeIdentifierStartChar()##colname##getSafeIdentifierEndChar()#<cfif i lt listLen(cols)>,</cfif>
 				</cfloop>
 			</cfoutput>
 		</cfsavecontent>
@@ -465,24 +465,32 @@
 
 	</cffunction>
 
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="true">
+	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
 		<cfargument name="col" required="true" type="string">
 
 		<cfset var ret = "" />
 
-		<cfset ret = "[" & arguments.col & "]" >
+		<cfset ret = getSafeIdentifierStartChar() & arguments.col & getSafeIdentifierEndChar() >
 
 		<cfreturn ret />
 
 	</cffunction>
+	
+	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
+		<cfreturn '[' />
+	</cffunction>
 
+	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
+		<cfreturn ']' />
+	</cffunction>
+	
 	<cfscript>
 		/**
 	    * @hint I create a table based on the passed in tabledef object's properties.
 	    **/
 		package tabledef function makeTable( required tabledef tabledef ){
 
-			var tableSQL = "CREATE TABLE [#tabledef.getTableName()#] (";
+			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
 			var primaryKeys = "";
 			var indexes = "";
@@ -496,25 +504,25 @@
 
 				switch( col.sqltype ){
 					case 'string':
-						tmpstr = '[#col.name#] varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# varchar(#structKeyExists( col, 'length' ) ? col.length : '255'#) #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 					case 'numeric':
-						tmpstr = '[#col.name#] int #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #col.isPrimaryKey ? ' PRIMARY KEY' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# int #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #col.isPrimaryKey ? ' PRIMARY KEY' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 					case 'date':
-						tmpstr = '[#col.name#] datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 					case 'tinyint':
-						tmpstr = '[#col.name#] tinyint(1) #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# tinyint(1) #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' IDENTITY(1,1) ' : ''# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
 					break;
 					case 'boolean': case 'bit':
-						tmpstr = '[#col.name#] BIT #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# BIT #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT " & (col.default ? true : false) : ''#';
 					break;
 					case 'text':
-						tmpstr = '[#col.name#] text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''#';
 					break;
 					default:
-						tmpstr = '[#col.name#] #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 				}
 
@@ -527,9 +535,9 @@
 
 				if( col.isPrimaryKey ){
 					if( structKeyExists( col, 'generator' ) && col.generator eq 'increment' ){
-						primaryKeys = listPrepend(primaryKeys, '[#col.name#]');
+						primaryKeys = listPrepend(primaryKeys, '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()#');
 					}else{
-						primaryKeys = listAppend(primaryKeys, '[#col.name#]');
+						primaryKeys = listAppend(primaryKeys, '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()#');
 					}
 				}
 
