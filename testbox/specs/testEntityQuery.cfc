@@ -3,18 +3,18 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	// executes before all tests
 	function beforeTests(){
 		request.dao = new com.database.dao( dsn = "dao" );
-		request.bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
+
 	}
 
 	function createNewEntityQueryInstance() test{
-		var test = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
+		//var test = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
-		$assert.isTrue( isInstanceOf( test, "com.database.BaseModelObject" ) );
+		$assert.isTrue( isInstanceOf( request.dao, "com.database.dao" ) );
 	}
 
 	function from() test{
 
-		var query = request.bmo.from( "eventLog" );
+		var query = request.dao.from( "eventLog" );
 
 		//var results = query.from('eventLog').run();
 
@@ -25,8 +25,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function where() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" ).where( "ID", ">=", 5 );
+		var query = request.dao.from( "eventLog" ).where( "ID", ">=", 5 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().where );
@@ -34,8 +33,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function andWhere() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
 					.andWhere( "ID", ">=", 1)
 					.andWhere( "event", "=", "delete")
@@ -48,8 +46,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function orderBy() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
 					.andWhere( "ID", ">=", 1)
 					.andWhere( "event", "=", "delete")
@@ -62,8 +59,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function limit() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
 					.andWhere( "ID", ">=", 1)
 					.andWhere( "event", "=", "delete")
@@ -76,8 +72,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function limitAll() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
 					.andWhere( "ID", ">=", 1)
 					.andWhere( "event", "=", "delete")
@@ -90,8 +85,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 	}
 
 	function testrun() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
 					.andWhere( "ID", ">=", 1)
 					.beginGroup("or")
@@ -108,10 +102,8 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
         $assert.typeOf( "query", results );
 	}
 	function testrunNoLimit() test{
-		var bmo = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
-		var query = bmo.from( "eventLog" )
+		var query = request.dao.from( "eventLog" )
 					.where( 1, "=", 1 )
-
 					.beginGroup("and")
 						.andWhere( "ID", ">=", 1)
 						.beginGroup("or")

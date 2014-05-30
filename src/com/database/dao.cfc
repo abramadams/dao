@@ -57,7 +57,7 @@
 	<cfproperty name="dbtype" type="string">
 	<cfproperty name="dbversion" type="string">
 	<cfproperty name="writeTransactionLog" type="boolean">
-
+	<cfset _resetCriteria() />
 	<cffunction name="init" access="public" returntype="DAO" output="false" displayname="DAO Constructor" hint="I initialize DAO.">
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
 		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="" />
@@ -1216,6 +1216,107 @@
 		public tabledef function makeTable( required tabledef tabledef ){
 			return this.conn.makeTable( arguments.tabledef );
 		}
+
+		// Entity Query Functions - Provides LINQ'ish style queries
+		private function _resetCriteria(){
+			_criteria = { from = "", where = [], limit = "*", orderBy = "" };
+		}
+
+		function from( required string from ){
+			_resetCriteria();
+			_criteria.from = arguments.from;
+
+			return this;
+		}
+
+		function where( required string column, required string operator, required string value ){
+			// There can be only one where.
+			if ( arrayLen( _criteria.where ) && left( _criteria.where[ 1 ] , 5 ) != "WHERE" ){
+				arrayPrepend( _criteria.where, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			}else{
+				_criteria.where[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
+			}
+
+			return this;
+		}
+
+		private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
+			if ( arrayLen( _criteria.where )
+				&& ( left( _criteria.where[ arrayLen( _criteria.where ) ] , 5 ) != "AND ("
+				&& left( _criteria.where[ arrayLen( _criteria.where ) ] , 4 ) != "OR (" ) ){
+				arrayAppend( _criteria.where, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			}else{
+				arrayAppend( _criteria.where, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			}
+			return this;
+		}
+
+		function andWhere( required string column, required string operator, required string value ){
+			return _appendToWhere( andOr = "AND", column = column, operator = operator, value = value );
+		}
+
+		function orWhere( required string column, required string operator, required string value ){
+			return _appendToWhere( andOr = "OR", column = column, operator = operator, value = value );
+		}
+
+		/**
+		* Opens a parenthesis claus.  Operator should be AND or OR
+		* If "AND" is passed, it will return AND (
+		* Must be closed by endGroup()
+		**/
+		function beginGroup( string operator = "AND"){
+
+			arrayAppend( _criteria.where, "#operator# ( " );
+			return this;
+		}
+		/**
+		* Ends the group.  All this really does is append a closing
+		* parenthesis
+		**/
+		function endGroup(){
+
+			arrayAppend( _criteria.where, " )" );
+			return this;
+		}
+
+		function orderBy( required string orderBy ){
+
+			_criteria.orderBy = orderBy;
+			return this;
+		}
+
+		function limit( required any limit ){
+
+			_criteria.limit = arguments.limit;
+			return this;
+		}
+
+		function run(){
+			return read( table = _criteria.from, where = arrayToList( _criteria.where, ' ' ), limit = _criteria.limit, orderBy = _criteria.orderBy );
+
+		}
+
+		function getCriteria(){
+			return _criteria;
+		}
+
+		/**
+		* I return a SQL safe column name.  I will delegate to the DB specific
+		* connector to return the actual safe column name based on the dao.dbtype.
+		* However, if the column name not a valid column name (i.e. a number) I will
+		* just return the column name unchanged
+		**/
+		private function _getSafeColumnName( required string column ){
+
+			if( isValid( "variableName", column ) ){
+				return getSafeColumnName( arguments.column );
+			}
+
+			return column;
+
+		}
+
+
 	</cfscript>
 
 </cfcomponent>
