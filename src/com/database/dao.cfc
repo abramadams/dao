@@ -11,7 +11,7 @@
 		and routines to perform generic functions like obtaining
 		the definition of a table, the interface here is
 		define(tablename) and the MySQL function is DESCRIBE tablename.
-		To impliment for MS SQL you would need to create a
+		To implement for MS SQL you would need to create a
 		mssql.cfc and have MS SQL specific syntax for the
 		define(tablename) function that returns a query object.
 
@@ -112,11 +112,9 @@
 		<cfswitch expression="#variables.dbVersion.database_productname#">
 			<cfcase value="Microsoft SQL Server">
 				<cfreturn "mssql"/>
-				<cfbreak/>
 			</cfcase>
 			<cfcase value="MySQL">
 				<cfreturn "mysql"/>
-				<cfbreak/>
 			</cfcase>
 		</cfswitch>
 
@@ -1035,8 +1033,24 @@
 			<cfset LOCAL.statements = []/>
 
 			<cfif listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) >
-				<!--- No queryParams to parse, just return the raw SQL --->
-				<cfreturn {statements = [ {"before" = tmpSQL} ] }/>
+				<cfset var tmpArray = listToArray( tmpSQL, '=' )/>
+				<cfset var newTmpSQL = ""/>
+				<!--- try to coerce the given sql into parameterized arguments --->
+				<cfloop from="1" to="#arrayLen( tmpArray )#" index="idx">
+					<cfif idx mod 2>
+						<cfset newTmpSQL&=tmpArray[ idx ] & " = "/>
+					<cfelse>
+						<cfset newTmpSQL&="$queryParam(value=" & trim( tmpArray[ idx ] ) & ")$"/>
+					</cfif>
+				</cfloop>
+				<cfset newTmpSQL = parseQueryParams( newTmpSQL )/>
+
+				<cfif listLen( newTmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( newTmpSQL, 2, chr( 998 ) ) ) ) >
+					<!--- No queryParams to parse, just return the raw SQL --->
+					<cfreturn {statements = [ {"before" = tmpSQL} ] }/>
+				</cfif>
+				<!--- If we made it this far, we have parameterized args!! continue on... --->
+				<cfset tmpSQL = newTmpSQL/>
 			</cfif>
 			<cfset tmpSQL = listToArray( tmpSQL, chr( 999 ) ) />
 
@@ -1151,6 +1165,7 @@
 							tmpArr[ i ] = '"value":""';
 						}
 					}
+
 					// turn the JSON into a CF struct
 					tmpString = deSerializeJSON( "{" & arrayToList( tmpArr ) & "}" );
 

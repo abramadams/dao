@@ -1,5 +1,9 @@
 /**
-*	@hint Extend this component to add ORM like behavior to your model CFCs.  Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
+*	Extend this component to add ORM like behavior to your model CFCs.
+*	Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
+*	Can be altered to run on CF9 by commenting out the anonymous function code
+*   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
+* 	and and uncomment the code above it using the setterFunc() call.
 *   @version 0.0.55
 *   @updated 12/30/2013
 *   @author Abram Adams
@@ -9,26 +13,18 @@ component accessors="true" output="false" {
 	/* properties */
 
 	property name="table" type="string" persistent="false";
-
-	//property name="ID" type="numeric" getter="false" setter="false";
 	property name="IDField" type="string" persistent="false";
 	property name="IDFieldType" type="string" persistent="false";
 	property name="IDFieldGenerator" type="string" persistent="false" ;
-	/* property name="currentUserID" type="numeric" persistent="false"; */
 	property name="deleteStatusCode" type="numeric" persistent="false" ;
-	/* Some global properties */
-	/* property name="Created_By_Users_Id" type="numeric" ;
-	property name="Created_Datetime" type="date";
-	property name="Modified_By_Users_Id" type="numeric" ;
-	property name="Modified_Datetime" type="date" ; */
-
-	/* Dependancy injection */
-	property name="dao" type="dao" persistent="false";
-	property name="tabledef" type="tabledef" persistent="false";
-
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" persistent="false";
 
+	/* Dependancies */
+	property name="dao" type="dao" persistent="false";
+	property name="tabledef" type="tabledef" persistent="false";
+
+	// Some "private" variables
 	_isNew = true;
 	_isDirty = false;
 
@@ -40,37 +36,38 @@ component accessors="true" output="false" {
 								numeric deleteStatusCode = 1,
 								any dao = "",
 								boolean dropcreate = false){
-		//variables._isNew = true;
+
 		var LOCAL = {};
-		if( !isSimpleValue(arguments.dao) ){
-			//this.DAO = arguments.dao;
+		// Make sure we have a dao (see dao.cfc)
+		if( isValid( "component", arguments.dao ) ){
 			variables.dao = arguments.dao;
 		} else {
 			throw("You must have a dao" & arguments.dao );
 		}
 		variables.dropcreate = arguments.dropcreate;
+		// used to introspect the given table.
 		variables.meta = getMetaData( this );
-		// Hack to make variables.meta a true CF data type
+		// Hack to make variables.meta a true CF data type so we can "for in" loop it.
         variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
 
 		if( !len( trim( arguments.table ) ) ){
-			/* If the table name was not passed in, see if the table property was set on the component */
+			// If the table name was not passed in, see if the table property was set on the component
 			if( structKeyExists( variables.meta,'table' ) ){
 				setTable( variables.meta.table );
-			/* If not, see if the table property was set on the component it extends */
+			// If not, see if the table property was set on the component it extends
 			}else if( structKeyExists( variables.meta.extends, 'table' ) ){
 				setTable( variables.meta.extends.table );
-			/* If not, use the component's name as the table name */
+			// If not, use the component's name as the table name
 			}else if( structKeyExists( variables.meta, 'fullName' ) ){
                 setTable( listLast( variables.meta.fullName, '.') );
 			}else{
-				//writeDump(variables.meta); abort;
 				throw('Argument: "Table" is required if the component declaration does not indicate a table.','variables','If you don''t pass in the table argument, you must specify the table attribute of the component.  I.e.  component table="table_name" {...}');
 			}
 		}else{
 			setTable( arguments.table );
 		}
-
+		// For development use only, will drop and recreate the table in the database
+		// to give you a clean slate.
 		if( variables.dropcreate ){
 			writeLog('droppping #getTable()#');
 			dropTable();
@@ -78,27 +75,24 @@ component accessors="true" output="false" {
 			makeTable();
 		}else{
 			try{
+				// load the table definition based on the given table.
 				variables.tabledef = new tabledef( tableName = getTable(), dsn = getDao().getDSN() );
 			} catch (any e){
 				if( e.type eq 'Database' ){
-					/* writeDump(e);
-					writeDump(arguments);
-					writeDump(variables.meta);
-					abort; */
 					if (e.Message neq 'Datasource #getDao().getDSN()# could not be found.'){
+						// The table didn't exist, so let's make it
 						makeTable();
 					}else{
 						throw( e.message );
 					}
 				}else{
-					writeDump('Error in init');
-					writeDump(e);abort;
+					rethrow;
 				}
 			}
 		}
 
 
-		/* Setup the ID (primary key) field.  This can be used to generate id values, etc.. */
+		// Setup the ID (primary key) field.  This can be used to generate id values, etc..
 		setIDField( arguments.IDField );
         setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
 		setDeleteStatusCode( arguments.deleteStatusCode );
@@ -107,11 +101,10 @@ component accessors="true" output="false" {
 
         variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
 
-		/*
-			If there are more columns in the table than there are properties, let's dynamically add them
-			This will allow us to dynamically stub out the entity "class".  So one could just create a
-			CFC without any properties, then point it to a table and get a fully instantiated entity.
-		*/
+		// If there are more columns in the table than there are properties, let's dynamically add them
+		// This will allow us to dynamically stub out the entity "class".  So one could just create a
+		// CFC without any properties, then point it to a table and get a fully instantiated entity, or they
+		// could directly instantiate BaseModelObject and pass it a table name and get a fully instantiated entity.
 
 		var found = false;
 		if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){
@@ -120,7 +113,7 @@ component accessors="true" output="false" {
 			for( var col in variables.tabledef.instance.tablemeta.columns ){
 				for ( var existingProp in variables.meta.properties ){
 					if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col )
-							|| ( structKeyExists( existingProp, 'name' ) && existingProp.name EQ col )){
+						|| ( structKeyExists( existingProp, 'name' ) && existingProp.name EQ col )){
 						//property exists skip to the next column
 						found = true;
 						break;
@@ -209,25 +202,20 @@ component accessors="true" output="false" {
 	* flag will be set to true anytime data changes.
 	**/
 	private function setFunc( required any v ){
+		// prevent infinite recursion
 		if( getFunctionCalledName() == 'tmpFunc' ){
 			return;
 		}
 
 		if( left( getFunctionCalledName(), 3) == "set" && getFunctionCalledName() != 'setterFunc' ){
 			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
-			//var getFunc = duplicate( this["get" & mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) ) ] );
-			try{
-				// If the property exists, compare the old value to the new value (case sensitive)
-				if( structKeyExists( variables, propName ) ){
-					//If the old value isn't identical to the new value, set the isDirty flag to true
-					variables._isDirty = compare( v, variables[ propName ] ) != 0;
-				}
-			} catch ( any e ){
-				writeDump('Error in setFunc');
-				writeDump(propName);
-				writeDump(variables);
-				writeDump( e );abort;
+
+			// If the property exists, compare the old value to the new value (case sensitive)
+			if( structKeyExists( variables, propName ) ){
+				//If the old value isn't identical to the new value, set the isDirty flag to true
+				variables._isDirty = compare( v, variables[ propName ] ) != 0;
 			}
+
 			// Get the original setter function that we set aside in the init routine.
 			var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
 			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
@@ -265,54 +253,70 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint I returns true if the current state represents a new record/document
+	* I return true if the current state represents a new record/document
 	**/
 	public boolean function isNew(){
 		return variables._isNew;
 	}
 
 	/**
-	* @hint I set the current instance of the model object as a "new" record.  This will cause an insert instead of an update when the save() method is called, retaining the original data, but generating a new record with new primary key/generated ID values.  Use this when creating several records of the same entity type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
+	* I set the current instance of the model object as a "new" record.  This will cause an insert instead
+	* of an update when the save() method is called, retaining the original data, but generating a new record
+	* with new primary key/generated ID values.  Use this when creating several records of the same entity
+	* type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
 	**/
 	public function copy(){
 		variables._isNew = true;
 		variables[ getIDField() ] = '';
 	}
 	/**
-	* @hint I create a new empty instance of the entity
+	* I create a new empty instance of the entity
 	**/
 	public function new(){
 		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() );
 	}
 	/**
-	* @hint Shortcut to create a new instantiated instance of the entity - essentially a safe deep-copy.
+	* Shortcut to create a new instantiated instance of the entity - essentially a safe deep-copy.
 	**/
 	public function clone(){
 		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() ).load( this.getID() );
 	}
 	/**
-	* @hint I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
+	* I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
 	**/
 	public function reset(){
-		/* TODO: see if this is better:
+		// Could just load(0), but properties dynamically added will persist in the variables scope
+		// and the variables.properties is readonly.
 		for ( var prop in variables.meta.properties ){
-			variables[ prop.name ] = '';
-		} */
-		return load(0);
+			this[ prop.name ] = variables[ prop.name ] = '';
+		}
+		return this;
 	}
 
 	/**
-	* @hint I return true if any of the original data has changed.  This is a read-only property because the entity obejct properties' setters set this flag when data actually changes.
+	* I return true if any of the original data has changed.  This is a read-only property because the
+	* entity obejct properties' setters set this flag when data actually changes.
 	**/
 	public boolean function isDirty(){
 		return variables._isDirty;
 	}
 
 	/**
-	* @hint  I provide support for dynamic method calls for loading data into model objects.
-	*		 Use loadBy<column>And<column>And....() to load data using several column filters.
-	*		 This generates an SQL statement to retrieve the desired data.
-	* 		 I also handle "lazy" loading methods like: lazyLoadAllBy<column>And<column>And...();
+	* I provide support for dynamic method calls for loading data into model objects.
+	* Use loadBy<column>And<column>And....() to load data using several column filters.
+	* This generates an SQL statement to retrieve the desired data.
+	* I also handle "lazy" loading methods like: lazyLoadAllBy<column>And<column>And...();
+	*
+	* Allowed function patterns:
+	* loadBy<column>And<column>And....() <-- returns an array of instantiated entity objects matching criteria (or a single instantiated instance if only one record is returned)
+	* loadTop( limit, order_by ) <-- returns array of instantiated entity objects
+	* loadFirstBy<column>And<column>And....() <--- same as loadBy.. but always limits to the one record and only returns the instantiated object.
+	* loadAll() <-- returns an array of instantiated entity objects for every record in the table (well it returns 100, then lazy loads the rest)
+	* NOTE:
+	* Prefix any of the above patterns with Lazy and it will only load the entity data and not any child data.  Instead, the child properties
+	* are replaced with getter methods that trigger a load when called.  So when you lazy load Parent that has children, the children entities
+	* don't get loaded until you call Parent.getChildren().getProperty(); (where Children is the actual name of the child entity and Propety is
+	* the name of the actual property in the child entity)
 	**/
 	public any function onMissingMethod( required string missingMethodName, required struct missingMethodArguments ){
 		var LOCAL = {};
@@ -325,6 +329,13 @@ component accessors="true" output="false" {
 		var limit = arguments.missingMethodName is "loadTop" ? arguments.missingMethodArguments[ 1 ] : "";
 		var orderby = arguments.missingMethodName is "loadTop" ? "ORDER BY " & arguments.missingMethodArguments[2] : '';
 		var where = "1=1";
+
+		// Allow "loadFirst" method to instantiate the entity and load it with the first
+		// record returned per the "By" criteria
+		if( left( arguments.missingMethodName, 9 ) is "loadFirst" ){
+			limit = 1;
+			arguments.missingMethodName = "load" & mid( arguments.missingMethodName, 10, len( arguments.missingMethodName ) );
+		}
 
 		if( left( arguments.missingMethodName, 6 ) is "loadBy"
 			|| left( arguments.missingMethodName, 9 ) is "loadAllBy"
@@ -352,7 +363,6 @@ component accessors="true" output="false" {
 
 					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[ i ];
 
-					//if( structKeyExists( variables.meta.properties, ))
 					recordSQL &= " AND #LOCAL.columnName# = #getDao().queryParam(value="#arguments.missingMethodArguments[ i ]#")#";
 					//Setup defaults
 					LOCAL.functionName = "set" & queryArguments[ i ];
@@ -428,7 +438,17 @@ component accessors="true" output="false" {
 
 	}
 	/**
-	* @hint Loads data into the model object. If lazy == true the child objects will be lazily loaded. Lazy loading allows us to inject "getter" methods that will instantiate the related data only when requested.  This makes the loading much quicker and only instantiates child objects when needed.
+	* Loads data into the model object. If lazy == true the child objects will be lazily loaded.
+	* Lazy loading allows us to inject "getter" methods that will instantiate the related data
+	* only when requested.  This makes the loading much quicker and only instantiates child
+	* objects when needed.
+	*
+	* The ID argument can be either the id value (ie the primary key value of the record) or a
+	* struct containing the keys that relate to the entity's keys.  This could be used to fully
+	* populate an instance of the entity, or to load an existing entity and override it's properties.
+	* One use case would be to pass it the form scope where the form contained fields that directly
+	* correspond (via name) to properties in the entity.  See convenience function 'populate()'
+	*
 	**/
 	public any function load( required any ID, boolean lazy = false ){
 		var LOCAL = {};
@@ -442,7 +462,7 @@ component accessors="true" output="false" {
 			// Load the object based on the pased in struct. This may be a new record, or an update to an existing one.
 			for ( var prop in props ){
 				//Load the properties based on the passed in struct.
-				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name ) && prop.name != getIDField() ){
+				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name )/*  && prop.name != getIDField()  */){
 					// We'll need to check some data types first though.
 					if ( prop.type == 'date' && findNoCase( 'Z', arguments.ID[ prop.name ] ) ){
 						variables[ prop.name ] = convertHttpDate( arguments.ID[ prop.name ] );
@@ -565,7 +585,24 @@ component accessors="true" output="false" {
 		return this;
 
 	}
+	/**
+	* I am a conveniece method for loading an object with pre-existing data.
+	* I take a struct that contains keys that match properties on the given
+	* entity and return an instance of the entity with the passed in values
+	* "loaded" into the entity.  If the properties argument contains a key
+	* with the same name as the entity's "IDField" then I will attempt to
+	* load the record from the database.  If no matching record is found, or
+	* the properties did not contain the IDField I will return an instance
+	* of the entity, loaded with the key/values specified by the properties arg.
+	**/
+	public any function populate( required any properties, boolean lazy = false ){
+		return load( ID = properties, lazy = lazy );
+	}
 
+	/**
+	* I am a convenience method to force the lazy loading of the entity.  I make code
+	* more self-documenting.
+	**/
 	public any function lazyLoad( required any ID ){
 		return load( ID = ID, lazy = true );
 	}
@@ -573,21 +610,33 @@ component accessors="true" output="false" {
 	public query function getRecord( any ID ){
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : getID();
-		var record = variables.dao.read( "
-					SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' ) )# FROM #this.getTable()#
-					WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
-				");
+		// var record = variables.dao.read( "
+		// 			SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' ) )# FROM #this.getTable()#
+		// 			WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
+		// 		");
+
+		var record = variables.dao.read(
+				table = this.getTable(),
+				columns = "#getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' ) )#",
+				where = "WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#",
+				name = "#getTable()#_getRecord"
+			);
+
 		variables._isNew = record.recordCount EQ 0;
 		return record;
 	}
 
-
+	/**
+	* I return a query object containing a single record from the database.  If ID
+	* is specified I will return the record matching that ID.  If not, I will return
+	* the record of the currently instantiated entity.
+	**/
     public query function get( any ID ){
         return getRecord( ID );
     }
 
     /**
-    * @hint The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
+    * The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
     **/
 	public query function list(
 		string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#",
@@ -596,11 +645,11 @@ component accessors="true" output="false" {
 		string orderby = "",
 		string offset = "",
 		array excludeKeys = []){
-		
+
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
 		cols = reReplace( cols, "#this.getDao().getSafeIdentifierStartChar()##this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
-	
+
 		var record = variables.dao.read(
 				table = this.getTable(),
 				columns = cols,
@@ -612,10 +661,15 @@ component accessors="true" output="false" {
 		return record;
 	}
 
+	/**
+	* I return a JSON array of structs representing the records matching the specified criteria; one record per array indicie.
+	**/
     public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
         return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys ) );
     }
-
+    /**
+    * Returns a CF array of structs representing the records matching the specified criteria; one record per array indicie.
+    **/
     public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
         var LOCAL = {};
         var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys );
@@ -671,7 +725,7 @@ component accessors="true" output="false" {
 
         }
 
-        // At this point, we have an array of structure objects that
+        // At this point, we have an array of structure objects tha
         // represent the rows in the query over the indexes that we
         // wanted to convert. If we did not want to convert a specific
         // record, return the array. If we wanted to convert a single
@@ -691,7 +745,7 @@ component accessors="true" output="false" {
     }
 
     /**
-    * @hint I return a struct representation of the object in its current state.
+    * I return a struct representation of the object in its current state.
     **/
 	public struct function toStruct( array excludeKeys = [] ){
 
@@ -749,7 +803,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * @hint I return a JSON representation of the object in its current state.
+    * I return a JSON representation of the object in its current state.
     **/
 	public string function toJSON( array excludeKeys = [] ){
 		//writeDump(this.toStruct( excludeKeys = excludeKeys ));abort;
@@ -759,20 +813,14 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * @hint I save the current state to the database. I either insert or update based on the isNew flag
+    * I save the current state to the database. I either insert or update based on the isNew flag
     **/
-	public any function save( struct overrides = {}, boolean force = false ){
-		// set the modified info
-/* 		this.setModified_Datetime(now());
-		this.setModified_By_Users_Id(getCurrentUserID()); */
+	public any function save( struct overrides = {}, boolean force = false, any callback ){
 		var tempID = this.getID();
-
+		var callbackArgs = { ID = getID(), method = 'save' };
 		// Either insert or update the record
 		if ( isNew() ){
-			// This is a new record, so let's set the created info
-			/* this.setCreated_Datetime( now() );
-			this.setCreated_By_Users_ID( getCurrentUserID() ); */
-
+			callbackArgs.isNew = true;
 			// set uuid for fields set to generator="uuid"
 			var col = {};
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
@@ -837,7 +885,7 @@ component accessors="true" output="false" {
 				data = DATA
 			);
 
-			variables['ID'] = this['ID'] = newID;
+			callbackArgs.newID = variables['ID'] = this['ID'] = newID;
             tempID = newID;
 
             // This is the second pass of the child save routine.
@@ -847,6 +895,7 @@ component accessors="true" output="false" {
 
 
 		}else if( isDirty() || arguments.force ){
+			callbackArgs.isNew = false;
 
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
@@ -877,7 +926,8 @@ component accessors="true" output="false" {
 				DATA[ LOCAL.columnName ] = DATA[col];
 			}
 
-			DATA[getIDField()] = this.getID();
+			callbackArgs.ID = DATA[getIDField()] = this.getID();
+
 			if (structCount(arguments.overrides) > 0){
 				for ( var override in overrides ){
 					DATA[override] = overrides[override];
@@ -891,9 +941,14 @@ component accessors="true" output="false" {
 			);
 		}
 
-
+		variables._isNew = false;
 
 		this.load(ID = tempID);
+
+		// Fire callback function (if provided). Could be used for AOP
+		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
+			callback( this, callbackArgs );
+		}
 
 		return this;
 	}
@@ -948,9 +1003,10 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * @hint I delete either the current record.
+    * I delete either the current record.
     **/
-	public void function delete( boolean soft = false){
+	public void function delete( boolean soft = false, any callback ){
+		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};
 
 		if( len( trim( getID() ) ) gt 0 && !isNew() ){
 
@@ -962,6 +1018,7 @@ component accessors="true" output="false" {
 					){
 					for ( var child in variables[ col.name ] ){
 						try{
+							arrayAppend( callbackArgs.deletedChildren, child.getID() );
 							child.delete( soft );
 						}catch (any e){
 							writeDump('Error in delete');
@@ -997,20 +1054,80 @@ component accessors="true" output="false" {
 				");
 
 			} */
-			this.init( dao = getDao(), table = getTable() );
+			//this.init( dao = getDao(), table = getTable() );
 		}
+
+		//this.init( dao = getDao(), table = getTable() );
+		reset();
+		// Fire callback function (if provided). Could be used for AOP
+		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
+			callback( this, callbackArgs );
+		}
+
 	}
+
+	/**
+	* I validate each value in the entity per set validation rules (if any)
+	* and return an array of errors (or blank array if no errors)
+	**/
+	public array function validate(){
+		// validate each property in the entity based on the table definition
+		var errors = [];
+
+		for( var prop in variables.meta.properties ){
+			if( structKeyExists( variables, prop.name )
+				&& structKeyExists( prop, 'type' ) ){
+
+				var type = _safeValidationTypeName( prop.type );
+				if( type == "range" ){
+					if( structKeyExists( prop, 'min' )
+						&& structKeyExists( prop, 'max' )
+						&& !isValid( type, variables[ prop.name ], prop.min, prop.max ) ){
+						arrayAppend( errors, "#prop.name# is not within the valid range: #prop.min# - #prop.max#");
+					}
+				}else if( type == "regex" ){
+					if( structKeyExists( prop, 'regex' )
+						&& !isValid( type, variables[ prop.name ], prop.regex ) ){
+						arrayAppend( errors, "#prop.name# did not match the format: '#prop.regex#'");
+					}
+				}else if( !ArrayFindNoCase( ['any','array','Boolean','date','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
+					// The "type" was not a valid type accepted by the isValid function.  We'll assume it is a specific cfc.
+					if( !isValid( "component", variables[ prop.name ] )
+						|| !isInstanceOf( variables[ prop.name ], type ) ){
+						arrayAppend( errors, "#prop.name# was not an instance of: '#type#'");
+					}
+				}else{
+					if( !isValid( type, variables[ prop.name ] ) ){
+						arrayAppend( errors, "#prop.name# is not a valid #type#");
+					}
+				}
+			}
+		}
+
+		return errors;
+	}
+	private any function _safeValidationTypeName( string typeName ){
+		var type = arguments.typeName;
+
+		switch( arguments.typeName) {
+			case "varchar" : type = 'string';
+			break;
+		}
+
+		return type;
+	}
+
 
 	/* SETUP/ALTER TABLE */
 	/**
-    * @hint I drop the current table.
+    * I drop the current table.
     **/
 	private function dropTable(){
 		variables.dao.execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
 	}
 
 	/**
-    * @hint I create a table based on the current object's properties.
+    * I create a table based on the current object's properties.
     **/
 	private function makeTable(){
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.
@@ -1024,7 +1141,7 @@ component accessors="true" output="false" {
 		var col = {};
 		// the for (prop in variables.meta.properties) loop was throwing a java error for me (-sy)
 		for ( var loopVar=1; loopVar <= propLen; loopVar += 1 ){
-			prop = variables.meta.properties[loopVar]; */		
+			prop = variables.meta.properties[loopVar]; */
 		for ( var col in variables.meta.properties ){
 			col.type = structKeyExists( col, 'type' ) ? col.type : 'string';
 			col.type = structKeyExists( col, 'sqltype' ) ? col.sqltype : col.type;
@@ -1086,14 +1203,14 @@ component accessors="true" output="false" {
 	}
 	/* Utilities */
 	/**
-	* @hint tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
+	* tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
 	**/
 	private function camelCase( required string str ){
 		str = lcase( str );
 		return reReplaceNoCase( str, '\b(is|has)(\w)', '\1\u\2', 'all' );
 	}
 	/**
-	* @hint Converts http date to CF date object (since one cannot natively in CF9).
+	* Converts http date to CF date object (since one cannot natively in CF9).
 	* @TODO Make this better :)
 	**/
 	private date function convertHttpDate( required string httpDate ){
@@ -1156,12 +1273,12 @@ component accessors="true" output="false" {
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
 
-		var list = listAsArray( 
-								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "", 
-								orderby = arguments.orderby, 
-								offset = arguments.skip, 
-								limit = arguments.top, 
-								excludeKeys = arguments.excludeKeys 
+		var list = listAsArray(
+								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "",
+								orderby = arguments.orderby,
+								offset = arguments.skip,
+								limit = arguments.top,
+								excludeKeys = arguments.excludeKeys
 							);
 
 		var row = "";
@@ -1186,7 +1303,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
+	* I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
 	* 	KeyMappings: An array of objects that tell Breeze which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
 	* 	Errors (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
@@ -1234,7 +1351,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint I return the namespace to be used by breeze to contain this entity.
+	* I return the namespace to be used by breeze to contain this entity.
 	*  To ensure uniqueness I use a reverse dir path plus the DSN (in dot notation).
 	*  Example: Com.Model.Dao
 	**/
@@ -1254,14 +1371,14 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint I return the name of the entity container, i.e. the table name. We'll use either the table name or a singularName if defined.
+	* I return the name of the entity container, i.e. the table name. We'll use either the table name or a singularName if defined.
 	**/
 	private function getBreezeEntityName(){
 		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
 	}
 
 	/**
-	* @hint I return an array of structs containing all of the breeze friendly properties of the entity (table).
+	* I return an array of structs containing all of the breeze friendly properties of the entity (table).
 	**/
 	private function generateBreezeProperties( array excludeKeys = [] ){
 		var props = [];
@@ -1317,7 +1434,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* @hint Given a CF or DB data type, I return the equivalent Breeze data type.
+	* Given a CF or DB data type, I return the equivalent Breeze data type.
 	**/
 	private function getBreezeType( required string type ){
 		var CfToBreezeTypes = {
