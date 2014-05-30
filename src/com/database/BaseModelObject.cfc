@@ -4,8 +4,8 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.55
-*   @updated 12/30/2013
+*   @version 0.0.57
+*   @updated 05/29/2014
 *   @author Abram Adams
 **/
 component accessors="true" output="false" {
@@ -23,10 +23,12 @@ component accessors="true" output="false" {
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
 	property name="tabledef" type="tabledef" persistent="false";
+	property name="entityQuery" type="entityQuery" persistent="false";
 
 	// Some "private" variables
 	_isNew = true;
 	_isDirty = false;
+	_criteria = { from = "", where = [], limit = "*", orderBy = "" };
 
 	public any function init( 	string table = "",
 								numeric currentUserID = 0,
@@ -44,6 +46,7 @@ component accessors="true" output="false" {
 		} else {
 			throw("You must have a dao" & arguments.dao );
 		}
+
 		variables.dropcreate = arguments.dropcreate;
 		// used to introspect the given table.
 		variables.meta = getMetaData( this );
@@ -1201,6 +1204,59 @@ component accessors="true" output="false" {
 		this.setTabledef( getDao().makeTable( tableDef ) );
 
 	}
+
+	// Entity Query Functions - Provides LINQ style queries
+	function from( required string from ){
+
+		_criteria.from = arguments.from;
+
+		return this;
+	}
+
+	function where( required string column, required string operator, required string value ){
+		// There can be only one where.
+		if ( arrayLen( _criteria.where ) && left( _criteria.where[ 1 ] , 5 ) != "WHERE" ){
+			arrayPrepend( _criteria.where, "WHERE #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+		}else{
+			_criteria.where[ 1 ] = "WHERE #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#";
+		}
+
+		return this;
+	}
+
+	function andWhere( required string column, required string operator, required string value ){
+
+		arrayAppend( _criteria.where, "AND #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+		return this;
+	}
+
+	function orWhere( required string column, required string operator, required string value ){
+
+		arrayAppend( _criteria.where, "OR #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+		return this;
+	}
+
+	function orderBy( required string orderBy ){
+
+		_criteria.orderBy = arguments.orderBy;
+		return this;
+	}
+
+	function limit( required numeric limit ){
+
+		_criteria.limit = arguments.limit;
+		return this;
+	}
+
+	function run(){
+
+		return this;
+	}
+
+	function getCriteria(){
+		return _criteria;
+	}
+
 	/* Utilities */
 	/**
 	* tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
@@ -1303,7 +1359,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
+	*   I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
 	* 	KeyMappings: An array of objects that tell Breeze which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
 	* 	Errors (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
@@ -1351,7 +1407,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* I return the namespace to be used by breeze to contain this entity.
+	*  I return the namespace to be used by breeze to contain this entity.
 	*  To ensure uniqueness I use a reverse dir path plus the DSN (in dot notation).
 	*  Example: Com.Model.Dao
 	**/

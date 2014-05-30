@@ -399,7 +399,7 @@
 				<cfset constants.ERROR.table.details = define(arguments.tabledef.getTableName()) />
 
 
-				<cfthrow errorcode="803-mysql.update" type="bullseye.custom.error" detail="#lp.getGlobalLabel('Unexpected Error')#" message="#lp.getGlobalLabel('There was an unexpected error updating the database.  Please contact your administrator')#. #cfcatch.message#">
+				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="#lp.getGlobalLabel('Unexpected Error')#" message="#lp.getGlobalLabel('There was an unexpected error updating the database.  Please contact your administrator')#. #cfcatch.message#">
 
 			</cfcatch>
 

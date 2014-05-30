@@ -384,7 +384,7 @@
 			</cfoutput>
 			<cfcatch type="any">
 
-				<cfthrow errorcode="803-mysql.update" type="bullseye.custom.error" detail="Unexpected Error" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
+				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
 
@@ -503,7 +503,7 @@
 
 	<cfscript>
 		/**
-	    * @hint I create a table based on the passed in tabledef object's properties.
+	    * I create a table based on the passed in tabledef object's properties.
 	    **/
 		package tabledef function makeTable( required tabledef tabledef ){
 
