@@ -186,7 +186,7 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
+							ORDER BY <cfqueryparam value="#arguments.orderby#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
@@ -218,7 +218,7 @@
 
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY <cfqueryparam value="#listFirst( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar"> <cfqueryparam value="#listRest( arguments.orderby, ' ')#" cfsqltype="cf_sql_varchar">
+							ORDER BY <cfqueryparam value="#arguments.orderby#" cfsqltype="cf_sql_varchar">
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>

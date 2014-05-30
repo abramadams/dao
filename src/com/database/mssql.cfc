@@ -475,7 +475,7 @@
 		<cfreturn ret />
 
 	</cffunction>
-	
+
 	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
 		<cfreturn '[' />
 	</cffunction>
@@ -483,7 +483,7 @@
 	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
 		<cfreturn ']' />
 	</cffunction>
-	
+
 	<cfscript>
 		/**
 	    * @hint I create a table based on the passed in tabledef object's properties.

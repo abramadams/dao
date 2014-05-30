@@ -28,7 +28,7 @@ component accessors="true" output="false" {
 	// Some "private" variables
 	_isNew = true;
 	_isDirty = false;
-	_criteria = { from = "", where = [], limit = "*", orderBy = "" };
+	_resetCriteria();
 
 	public any function init( 	string table = "",
 								numeric currentUserID = 0,
@@ -1205,9 +1205,13 @@ component accessors="true" output="false" {
 
 	}
 
-	// Entity Query Functions - Provides LINQ style queries
-	function from( required string from ){
+	// Entity Query Functions - Provides LINQ'ish style queries
+	private function _resetCriteria(){
+		_criteria = { from = "", where = [], limit = "*", orderBy = "" };
+	}
 
+	function from( required string from ){
+		_resetCriteria();
 		_criteria.from = arguments.from;
 
 		return this;
@@ -1216,48 +1220,83 @@ component accessors="true" output="false" {
 	function where( required string column, required string operator, required string value ){
 		// There can be only one where.
 		if ( arrayLen( _criteria.where ) && left( _criteria.where[ 1 ] , 5 ) != "WHERE" ){
-			arrayPrepend( _criteria.where, "WHERE #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+			arrayPrepend( _criteria.where, "WHERE #_getSafeColumnName( column )# #operator# #getDao().queryParam(value)#" );
 		}else{
-			_criteria.where[ 1 ] = "WHERE #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#";
+			_criteria.where[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #getDao().queryParam(value)#";
 		}
 
 		return this;
 	}
 
-	function andWhere( required string column, required string operator, required string value ){
-
-		arrayAppend( _criteria.where, "AND #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+	private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
+		if ( arrayLen( _criteria.where )
+			&& ( left( _criteria.where[ arrayLen( _criteria.where ) ] , 5 ) != "AND ("
+			&& left( _criteria.where[ arrayLen( _criteria.where ) ] , 4 ) != "OR (" ) ){
+			arrayAppend( _criteria.where, "#andOr# #_getSafeColumnName( column )# #operator# #getDao().queryParam(value)#" );
+		}else{
+			arrayAppend( _criteria.where, "#_getSafeColumnName( column )# #operator# #getDao().queryParam(value)#" );
+		}
 		return this;
 	}
 
-	function orWhere( required string column, required string operator, required string value ){
+	function andWhere( required string column, required string operator, required string value ){
+		return _appendToWhere( andOr = "AND", column = column, operator = operator, value = value );
+	}
 
-		arrayAppend( _criteria.where, "OR #this.getDAO().getSafeColumnName( arguments.column )# #operator# #getDao().queryParam(value)#" );
+	function orWhere( required string column, required string operator, required string value ){
+		return _appendToWhere( andOr = "OR", column = column, operator = operator, value = value );
+	}
+
+	function beginGroup( string operator = "AND"){
+
+		arrayAppend( _criteria.where, "#operator# ( " );
+		return this;
+	}
+	function endGroup(){
+
+		arrayAppend( _criteria.where, " )" );
 		return this;
 	}
 
 	function orderBy( required string orderBy ){
 
-		_criteria.orderBy = arguments.orderBy;
+		_criteria.orderBy = orderBy;
 		return this;
 	}
 
-	function limit( required numeric limit ){
+	function limit( required any limit ){
 
 		_criteria.limit = arguments.limit;
 		return this;
 	}
 
 	function run(){
+		return this.getDao().read( table = _criteria.from, where = arrayToList( _criteria.where, ' ' ), limit = _criteria.limit, orderBy = _criteria.orderBy );
 
-		return this;
 	}
 
 	function getCriteria(){
 		return _criteria;
 	}
 
+
 	/* Utilities */
+
+	/**
+	* I return a SQL safe column name.  I will delegate to the DB specific
+	* connector to return the actual safe column name based on the dao.dbtype.
+	* However, if the column name not a valid column name (i.e. a number) I will
+	* just return the column name unchanged
+	**/
+	private function _getSafeColumnName( required string column ){
+
+		if(  listFindNoCase( this.getTableDef().getColumns(), column ) || isValid( "variableName", column ) ){
+			return this.getDAO().getSafeColumnName( arguments.column );
+		}
+
+		return column;
+
+	}
 	/**
 	* tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
 	**/
