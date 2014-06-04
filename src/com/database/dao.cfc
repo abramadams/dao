@@ -641,150 +641,138 @@
 			return returnStruct;
 		}
 
+		/**
+		* I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.
+		* @sql SQL statement (or partial SQL statement) which contains tokenized queryParam calls
+		**/
+		public function parameterizeSQL( required string sql ){
 
+			var LOCAL = {};
+			var tmp = {};
+			var tempValue = "";
+			var tempList = "";
+			var tempCFSQLType = "";
+			var tempParam = "";
+			var tmpSQL = parseQueryParams( arguments.sql );
 
-	</cfscript>
+			LOCAL.statements = [];
 
+			if( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ){
+				var tmpArray = listToArray( tmpSQL, '=' );
+				var newTmpSQL = "";
+				 // try to coerce the given sql into parameterized arguments
+				for( var idx = 1; idx lte arrayLen( tmpArray ); idx++ ){
+					if( idx mod 2){
+						newTmpSQL&=tmpArray[ idx ] & " = ";
+					}else{
+						newTmpSQL&="$queryParam(value=" & trim( tmpArray[ idx ] ) & ")$";
+					}
+				}
+				newTmpSQL = parseQueryParams( newTmpSQL );
 
+				if( listLen( newTmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( newTmpSQL, 2, chr( 998 ) ) ) ) ){
+					// No queryParams to parse, just return the raw SQL
+					return {statements = [ {"before" = tmpSQL} ] };
+				}
+				// If we made it this far, we have parameterized args!! continue on...
+				tmpSQL = newTmpSQL;
+			}
+			tmpSQL = listToArray( tmpSQL, chr( 999 ) );
 
-	<cffunction name="parameterizeSQL" output="true" access="public" returntype="struct" hint="I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.">
-		<cfargument name="sql" type="string" required="true" hint="SQL statement (or partial SQL statement) which contains tokenized queryParam calls">
+			for( var sqlFrag in tmpSQL ){
 
-		<cfset var LOCAL = {}/>
-		<cfset var tmp = {}/>
-		<cfset var idx = 1/>
-		<cfset var tempValue = ""/>
-		<cfset var tempList = ""/>
-		<cfset var tempCFSQLType = ""/>
-		<cfset var tempParam = ""/>
-		<cfset var tmpSQL = parseQueryParams( arguments.sql ) />
-			<!---<cfdump var="#tmpSQL#" abort>--->
-			<cfset LOCAL.statements = []/>
+				tmp.before = listFirst( sqlFrag, chr( 998 ) ) ;
+				// remove trailing ' from previous clause
+				if( left( tmp.before, 1 ) == "'" ){
+					tmp.before = mid( tmp.before, 2, len( tmp.before ) );
+				}
 
-			<cfif listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) >
-				<cfset var tmpArray = listToArray( tmpSQL, '=' )/>
-				<cfset var newTmpSQL = ""/>
-				<!--- try to coerce the given sql into parameterized arguments --->
-				<cfloop from="1" to="#arrayLen( tmpArray )#" index="idx">
-					<cfif idx mod 2>
-						<cfset newTmpSQL&=tmpArray[ idx ] & " = "/>
-					<cfelse>
-						<cfset newTmpSQL&="$queryParam(value=" & trim( tmpArray[ idx ] ) & ")$"/>
-					</cfif>
-				</cfloop>
-				<cfset newTmpSQL = parseQueryParams( newTmpSQL )/>
+				tmp.before = preserveSingleQuotes( tmp.before );
+				tempParam = listRest( sqlFrag, chr( 998 ) );
+				tempParam = preserveSingleQuotes( tempParam );
 
-				<cfif listLen( newTmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( newTmpSQL, 2, chr( 998 ) ) ) ) >
-					<!--- No queryParams to parse, just return the raw SQL --->
-					<cfreturn {statements = [ {"before" = tmpSQL} ] }/>
-				</cfif>
-				<!--- If we made it this far, we have parameterized args!! continue on... --->
-				<cfset tmpSQL = newTmpSQL/>
-			</cfif>
-			<cfset tmpSQL = listToArray( tmpSQL, chr( 999 ) ) />
+				// These will return the position and length of the name, cfsqltype and value.
+				// We use these to extract the values for the actual cfqueryparam
+				tempCFSQLType = reFindNoCase( 'cfsqltype\=#chr(777)#(.*?)#chr(777)#', tempParam, 1, true );
 
-			<cfloop from="1" to="#arrayLen( tmpSQL )#" index="idx">
+				if( arrayLen( tempCFSQLType.pos ) lte 1 ){
+					arrayAppend( LOCAL.statements, tmp );
+					continue;
+				}
 
-				<cfset tmp.before = listFirst( tmpSQL[ idx ], chr( 998 ) ) />
-				<!--- remove trailing ' from previous clause --->
-				<cfif left( tmp.before, 1 ) eq "'" >
-					<cfset tmp.before = mid( tmp.before, 2, len( tmp.before ) ) />
-				</cfif>
-				<cfset tmp.before = preserveSingleQuotes( tmp.before ) />
+				tmp.cfSQLType = mid( tempParam, tempCFSQLType.pos[2], tempCFSQLType.len[2] );
+				// Default the cfsqltype if one wasn't provided
+				if( !len( trim( tmp.cfSQLType ) ) ){
+					tmp.cfSQLType = "cf_sql_varchar";
+				}
 
-				<cfset tempParam = listRest( tmpSQL[ idx ], chr( 998 ) ) />
-				<cfset tempParam = preserveSingleQuotes( tempParam ) />
-				<!---
-					These will return the position and length of the name, cfsqltype and value.
-					We use these to extract the values for the actual cfqueryparam
-				--->
-				<cfset tempCFSQLType = reFindNoCase( 'cfsqltype\=#chr(777)#(.*?)#chr(777)#', tempParam, 1, true ) />
+				tempValue = reFindNoCase( 'value\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true );
+				// Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777))
+				tmp.value = reReplaceNoCase( mid( PreserveSingleQuotes( tempParam ), tempValue.pos[2], tempValue.len[2] ), chr( 777 ), '', 'all' );
+				tmp.value = reReplaceNoCase( preserveSingleQuotes( tmp.value ), chr( 999 ), '', 'all' );
 
-				<cfif arrayLen( tempCFSQLType.pos ) LTE 1>
-					<cfset arrayAppend( LOCAL.statements, tmp ) />
-					<cfcontinue/>
-				</cfif>
+				tempList = reFindNoCase( 'list\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true );
+				if( !arrayLen( tempList.pos ) gte 2 || !isBoolean( mid( tempParam, tempList.pos[2], tempList.len[2] ) ) ){
+					tmp.isList = false;
+				}else{
+					tmp.isList = mid( tempParam, tempList.pos[2], tempList.len[2] );
+				}
 
-				<cfset tmp.cfSQLType = mid( tempParam, tempCFSQLType.pos[2], tempCFSQLType.len[2] ) />
-				<!--- Default the cfsqltype if one wasn't provided --->
-				<cfif !len( trim( tmp.cfSQLType ) )>
-					<cfset tmp.cfSQLType = "cf_sql_varchar" />
-				</cfif>
+				arrayAppend( LOCAL.statements, tmp );
+				// Reset tmp struct
+				tmp = {};
+			}
+			return LOCAL;
+		}
+		/**
+		* I parse queryParam calls in the passed SQL string.  See queryParams() for syntax.
+		**/
+		public function parseQueryParams( required any str ){
 
-				<cfset tempValue = reFindNoCase( 'value\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true ) />
-				<!--- Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777)) --->
-				<cfset tmp.value = reReplaceNoCase( mid( PreserveSingleQuotes( tempParam ), tempValue.pos[2], tempValue.len[2] ), chr( 777 ), '', 'all' ) />
-				<cfset tmp.value = reReplaceNoCase( preserveSingleQuotes( tmp.value ), chr( 999 ), '', 'all' ) />
+			// This function wll parse the passed SQL string to replace $queryParam()$ with the evaluated
+			// <cfqueryparam> tag before passing the SQL statement to cfquery (dao.read()).  This function
+			// should only be used if the SQL statement is stored in static text (i.e. in a db).  If the
+			// SQL is generated in-page, use dao.queryParam() directly to create query parameters.  The reason
+			// is that this method is limited and could cause errors if $'s are passed in.
 
-				<cfset tempList = reFindNoCase( 'list\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true ) />
-				<cfif NOT arrayLen( tempList.pos ) GTE 2 OR NOT isBoolean( mid( tempParam, tempList.pos[2], tempList.len[2] ) ) >
-					<cfset tmp.isList = false />
-				<cfelse>
-					<cfset tmp.isList = mid( tempParam, tempList.pos[2], tempList.len[2] ) />
-				</cfif>
-
-				<cfset arrayAppend( LOCAL.statements, tmp )/>
-				<!--- Reset tmp struct --->
-				<cfset tmp = {}/>
-			</cfloop>
-			<cfreturn LOCAL />
-
-	</cffunction>
-
-	<cffunction name="parseQueryParams" output="false" access="public" returntype="string" hint="I parse queryParam calls in the passed SQL string.  See queryParams() for syntax.">
-		<cfargument name="str" type="any" required="true">
-		<!---
-			This function wll parse the passed SQL string to replace $queryParam()$ with the evaluated
-			<cfqueryparam> tag before passing the SQL statement to cfquery (dao.read()).  This function
-			should only be used if the SQL statement is stored in the database.  If the SQL is generated
-			in-page, use dao.queryParam() directly to create query parameters.  The reason is that this
-			method is limited and could cause errors if $'s are passed in.
-		--->
-		<cfscript>
 			// First we check to see if the string has anything to parse
-			var nStartPos = findnocase('$queryparam(',arguments.str,1);
-			var nEndPos = "";
+			var startPos = findnocase('$queryparam(',arguments.str,1);
+			var endPos = "";
 			var tmpStartString = "";
 			var tmpString = "";
 			var tmpEndString = "";
-			var eval_string = "";
+			var evalString = "";
 			var returnString = "";
 
 			//Append a space for padding, this helps with the last iteration of recursion
 			arguments.str = arguments.str & " ";
 
-			if (nStartPos){
+			if( startPos ){
 				//If so, we'll recursively parse all CF code (code between $'s)
-				nStartPos 	= nStartPos + 1;
-				nEndPos 	= (findnocase(')$',arguments.str,nStartPos) - nStartPos)+1;
-				// If no end $ (really #) was found, pass back original string.
-				if (NOT nEndPos GT 0){
+				startPos 	= startPos + 1;
+				endPos 	= ( findnocase( ')$', arguments.str, startPos ) - startPos )+1;
+				// If no end $ was found, pass back original string.
+				if ( !val( endPos ) ){
 					return arguments.str;
-					break;
-				}else if (nStartPos LTE 1){
+				}else if( startPos lte 1 ){
 					return arguments.str;
-					break;
 				}
 				// Now let's grab the piece of string to evaluate
-				tmpStartString = mid(arguments.str,1,nStartPos - 2);
-				tmpString = mid(arguments.str,nStartPos,nEndPos);
-				tmpEndString = mid(arguments.str, len(tmpStartString) + nEndPos + 3,len(arguments.str));
+				tmpStartString = mid( arguments.str, 1, startPos - 2 );
+				tmpString = mid( arguments.str, startPos, endPos );
+				tmpEndString = mid( arguments.str, len( tmpStartString ) + endPos + 3, len( arguments.str ) );
 				// A little clean-up
-				tmpString = reReplaceNoCase(tmpString,'&quot;',"'",'all');
+				tmpString = reReplaceNoCase( tmpString, '&quot;', "'", 'all' );
 				// If queryParam was passed in the SQL, lets' parse it
-				if (findNoCase("queryParam",tmpString)){
-					// We need to normalize the cfml and to be parsed
-					// in order to ensure error free processing.  The
-					// following will extract the cfsqltype and value
-					// from the queryParam() call and reconstruct the
-					// queryParam call passing variables instead of
-					// literal strings.  This is done to prevent breaking
-					// when a non-closed quote or double-quote is passed
-					// in the literal string.
-					// (i.e. value="this is'nt" my string") would break the
-					// code if we didn't do the following
-					tmpString = reReplaceNoCase(tmpString,'^queryParam\(','');
-					tmpString = reReplaceNoCase(tmpString,'\)$','');
+				if ( findNoCase( "queryParam", tmpString ) ){
+					// We need to normalize the cfml and to be parsed in order to ensure error free processing.  The
+					// following will extract the cfsqltype and value from the queryParam() call and reconstruct the
+					// queryParam call passing variables instead of literal strings.  This is done to prevent breaking
+					// when a non-closed quote or double-quote is passed in the literal string.
+					// (i.e. value="this is'nt" my string") would break the code if we didn't do the following
+
+					tmpString = reReplaceNoCase( tmpString, '^queryParam\(', '' );
+					tmpString = reReplaceNoCase( tmpString, '\)$', '' );
 					var tmpArr = listToArray( tmpString );
 					// parse each passed in key/value pair and make sure they are proper JSON (i.e. quoted names/values)
 					for( var i = 1; i <= arrayLen( tmpArr ); i++ ){
@@ -799,7 +787,7 @@
 					tmpString = deSerializeJSON( "{" & arrayToList( tmpArr ) & "}" );
 
 					// finally we can evaluate the queryParam struct.  This will scrub the values (i.e. proper cfsql types, prevent sql injection, etc...).
-					eval_string = queryParamStruct(
+					evalString = queryParamStruct(
 													value = structKeyExists( tmpString, 'value' ) ? tmpString.value : '',
 													cfsqltype = structKeyExists( tmpString, 'cfsqltype' ) ? tmpString.cfsqltype : '',
 													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
@@ -808,53 +796,48 @@
 
 
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
-					if ( isStruct( eval_string ) ){
+					if ( isStruct( evalString ) ){
 						// Now we'll pass back a pseudo cfqueryparam.  The read() function will
 						// break this down and re-create it since the tag call itself has to be static
-						returnString = tmpStartString & chr(998) & 'cfsqltype=#chr(777)#' & reReplaceNoCase(eval_string.cfsqltype,'\$queryparam','INVALID','all') & '#chr(777)# value=#chr(777)#' & reReplaceNoCase(eval_string.value,'\$queryparam','INVALID','all') & '#chr(777)#' & chr(999) &  tmpEndString;
-						// Now the recursion.  Pass the string with the value we just parsed back
+						returnString = tmpStartString & chr(998) & 'cfsqltype=#chr(777)#'
+										& reReplaceNoCase(evalString.cfsqltype,'\$queryparam','INVALID','all')
+										& '#chr(777)# value=#chr(777)#' & reReplaceNoCase( evalString.value, '\$queryparam','INVALID','all')
+										& '#chr(777)#' & chr(999) &  tmpEndString;
+						// Now the recursion.  Pass the string with the value we just parsed back to
 						// this function to see if there is anything left to parse.  When there is
 						// nothing left to parse it will be returned to the calling function (read())
 						return parseQueryParams( returnString );
-						break;
 					}else{
 						// The evaluated string was not a simple object and could be malicious so we'll
 						// just pass back an error message so the programmer can fix it.
-						//return arguments.str;
 						return "Parsed queryParam is not a struct!";
-						break;
 					}
 				}else{
 					// There was not an instance of queryParam called, so return the unmodified sql
 					return arguments.str;
-					break;
 				}
 			}else{
 				// Nothing left to parse, let's return the string back to the original calling function
 				return arguments.str;
 			}
-		</cfscript>
-	</cffunction>
+		}
 
-
-	<cfscript>
+		/**
+		* Delegates the creation of a "table" to the underlying persistence storage "connector"
+		**/
 		public tabledef function makeTable( required tabledef tabledef ){
 			return this.conn.makeTable( arguments.tabledef );
 		}
 
-		// Entity Query Functions - Provides LINQ'ish style queries
-		private function _resetCriteria(){
-			_criteria = { from = "", where = [], limit = "*", orderBy = "" };
-		}
-
-		function from( required string from ){
+		// Entity Query API - Provides LINQ'ish style queries
+		public function from( required string from ){
 			_resetCriteria();
 			_criteria.from = arguments.from;
 
 			return this;
 		}
 
-		function where( required string column, required string operator, required string value ){
+		public function where( required string column, required string operator, required string value ){
 			// There can be only one where.
 			if ( arrayLen( _criteria.where ) && left( _criteria.where[ 1 ] , 5 ) != "WHERE" ){
 				arrayPrepend( _criteria.where, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
@@ -864,7 +847,58 @@
 
 			return this;
 		}
+		public function andWhere( required string column, required string operator, required string value ){
+			return _appendToWhere( andOr = "AND", column = column, operator = operator, value = value );
+		}
 
+		public function orWhere( required string column, required string operator, required string value ){
+			return _appendToWhere( andOr = "OR", column = column, operator = operator, value = value );
+		}
+
+		/**
+		* Opens a parenthesis claus.  Operator should be AND or OR
+		* If "AND" is passed, it will return AND (
+		* Must be closed by endGroup()
+		**/
+		public function beginGroup( string operator = "AND"){
+
+			arrayAppend( _criteria.where, "#operator# ( " );
+			return this;
+		}
+		/**
+		* Ends the group.  All this really does is append a closing
+		* parenthesis
+		**/
+		public function endGroup(){
+
+			arrayAppend( _criteria.where, " )" );
+			return this;
+		}
+
+		public function orderBy( required string orderBy ){
+
+			_criteria.orderBy = orderBy;
+			return this;
+		}
+
+		public function limit( required any limit ){
+
+			_criteria.limit = arguments.limit;
+			return this;
+		}
+
+		public function run(){
+			return read( table = _criteria.from,
+						 where = arrayToList( _criteria.where, ' ' ),
+						 limit = _criteria.limit,
+						 orderBy = _criteria.orderBy );
+		}
+
+		public function getCriteria(){
+			return _criteria;
+		}
+
+		// EntityQuery "helper" functions
 		private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
 			if ( arrayLen( _criteria.where )
 				&& ( left( _criteria.where[ arrayLen( _criteria.where ) ] , 5 ) != "AND ("
@@ -875,54 +909,8 @@
 			}
 			return this;
 		}
-
-		function andWhere( required string column, required string operator, required string value ){
-			return _appendToWhere( andOr = "AND", column = column, operator = operator, value = value );
-		}
-
-		function orWhere( required string column, required string operator, required string value ){
-			return _appendToWhere( andOr = "OR", column = column, operator = operator, value = value );
-		}
-
-		/**
-		* Opens a parenthesis claus.  Operator should be AND or OR
-		* If "AND" is passed, it will return AND (
-		* Must be closed by endGroup()
-		**/
-		function beginGroup( string operator = "AND"){
-
-			arrayAppend( _criteria.where, "#operator# ( " );
-			return this;
-		}
-		/**
-		* Ends the group.  All this really does is append a closing
-		* parenthesis
-		**/
-		function endGroup(){
-
-			arrayAppend( _criteria.where, " )" );
-			return this;
-		}
-
-		function orderBy( required string orderBy ){
-
-			_criteria.orderBy = orderBy;
-			return this;
-		}
-
-		function limit( required any limit ){
-
-			_criteria.limit = arguments.limit;
-			return this;
-		}
-
-		function run(){
-			return read( table = _criteria.from, where = arrayToList( _criteria.where, ' ' ), limit = _criteria.limit, orderBy = _criteria.orderBy );
-
-		}
-
-		function getCriteria(){
-			return _criteria;
+		private function _resetCriteria(){
+			_criteria = { from = "", where = [], limit = "*", orderBy = "" };
 		}
 
 		/**
@@ -943,10 +931,6 @@
 
 
 	</cfscript>
-
-
-
-
 
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
 		<cfargument name="sql" required="false" type="string" default="" hint="Either a tablename or full SQL statement.">
