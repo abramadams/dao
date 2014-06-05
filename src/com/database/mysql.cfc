@@ -375,6 +375,7 @@
 							</cfloop>
 
 						WHERE #getSafeColumnName(pk)# = '#qry[pk][currentRow]#'
+						<cfset ret = qry[pk][currentRow] />
 					</cfsavecontent>
 
 					<cfif performUpdate>

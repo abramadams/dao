@@ -204,7 +204,7 @@
 			LOCAL.table = duplicate( variables.tabledefs[ arguments.table ] );
 
 			var columns = LOCAL.table.getColumns();
-
+			// @todo deligate read specifics to connector
 			var currentData = this.read("
 				SELECT #this.getSafeColumnNames( columns )#
 				FROM #arguments.table#
@@ -287,7 +287,7 @@
 			if( !len( trim( arguments.IDField ) ) ){
 				arguments.IDField = arguments.tabledef.getPrimaryKeyColumn();
 			}
-			return this.conn.update(tabledef=arguments.tabledef,columns=arguments.columns,IDField=arguments.IDField);
+			return this.conn.update( tabledef = arguments.tabledef, columns = arguments.columns, IDField = arguments.IDField );
 
 		}
 
@@ -356,7 +356,7 @@
 					");
 				}
 			} catch( any e ){
-				throw( errorcode = "805" type = "custom.error" detail = "Unexpected Error" message = "There was an unexpected error updating the database.  Please contact your administrator.");
+				throw( errorcode = "805", type = "custom.error", detail = "Unexpected Error", message = "There was an unexpected error updating the database.  Please contact your administrator.");
 				ret = false;
 			}
 
@@ -658,18 +658,35 @@
 			LOCAL.statements = [];
 
 			if( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ){
-				var tmpArray = listToArray( tmpSQL, '=' );
-				var newTmpSQL = "";
-				 // try to coerce the given sql into parameterized arguments
-				for( var idx = 1; idx lte arrayLen( tmpArray ); idx++ ){
-					if( idx mod 2){
-						newTmpSQL&=tmpArray[ idx ] & " = ";
-					}else{
-						newTmpSQL&="$queryParam(value=" & trim( tmpArray[ idx ] ) & ")$";
-					}
-				}
-				newTmpSQL = parseQueryParams( newTmpSQL );
 
+				// So, we didn't have the special characters (998) that indicate the parameters were created
+				// using the queryParam() method, however, there may be some where clause type stuff that can
+				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
+				// unharmed.
+				if( tmpSQL contains "where "){
+					var selectClause = left( tmpSQL, findNoCase( "where ", tmpSQL )-1 );
+					var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
+					var newTmpSQL = "";
+
+					// Attempt to pull out any values used in the sql criteria and wrap them
+					// in a queryParam() call.
+					newTmpSQL = listAppend( selectClause,
+						reReplaceNoCase( whereClause,
+								"(where\s|and\s|or\s+?)
+								(\s*?)
+								(\S+?)
+								(\s*?)
+								(=|<>|<|>|like|in\(+?)
+								(\s*?)
+								(\S*?)
+								(\s|\)*?)
+								[and|or|$]", "\1\2\3\4\5 $queryParam(value='\7')$"), chr( 10 ) );
+					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
+					newTmpSQL = parseQueryParams( newTmpSQL );
+
+				}else{
+					newTmpSQL = tmpSQL;
+				}
 				if( listLen( newTmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( newTmpSQL, 2, chr( 998 ) ) ) ) ){
 					// No queryParams to parse, just return the raw SQL
 					return {statements = [ {"before" = tmpSQL} ] };
@@ -776,7 +793,7 @@
 					var tmpArr = listToArray( tmpString );
 					// parse each passed in key/value pair and make sure they are proper JSON (i.e. quoted names/values)
 					for( var i = 1; i <= arrayLen( tmpArr ); i++ ){
-						tmpArr[ i ] = reReplaceNoCase( tmpArr[ i ], '[''|"]*(.+?)[''|"]*=[''|"]*(\b.*\b)[''|"|$]*', '"\1":"\2"', 'all') ;
+						tmpArr[ i ] = reReplaceNoCase( tmpArr[ i ], '[''|"\s]*(.+?)[''|"]*=[''|"\s]*(\b.*\b)[''|"|$]*', '"\1":"\2"', 'all') ;
 						// temporary hack for blank values until I can figure how to handle this in the regex above.
 						if( tmpArr[ i ] == "value=''" || tmpArr[ i ] == "value=" || tmpArr[ i ] == 'value=""'){
 							tmpArr[ i ] = '"value":""';
