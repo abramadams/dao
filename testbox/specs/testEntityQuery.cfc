@@ -120,7 +120,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
         $assert.typeOf( "query", results );
 
         results = query.from("TodoItem").where(1,"=",1).andWhere("isArchived","=",1).run();
-		writeDump(results);
+		// writeDump(results);
 
 
 	}

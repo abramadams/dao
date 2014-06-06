@@ -664,7 +664,9 @@
 				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
 				// unharmed.
 				if( tmpSQL contains "where "){
-					var selectClause = left( tmpSQL, findNoCase( "where ", tmpSQL )-1 );
+
+					var selectClause = findNoCase( "where ", tmpSQL ) GT 1 ? left( tmpSQL, findNoCase( "where ", tmpSQL )-1 ) : "";
+
 					var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
 					var newTmpSQL = "";
 
@@ -680,7 +682,7 @@
 								(\s*?)
 								(\S*?)
 								(\s|\)*?)
-								[and|or|$]", "\1\2\3\4\5 $queryParam(value='\7')$"), chr( 10 ) );
+								[and|or|$]", "\1\2\3\4\5 $queryParam(value=\7)$"), chr( 10 ) );
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
 					newTmpSQL = parseQueryParams( newTmpSQL );
 
