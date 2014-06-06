@@ -1,19 +1,57 @@
 <cfscript>
-	// Pure dao examples:	
+	// Pure dao examples:
+
 	dao = new com.database.dao( dsn = "dao" );
+	/*
+	 By default the dao will detect the dbtype based on the datasource
+	 and will use the appropriate "connector" if available ( currently
+	 only mssql and mysql are supported ). However you can optionally
+	 pass it in ( i.e. if using a third party driver/JDBC driver )
+	 i.e.:
+		dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
+	*/
+
+	// Generate the event log table used to track data interaction
+	if ( dao.getDBtype  == "mssql" ){
+		// MSSQL specific
+		dao.execute( "
+			IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'eventLog' AND xtype = 'U' )
+				CREATE TABLE eventLog (
+					ID int NOT NULL IDENTITY (1, 1),
+					userID int NULL,
+					event varchar(50) NULL,
+					description text NULL,
+					eventDate date NULL
+				)
+			" );
+	} else if ( dao.getDBtype == "mysql" ){
+
+		// MySQL specific
+		 dao.execute( "
+			CREATE TABLE IF NOT EXISTS `eventLog` (
+			  `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+			  `userID` varchar(255) DEFAULT NULL,
+			  `event` varchar(255) DEFAULT NULL,
+			  `description` varchar(255) DEFAULT NULL,
+			  `eventDate` datetime DEFAULT NULL,
+			  PRIMARY KEY (`ID`)
+			)
+		" );
+	}
+
 
 	// Insert data
 	writeOutput("<h2>Insert data via table def</h2>");
 	DATA = { "_id" = lcase(createUUID()), "first_name" = "Abram" , "last_name" = "Adams", "email" = "aadams@cfxchange.com", "created_datetime" = now()};
+
 	newID = dao.insert(table = "users", data = DATA, onFinish = afterInsert );
 	writeDump('Created record ID: ' & newID);
 
-	// Insert data (using mysql specific replace into syntax )
+	// Insert data
 	writeOutput("<h2>Insert data via SQL</h2>");
 	newID2 = dao.execute("
-		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
-		VALUES ( 1
-				,#dao.queryParam(lcase(createUUID()),'varchar')#
+		INSERT INTO users (_id, first_name, last_name, email, created_datetime)
+		VALUES ( #dao.queryParam(lcase(createUUID()),'varchar')#
 				,#dao.queryParam('john')#
 				,#dao.queryParam('deere')#
 				,#dao.queryParam('jdeere@tractor.com')#
@@ -25,27 +63,27 @@
 	// read data (filter user by name)
 	writeOutput("<h2>return specific users with multiple tokenized params</h2>");
 	results3a = dao.read(table="users", where = "where 1=1 and first_name = #dao.queryParam('john')#' and last_name = #dao.queryParam('deere')# and 1 in(1,2,3)" );
-	writeDump(results3a);	
+	writeDump(results3a);
 
 	// read data (all users)
 	writeOutput("<h2>return all users</h2>");
 	results1 = dao.read('users');
 	writeDump(results1);
-	
+
 	// read data (all users selective columns)
 	writeOutput("<h2>return all users (selective columns)</h2>");
 	results2 = dao.read('SELECT first_name, last_name FROM users');
-	writeDump(results2);	
+	writeDump(results2);
 
 	// read data (filter user by name)
 	writeOutput("<h2>return specific users</h2>");
 	results3 = dao.read('SELECT first_name, last_name FROM users WHERE first_name = #dao.queryParam('john')#');
-	writeDump(results3);	
+	writeDump(results3);
 
 	// read data from query
 	writeOutput("<h2>query of query</h2>");
 	results4 = dao.read(sql = 'SELECT * FROM results', QoQ = { name = "results", query = results1 });
-	writeDump(results4);	
+	writeDump(results4);
 
 	//update data
 	writeOutput("<h2>update user via table def</h2>");
@@ -62,7 +100,7 @@
 		WHERE id = #dao.queryParam(newID2)#
 	");
 	writeDump( dao.read("select * from users where ID = #dao.queryParam(newID2)#") );
-	
+
 	writeOutput("<h2>update user via table def - DRY RUN MODE</h2>");
 	DATA = { "id" = newID2,  "last_name" = "Deere" };
 	writeDump( dao.update( table = "users", data = DATA, dryRun = true ) );
@@ -72,40 +110,40 @@
 	writeDump( dao.insert( table = "users", data = DATA, dryRun = true ) );
 
 	// Delete specific record
-	dao.delete(table = 'users', recordID = newID, onFinish = afterDelete); 
+	dao.delete(table = 'users', recordID = newID, onFinish = afterDelete);
 	// Delete all records
-	dao.delete(table = 'users', recordID = '*', onFinish = afterDelete); 
+	dao.delete(table = 'users', recordID = '*', onFinish = afterDelete);
 
 	// Callback functions for insert/update/delete
-	public function afterUpdate( data ){		
+	public function afterUpdate( data ){
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('update')#
 				,#this.queryParam('updated #data.ID#')#
 				,#this.queryParam(now(),'timestamp')#
 				)
-			" );		
+			" );
 	}
-	public function afterInsert( data ){	
+	public function afterInsert( data ){
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('insert')#
 				,#this.queryParam('inserted #data.ID#')#
 				,#this.queryParam(now(),'timestamp')#
 				)
-			" );		
+			" );
 	}
-	public function afterDelete( data ){	
+	public function afterDelete( data ){
 		this.execute( "
-				INSERT INTO eventLog( `event`, `description`, `eventDate` )
+				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('delete')#
 				,#this.queryParam('deleted #data.ID#')#
 				,#this.queryParam(now(),'timestamp')#
 				)
-			" );		
+			" );
 	}
 
 

@@ -1,29 +1,54 @@
 <cfscript>
 
     dao = new com.database.dao( dsn = "dao" );
+    /*
+     By default the dao will detect the dbtype based on the datasource
+     and will use the appropriate "connector" if available ( currently
+     only mssql and mysql are supported ). However you can optionally
+     pass it in ( i.e. if using a third party driver/JDBC driver )
+     i.e.:
+        dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
+    */
 
-    eventLog = new model.EventLog( dao = dao );
-    //eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
-   /**  
-    * The above code should esentially be equivalent to the below line
+
+    todoItem = new examples.breezejs.model.TodoItem( dao = dao );
+    todoItem.setDescription('Food');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
+
+	writeDump(var=todoItem, label="todoItem Food");
+
+	// test the breezejs integration:
+    todoItem = new examples.breezejs.model.TodoItem( dao = dao );
+    filter = "(isArchived eq false) and (description ne '')";
+    orderby = "description";
+	breezeData = todoItem.listAsBreezeData(
+						filter = filter,
+						orderby = orderby
+					);
+	writeDump(var=breezeData, label="breezeData");
+   /**
     * eventLog = new model.EventLog( dao = dao );
+    * The above code should essentially be equivalent to the below line
+    * eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
     *
     * NOTE that the eventLog table must exist when instantiating the object this way.
     * when instantiating using the entity's cfc directly (i.e. new EventLog) it will
-    * automatically create the table based on the properties if the table does not 
-    * exist 
+    * automatically create the table based on the properties if the table does not
+    * exist
     **/
-    eventLog.setEvent('test');
-    eventLog.save();
-    eventLog.setEventDate( now() );    
-    eventLog.save();
-   // writeDump(eventLog.toStruct());
-    
+
     user = new model.User( dao = dao );
     user.setFirstName('James');
     user.setLastName('Bond');
     user.save();
-   // writeDump(user);
+
+    todoItem = new examples.breezejs.model.TodoItem( dao = dao );
+    todoItem.setDescription('Food');
+    todoItem.setIsArchived(false);
+    todoItem.setIsDone(false);
+    todoItem.save();
 
     user2 = new model.User( dao = dao );
     user2.setFirstName('Johnny');
@@ -38,17 +63,24 @@
     pet = new model.Pet( dao = dao, dropcreate = false );
     pet.setFirstName('dog');
     pet.setUser( user );
-    //writeDump(pet);
+    writeDump(pet);
     pet.save();
 
-    users = user.lazyloadAllByLastName( 'Bond' ); 
-    //writeDump(users);
-    //users = user.loadAll();
-    //writeDump( user.loadAll() );
+    eventLog = new model.EventLog( dao = dao );
+    eventLog.setevent('event');
+    eventLog.setDescription('Long description goes here');
+    eventLog.setUser(user);
+    eventLog.save();
+	writeDump(var=eventLog, label="eventLog Item");
+
+    // users = user.lazyloadAllByLastName( 'Bond' );
+    // writeDump(users);
+    users = user.loadAll();
+    writeDump( user.loadAll() );
 
     writeOutput("user.toJSON()");
     writeOutput("<pre>#user.toJSON()#</pre>");
     writeOutput("user.listAsJSON()");
     writeOutput("<pre>#user.listAsJSON()#</pre>");
-    
-</cfscript> 
+
+</cfscript>

@@ -1,5 +1,5 @@
 component persistent="true" table="pets" extends="com.database.BaseModelObject" accessors="true" {
-
+	
 	property name="ID" type="numeric" fieldtype="id" generator="increment";
 	property name="_id" fieldtype="id" generator="uuid" type="string" length="45";
 	property name="userID" type="string";
