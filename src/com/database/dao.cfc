@@ -2,6 +2,9 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
+		@version 0.0.57
+		@updated 05/29/2014
+
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -645,7 +648,7 @@
 		* I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.
 		* @sql SQL statement (or partial SQL statement) which contains tokenized queryParam calls
 		**/
-		public function parameterizeSQL( required string sql ){
+		public function parameterizeSQL( required string sql ) output="false" {
 
 			var LOCAL = {};
 			var tmp = {};
@@ -656,7 +659,7 @@
 			var tmpSQL = parseQueryParams( arguments.sql );
 
 			LOCAL.statements = [];
-
+			writeDump(arguments.sql);
 			if( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ){
 
 				// So, we didn't have the special characters (998) that indicate the parameters were created
@@ -674,18 +677,11 @@
 					// in a queryParam() call.
 					newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-								"(where\s|and\s|or\s+?)
-								(\s*?)
-								(\S+?)
-								(\s*?)
-								(=|<>|<|>|like|in\(+?)
-								(\s*?)
-								(\S*?)
-								(\s|\)*?)
-								[and|or|$]", "\1\2\3\4\5 $queryParam(value=\7)$"), chr( 10 ) );
+								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<>|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and|or|;)",
+								"\1\2\3\4\5 $queryParam(value=""\7"")$ \8\9"), chr( 10 ) );
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
+					// writeDump([sql, whereClause,newTmpSQL]);abort;
 					newTmpSQL = parseQueryParams( newTmpSQL );
-
 				}else{
 					newTmpSQL = tmpSQL;
 				}

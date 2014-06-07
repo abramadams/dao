@@ -6,14 +6,14 @@ Though I have been using this library for many years on many, many projects, it 
 of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
 a lot of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
 
-Also, the bulk of the dao.cfc stuff was developed in CF7-8 erra, and has been patched CF9/10 features started creeping in.  I 
+Also, the bulk of the dao.cfc stuff was developed in CF7-8 erra, and has been patched CF9/10 features started creeping in.  I
 am in the process of re-writing the library using the query.cfc and some other things that will break the pre-CF9 compatibility.
 For instance, this will be re-written using all script based code.
 
 
 # Introduction
-The goal of this library is to allow one to interact with the database in a DB platform agnostic way, 
-while making it super easy.  
+The goal of this library is to allow one to interact with the database in a DB platform agnostic way,
+while making it super easy.
 
 There are two parts to this library, the first is for a more traditional DAO
 type interaction where one uses a handful of CRUD functions:
@@ -34,27 +34,27 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 ```javascript
 	// create instance of DAO - must feed it a datasource name
 	dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
-	
+
 	// Insert data (could have easily been a form struct)
-	DATA = { 
-			"_id" = lcase(createUUID()), 
-			"first_name" = "Joe" , 
-			"last_name" = "Shmo", 
-			"email" = "jshmo@blahblah.com", 
+	DATA = {
+			"_id" = lcase(createUUID()),
+			"first_name" = "Joe" ,
+			"last_name" = "Shmo",
+			"email" = "jshmo@blahblah.com",
 			"created_datetime" = now()
 		};
 
 	newID = dao.insert( table = "users", data = DATA );
 	// newID would contain the record's auto-incremented PK value
-	
-	// DAO has a method queryParam() that wraps your values in 
+
+	// DAO has a method queryParam() that wraps your values in
 	// appropriate cfqueryparam tags.  The method takes 4 args:
 	// value - required
 	// cfsqltype - optional, will be guessed based on value.  Uses
 	// common data type names, no need for the cf_sql_type... crap.
 	// list - true/false; will pass to cfqueryparam list attribute
 	// null - true/false; will pass to the cfqueryparam null attribute
-	
+
 	// Insert data (using mysql specific replace into syntax )
 	newID2 = dao.execute("
 		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
@@ -73,20 +73,52 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 	users = dao.read( "users" );
 
 	// Return all records using SQL - and cache it
-	users = dao.read( 
+	users = dao.read(
 		sql = "SELECT first_name, last_name FROM users",
 		cachedWithin = createTimeSpan(0,0,2,0)
 	);
 
 ```
+# Entity Queries
+New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
+to build criteria in an OO and platform agnostic way.  Here's an example of how to use this new feature:
+```javascript
+// build the query criteria
+var query = request.dao.from( "eventLog" )
+					.where( "eventDate", "<", now() )
+					.andWhere( "eventDate", ">=" dateAdd( 'd', -1, now() ) )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.orderBy("eventDate desc")
+					.run(); // the run() method executes the query and returns a query object.  If you don't
+							// run() then it returns the dao object, which you can later use to add to the
+							// criteria, or run at your leasure.
+
+for( var rec in query ){
+	//do something with the record
+}
+```
+The MySQL generated from the above example would look something like:
+```sql
+
+```
+
+This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
+to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
+
 # The ORM'sh side of DAO
-The second part of this library is an ORM'sh implementation of entity management.  It internally uses the 
+The second part of this library is an ORM'sh implementation of entity management.  It internally uses the
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
 the following examples:
 
 ```javascript
 	// create instance of dao ( could be injected via your favorite DI library )
-	dao = new dao( dsn = "dao" );
+	dao = new dao( dsn = "myDatasource" );
 
 	// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"
 	user = new model.User( dao );
@@ -96,7 +128,7 @@ the following examples:
 	user.setLastName( 'deere' );
 	user.setEmail('jdeere@tractor.com');
 
-	// Save will insert the new record because it doesn't exist.  
+	// Save will insert the new record because it doesn't exist.
 	// If we had loaded the entity with a user record, it would perform an update.
 	user.save();
 
@@ -112,7 +144,7 @@ the following examples:
 
 	// We can also do crazy stuff like:
 	user.loadByFirstNameAndLastName('Johnny', 'deere');
-	// Every property/field in the entity can be included in this dynamic load function	
+	// Every property/field in the entity can be included in this dynamic load function
 	// just prefix the function name as "loadBy" and delimit the field name criteria by "And"
 	user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
 
@@ -137,7 +169,7 @@ the following examples:
 ```
 That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
 relationships.  By-in-large I have adopted the property syntax used by CF ORM to define
-entity properties and describe relationships.  Example: 
+entity properties and describe relationships.  Example:
 
 ```javascript
 /* Pet.cfc */
@@ -147,7 +179,7 @@ component persistent="true" table="pets" extends="com.database.BaseModelObject" 
 	property name="_id" fieldtype="id" generator="uuid" type="string" length="45";
 	property name="userID" type="numeric" sqltype="int";
 	property name="firstName" type="string" column="first_name";
-	property name="lastName" type="string" column="last_name";	
+	property name="lastName" type="string" column="last_name";
 	property name="createdDate" type="date" column="created_datetime";
 	property name="modifiedDate" type="date" column="modified_datetime" formula="now()";
 
@@ -229,7 +261,7 @@ when the Pet object is instantiated.  If none exists it will load an un-initiali
 is also evaluated and saved (if any changes were detected ).
 
 One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
-relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in 
+relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
 
 ## lazy loading
@@ -245,7 +277,7 @@ ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the
 ```
 
 # Requirements
-Currently this library has been actively used and tested on Railo 4x, CF9 and CF10 (though the dao.cfc stuff should work with CF8 - for now). 
+Currently this library has been actively used and tested on Railo 4x, CF9 and CF10 (though the dao.cfc stuff should work with CF8 - for now).
 There are some features that are disabled by default ( such as lazy loading child entities ), but can be "turned on" by un-commenting
 a few lines if you are running on CF10+ or Railo 4+ (uses anonymous functions)
 

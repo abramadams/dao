@@ -10,6 +10,16 @@
 	 i.e.:
 		dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
 	*/
+	testEntity = new com.database.BaseModelObject( dao = dao, table = "eventLog" );
+
+     	// change event to 'test'
+    list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
+
+    //list = testEntity.listAsArray( where = "where `event` in( 'insert', 'delete' )");
+
+    writeDump(list);
+
+     	// now list should contain an array of records (structs)
 
 	// Generate the event log table used to track data interaction
 	if ( dao.getDBtype  == "mssql" ){
