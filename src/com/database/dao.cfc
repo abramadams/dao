@@ -666,7 +666,6 @@
 				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
 				// unharmed.
 				if( tmpSQL contains "where "){
-
 					var selectClause = findNoCase( "where ", tmpSQL ) GT 1 ? left( tmpSQL, findNoCase( "where ", tmpSQL )-1 ) : "";
 
 					var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
@@ -676,8 +675,9 @@
 					// in a queryParam() call.
 					newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<>|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and|or|;)",
+								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<>|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
 								"\1\2\3\4\5 $queryParam(value=""\7"")$ \8\9"), chr( 10 ) );
+
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
 					// writeDump([sql, whereClause,newTmpSQL]);abort;
 					newTmpSQL = parseQueryParams( newTmpSQL );
@@ -795,12 +795,16 @@
 					// those out differently.
 					// First, protect any escaped single quotes:
 					tmpString = reReplaceNoCase( tmpString, "\\'","\&quote;", "all" );
+					// Now protect date ojbects
+					tmpString = reReplaceNoCase( tmpString, "{ts '(.*?)'}","{ts &quote;\1&quote;}", "all" );
 					// Now scrube the passed in queryparam args if present (makes later regex easier)
-					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)=",", cfsqltype\1=", "all" );
-					tmpString = reReplaceNoCase( tmpString, "null(\s*?)=",", null\1=", "all" );
-					tmpString = reReplaceNoCase( tmpString, "list(\s*?)=",", list\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)="," cfsqltype\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "null(\s*?)="," null\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "list(\s*?)="," list\1=", "all" );
 					// Now clean up any unquoted boolean values
-					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(false|true)+,",'value="\3"', "all" );
+					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(false|true)+",'value="\3"', "all" );
+					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(\{ts .*?\})+",'value="\3"', "all" );
+
 					tmpArr = listToArray( tmpString, "'" );
 					if( !arrayLen( tmpArr ) GT 3 || !arrayLen( tmpArr ) mod 2 ){
 						// Only one set of quotes were found.  Now we can simply remove those.
@@ -813,13 +817,16 @@
 					}
 					// Now restore any escaped single quotes:
 					tmpString = reReplaceNoCase( tmpString, "\\&quote;","\'", "all" );
+					tmpString = reReplaceNoCase( tmpString, "{ts &quote;(.*?)&quote;}","{ts '\1'}", "all" );
+					// Fixes date object bug in parameterizeSQL() regex.
+					tmpString = reReplaceNoCase( tmpString, 'value="=','value="{', "all" );
 
 					// Clean up blanks
 					tmpString = reReplaceNoCase( tmpString, "''",'""', "all" );
 
 					tmpString = "{" & reReplaceNoCase( tmpString, "\s*?(\S*?)=", """\1"":", "all" ) & "}";
 					if( !isJSON( tmpString ) ){
-						throw( errorcode="881", message="Invalid QueryParam", detail="The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. #originalString# ==> #tmpString#");
+						throw( errorcode="881", message="Invalid QueryParam", detail="##The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. #originalString# ==> #tmpString#");
 					}
 					// turn the JSON into a CF struct
 					tmpString = deSerializeJSON( tmpString );

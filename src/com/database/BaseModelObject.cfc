@@ -808,7 +808,6 @@ component accessors="true" output="false" {
     * I return a JSON representation of the object in its current state.
     **/
 	public string function toJSON( array excludeKeys = [] ){
-		//writeDump(this.toStruct( excludeKeys = excludeKeys ));abort;
 		var json = serializeJSON( this.toStruct( excludeKeys = excludeKeys ) );
 
 		return json;
@@ -1005,7 +1004,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * I delete either the current record.
+    * I delete the current record
     **/
 	public void function delete( boolean soft = false, any callback ){
 		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};

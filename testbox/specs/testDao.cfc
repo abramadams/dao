@@ -20,6 +20,24 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      function read() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
           $assert.fail('test not implemented yet');
      }
+     function readWithNumericInParams() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read("SELECT * FROM eventLog WHERE ID IN(1,20,3,5,6,7)");
+          $assert.typeOf( "query", records );
+     }
+     function readWithNumericParams() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read("SELECT * FROM eventLog WHERE ID = 1 or ID = 20");
+          $assert.typeOf( "query", records );
+     }
+     function readWithDateArg() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #now()#");
+          $assert.typeOf( "query", records );
+          $assert.isTrue( records.recordCount GT 0 );
+     }
+     function readWithDateParam() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #request.dao.queryParam(now())#");
+          $assert.typeOf( "query", records );
+          $assert.isTrue( records.recordCount GT 0 );
+     }
      function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
           $assert.fail('test not implemented yet');
      }
