@@ -2,8 +2,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.58
-		@updated 06/09/2014
+		@version 0.0.57
+		@updated 05/29/2014
 
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
@@ -675,7 +675,7 @@
 					// in a queryParam() call.
 					newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<>|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
+								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
 								"\1\2\3\4\5 $queryParam(value=""\7"")$ \8\9"), chr( 10 ) );
 
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
@@ -818,8 +818,8 @@
 					// Now restore any escaped single quotes:
 					tmpString = reReplaceNoCase( tmpString, "\\&quote;","\'", "all" );
 					tmpString = reReplaceNoCase( tmpString, "{ts &quote;(.*?)&quote;}","{ts '\1'}", "all" );
-					// Fixes date object bug in parameterizeSQL() regex.
-					tmpString = reReplaceNoCase( tmpString, 'value="=','value="{', "all" );
+					// Fixes bug in parameterizeSQL() regex.
+					tmpString = reReplaceNoCase( tmpString, 'value="=','value="', "all" );
 
 					// Clean up blanks
 					tmpString = reReplaceNoCase( tmpString, "''",'""', "all" );
