@@ -4,8 +4,8 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.57
-*   @updated 05/29/2014
+*   @version 0.0.58
+*   @updated 06/09/2014
 *   @author Abram Adams
 **/
 component accessors="true" output="false" {

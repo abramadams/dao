@@ -2,8 +2,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.57
-		@updated 05/29/2014
+		@version 0.0.58
+		@updated 06/09/2014
 
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
