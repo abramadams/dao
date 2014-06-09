@@ -659,7 +659,6 @@
 			var tmpSQL = parseQueryParams( arguments.sql );
 
 			LOCAL.statements = [];
-			writeDump(arguments.sql);
 			if( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ){
 
 				// So, we didn't have the special characters (998) that indicate the parameters were created
@@ -778,6 +777,7 @@
 				tmpEndString = mid( arguments.str, len( tmpStartString ) + endPos + 3, len( arguments.str ) );
 				// A little clean-up
 				tmpString = reReplaceNoCase( tmpString, '&quot;', "'", 'all' );
+				var originalString = tmpString;
 				// If queryParam was passed in the SQL, lets' parse it
 				if ( findNoCase( "queryParam", tmpString ) ){
 					// We need to normalize the cfml and to be parsed in order to ensure error free processing.  The
@@ -788,18 +788,41 @@
 
 					tmpString = reReplaceNoCase( tmpString, '^queryParam\(', '' );
 					tmpString = reReplaceNoCase( tmpString, '\)$', '' );
-					var tmpArr = listToArray( tmpString );
-					// parse each passed in key/value pair and make sure they are proper JSON (i.e. quoted names/values)
-					for( var i = 1; i <= arrayLen( tmpArr ); i++ ){
-						tmpArr[ i ] = reReplaceNoCase( tmpArr[ i ], '[''|"\s]*(.+?)[''|"]*=[''|"\s]*(\b.*\b)[''|"|$]*', '"\1":"\2"', 'all') ;
-						// temporary hack for blank values until I can figure how to handle this in the regex above.
-						if( tmpArr[ i ] == "value=''" || tmpArr[ i ] == "value=" || tmpArr[ i ] == 'value=""'){
-							tmpArr[ i ] = '"value":""';
-						}
-					}
 
+					// literal strings would have been passed in as quoted values
+					// This needs to be removed in order to be converted to JSON -> Struct.
+					// The values to be param'd could be in an IN() list, so we need to parse
+					// those out differently.
+					// First, protect any escaped single quotes:
+					tmpString = reReplaceNoCase( tmpString, "\\'","\&quote;", "all" );
+					// Now scrube the passed in queryparam args if present (makes later regex easier)
+					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)=",", cfsqltype\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "null(\s*?)=",", null\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "list(\s*?)=",", list\1=", "all" );
+					// Now clean up any unquoted boolean values
+					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(false|true)+,",'value="\3"', "all" );
+					tmpArr = listToArray( tmpString, "'" );
+					if( !arrayLen( tmpArr ) GT 3 || !arrayLen( tmpArr ) mod 2 ){
+						// Only one set of quotes were found.  Now we can simply remove those.
+						tmpString = reReplaceNoCase( tmpString, "=(\s*?)""'(.*?)'""", '="\2"', "all" );
+					} else{
+						// More than one set of quotes found.  That means this was an IN statement and
+						// all of the single quotes need to be extracted.
+						tmpString = reReplaceNoCase( tmpString, "'", "", "all" );
+						tmpString &= ', list="true"';
+					}
+					// Now restore any escaped single quotes:
+					tmpString = reReplaceNoCase( tmpString, "\\&quote;","\'", "all" );
+
+					// Clean up blanks
+					tmpString = reReplaceNoCase( tmpString, "''",'""', "all" );
+
+					tmpString = "{" & reReplaceNoCase( tmpString, "\s*?(\S*?)=", """\1"":", "all" ) & "}";
+					if( !isJSON( tmpString ) ){
+						throw( errorcode="881", message="Invalid QueryParam", detail="The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. #originalString# ==> #tmpString#");
+					}
 					// turn the JSON into a CF struct
-					tmpString = deSerializeJSON( "{" & arrayToList( tmpArr ) & "}" );
+					tmpString = deSerializeJSON( tmpString );
 
 					// finally we can evaluate the queryParam struct.  This will scrub the values (i.e. proper cfsql types, prevent sql injection, etc...).
 					evalString = queryParamStruct(
@@ -808,8 +831,6 @@
 													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
 													null = structKeyExists( tmpString, 'null' ) ? tmpString.null : false
 												);
-
-
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
 					if ( isStruct( evalString ) ){
 						// Now we'll pass back a pseudo cfqueryparam.  The read() function will
@@ -817,6 +838,8 @@
 						returnString = tmpStartString & chr(998) & 'cfsqltype=#chr(777)#'
 										& reReplaceNoCase(evalString.cfsqltype,'\$queryparam','INVALID','all')
 										& '#chr(777)# value=#chr(777)#' & reReplaceNoCase( evalString.value, '\$queryparam','INVALID','all')
+										& '#chr(777)# list=#chr(777)#' &  reReplaceNoCase( evalString.list, '\$queryparam','INVALID','all')
+										& '#chr(777)# null=#chr(777)#' &  reReplaceNoCase( evalString.null, '\$queryparam','INVALID','all')
 										& '#chr(777)#' & chr(999) &  tmpEndString;
 						// Now the recursion.  Pass the string with the value we just parsed back to
 						// this function to see if there is anything left to parse.  When there is

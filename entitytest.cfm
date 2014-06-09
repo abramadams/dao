@@ -10,6 +10,16 @@
         dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
     */
 
+    testEntity = new com.database.BaseModelObject( dao = dao, table = "eventLog" );
+
+        // change event to 'test'
+    list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
+
+    list2 = testEntity.listAsArray( where = "where `event` in( 'test insert', 'test delete', 'fred\'s list' )");
+
+    writeDump(var=list, label="EventLog List where event == 'test insert'");
+    writeDump(var=list2, label="EventLog List where event IN in( 'test insert', 'test delete', 'fred\'s list' )");
+
 
     todoItem = new examples.breezejs.model.TodoItem( dao = dao );
     todoItem.setDescription('Food');
