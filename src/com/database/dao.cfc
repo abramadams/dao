@@ -675,7 +675,7 @@
 					// in a queryParam() call.
 					newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(=|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
+								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(<>|=|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
 								"\1\2\3\4\5 $queryParam(value=""\7"")$ \8\9"), chr( 10 ) );
 
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
