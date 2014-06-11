@@ -60,6 +60,7 @@
 	<cfproperty name="dbtype" type="string">
 	<cfproperty name="dbversion" type="string">
 	<cfproperty name="writeTransactionLog" type="boolean">
+
 	<cfset _resetCriteria() />
 	<cfscript>
 
@@ -326,47 +327,6 @@
 
 		}
 
-		/**
-		* I mark the record as deleted.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all.
-		* @table Table to delete from
-		* @recordID Record ID of record to be deleted. Use * to delete all
-		* @IDField ID Field of record to be deleted.
-		* @userID User ID of user performing delete.
-		**/
-		public boolean function markDeleted( required string table, required string recordID, string IDField = "ID", string userID = "" ){
-			var ret = true;
- 			try{
-
-				if( arguments.RecordID is "*" ){
-					ret = this.conn.execute("
-						UPDATE #arguments.table#
-						SET status = #this.getDeleteStatusCode()#,
-						modified_datetime = #createODBCDateTime(now())#,
-						modified_by_users_ID = #queryParam(value=arguments.userID,cfsqltype='integer')#
-						");
-					//can't do a delete comment to the entire table.
-				}else{
-					ret = this.conn.execute("
-						UPDATE #arguments.table#
-						SET status = #this.getDeleteStatusCode()#,
-						modified_datetime = #createODBCDateTime(now())#,
-						modified_by_users_ID = #queryParam(value=arguments.userID,cfsqltype='integer')#
-						WHERE  #arguments.IDfield# = #queryParam(value=arguments.recordID,cfsqltype='integer')#
-						");
-					ret = this.conn.execute("
-						INSERT INTO deleted_records (`table`, `record_ID`,`deleted_by_users_ID`,`deleted_datetime`,`delete_comment`)
-							VALUES (#queryParam(value=arguments.table,cfsqltype='varchar')#,#queryParam(value=arguments.recordID,cfsqltype='integer')#,#queryParam(value=arguments.userID,cfsqltype='integer')#,#createODBCDateTime(now())#,#queryParam(value=arguments.deleteComment,cfsqltype='varchar')#)
-					");
-				}
-			} catch( any e ){
-				throw( errorcode = "805", type = "custom.error", detail = "Unexpected Error", message = "There was an unexpected error updating the database.  Please contact your administrator.");
-				ret = false;
-			}
-
-			return ret;
-
-		}
-
 		public function logTransaction( required string sql, string lastID = "" ){
 
 			//Duck out if we were told not to write the transaction log
@@ -616,11 +576,17 @@
 		* @list Whether or not to param as a list (i.e. for passing a param'd list to IN() statements )
 		* @null Whether the value is null or not
 		**/
-		public function queryParam( required string value, string cfsqltype = "cf_sql_varchar", boolean list = false, boolean null = false ){
+		public function queryParam( required string value, string cfsqltype = "", boolean list = false, boolean null = false ){
 
 			var returnString = {};
 			var returnStruct = {};
-
+			// best guess if
+			if( ( isDate( value ) || reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
+				arguments.cfsqltype = "cf_sql_date";
+			}else if( !len( trim( cfsqltype ) ) ){
+				// default to varchar
+				arguments.cfsqltype = "cf_sql_varchar";
+			}
 			returnStruct = queryParamStruct( value = trim( arguments.value ), cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
 	 		returnString = '#chr(998)#list=#chr(777)##returnStruct.list##chr(777)# null=#chr(777)##returnStruct.null##chr(777)# cfsqltype=#chr(777)##returnStruct.cfsqltype##chr(777)# value=#chr(777)##returnStruct.value##chr(777)##chr(999)#';
 			return returnString;
