@@ -581,7 +581,7 @@
 			var returnString = {};
 			var returnStruct = {};
 			// best guess if
-			if( ( isDate( value ) || reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
+			if( ( reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
 				arguments.cfsqltype = "cf_sql_date";
 			}else if( !len( trim( cfsqltype ) ) ){
 				// default to varchar
