@@ -275,13 +275,21 @@ component accessors="true" output="false" {
 	* I create a new empty instance of the entity
 	**/
 	public function new(){
-		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() );
+		if( listLast( variables.meta.fullName ) == "BaseModelObject" ){
+			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() );
+		}else{
+			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao());
+		}
 	}
 	/**
 	* Shortcut to create a new instantiated instance of the entity - essentially a safe deep-copy.
 	**/
 	public function clone(){
-		return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() ).load( this.getID() );
+		if( listLast( variables.meta.fullName ) == "BaseModelObject" ){
+			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() ).load( this.getID() );
+		}else{
+			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() ).load( this.getID() );
+		}
 	}
 	/**
 	* I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
