@@ -150,14 +150,12 @@ to build criteria in an OO and platform agnostic way.  Here's an example of how 
 
 <p>The MySQL generated from the above example would look something like:</p>
 
-<div class="highlight highlight-sql"><pre>
-SELECT `description`, `event`, `eventdate`, `ID` 
-FROM eventLog 
-WHERE `eventDate` < ? 
-AND `eventDate` >= ? 
-AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) ) 
-ORDER BY eventDate desc
-
+<div class="highlight highlight-sql"><pre><span class="k">SELECT</span> <span class="o">`</span><span class="n">description</span><span class="o">`</span><span class="p">,</span> <span class="o">`</span><span class="n">event</span><span class="o">`</span><span class="p">,</span> <span class="o">`</span><span class="n">eventdate</span><span class="o">`</span><span class="p">,</span> <span class="o">`</span><span class="n">ID</span><span class="o">`</span>
+<span class="k">FROM</span> <span class="n">eventLog</span>
+<span class="k">WHERE</span> <span class="o">`</span><span class="n">eventDate</span><span class="o">`</span> <span class="o">&lt;</span> <span class="o">?</span>
+<span class="k">AND</span> <span class="o">`</span><span class="n">eventDate</span><span class="o">`</span> <span class="o">&gt;=</span> <span class="o">?</span>
+<span class="k">AND</span> <span class="p">(</span> <span class="o">`</span><span class="n">ID</span><span class="o">`</span> <span class="o">&gt;=</span> <span class="o">?</span> <span class="k">OR</span> <span class="p">(</span> <span class="o">`</span><span class="n">event</span><span class="o">`</span> <span class="o">=</span> <span class="o">?</span> <span class="k">OR</span> <span class="o">`</span><span class="n">event</span><span class="o">`</span> <span class="o">=</span> <span class="o">?</span> <span class="p">)</span> <span class="p">)</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">eventDate</span> <span class="k">desc</span>
 </pre></div>
 
 <p>This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
