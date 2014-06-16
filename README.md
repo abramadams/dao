@@ -86,7 +86,7 @@ to build criteria in an OO and platform agnostic way.  Here's an example of how 
 // build the query criteria
 var query = request.dao.from( "eventLog" )
 					.where( "eventDate", "<", now() )
-					.andWhere( "eventDate", ">=" dateAdd( 'd', -1, now() ) )
+					.andWhere( "eventDate", ">=", dateAdd( 'd', -1, now() ) )
 					.beginGroup("and")
 						.andWhere( "ID", ">=", 1)
 						.beginGroup("or")
@@ -105,7 +105,12 @@ for( var rec in query ){
 ```
 The MySQL generated from the above example would look something like:
 ```sql
-
+SELECT `description`, `event`, `eventdate`, `ID`
+FROM eventLog
+WHERE `eventDate` < ?
+AND `eventDate` >= ?
+AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) )
+ORDER BY eventDate desc
 ```
 
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
