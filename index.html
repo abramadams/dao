@@ -130,7 +130,7 @@ to build criteria in an OO and platform agnostic way.  Here's an example of how 
 <div class="highlight highlight-javascript"><pre><span class="c1">// build the query criteria</span>
 <span class="kd">var</span> <span class="nx">query</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">dao</span><span class="p">.</span><span class="nx">from</span><span class="p">(</span> <span class="s2">"eventLog"</span> <span class="p">)</span>
                     <span class="p">.</span><span class="nx">where</span><span class="p">(</span> <span class="s2">"eventDate"</span><span class="p">,</span> <span class="s2">"&lt;"</span><span class="p">,</span> <span class="nx">now</span><span class="p">()</span> <span class="p">)</span>
-                    <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"eventDate"</span><span class="p">,</span> <span class="s2">"&gt;="</span> <span class="nx">dateAdd</span><span class="p">(</span> <span class="s1">'d'</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">now</span><span class="p">()</span> <span class="p">)</span> <span class="p">)</span>
+                    <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"eventDate"</span><span class="p">,</span> <span class="s2">"&gt;="</span>, <span class="nx">dateAdd</span><span class="p">(</span> <span class="s1">'d'</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">now</span><span class="p">()</span> <span class="p">)</span> <span class="p">)</span>
                     <span class="p">.</span><span class="nx">beginGroup</span><span class="p">(</span><span class="s2">"and"</span><span class="p">)</span>
                         <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"ID"</span><span class="p">,</span> <span class="s2">"&gt;="</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                         <span class="p">.</span><span class="nx">beginGroup</span><span class="p">(</span><span class="s2">"or"</span><span class="p">)</span>
@@ -150,7 +150,15 @@ to build criteria in an OO and platform agnostic way.  Here's an example of how 
 
 <p>The MySQL generated from the above example would look something like:</p>
 
-<div class="highlight highlight-sql"><pre></pre></div>
+<div class="highlight highlight-sql"><pre>
+SELECT `description`, `event`, `eventdate`, `ID` 
+FROM eventLog 
+WHERE `eventDate` < ? 
+AND `eventDate` >= ? 
+AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) ) 
+ORDER BY eventDate desc
+
+</pre></div>
 
 <p>This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.</p>
