@@ -120,6 +120,41 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 
 </pre></div>
 
+
+<h1>
+<a name="user-content-entity-queries" class="anchor" href="#entity-queries" aria-hidden="true"><span class="octicon octicon-link"></span></a>Entity Queries</h1>
+
+<p>New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
+to build criteria in an OO and platform agnostic way.  Here's an example of how to use this new feature:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="c1">// build the query criteria</span>
+<span class="kd">var</span> <span class="nx">query</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">dao</span><span class="p">.</span><span class="nx">from</span><span class="p">(</span> <span class="s2">"eventLog"</span> <span class="p">)</span>
+                    <span class="p">.</span><span class="nx">where</span><span class="p">(</span> <span class="s2">"eventDate"</span><span class="p">,</span> <span class="s2">"&lt;"</span><span class="p">,</span> <span class="nx">now</span><span class="p">()</span> <span class="p">)</span>
+                    <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"eventDate"</span><span class="p">,</span> <span class="s2">"&gt;="</span> <span class="nx">dateAdd</span><span class="p">(</span> <span class="s1">'d'</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">now</span><span class="p">()</span> <span class="p">)</span> <span class="p">)</span>
+                    <span class="p">.</span><span class="nx">beginGroup</span><span class="p">(</span><span class="s2">"and"</span><span class="p">)</span>
+                        <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"ID"</span><span class="p">,</span> <span class="s2">"&gt;="</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="p">.</span><span class="nx">beginGroup</span><span class="p">(</span><span class="s2">"or"</span><span class="p">)</span>
+                            <span class="p">.</span><span class="nx">andWhere</span><span class="p">(</span> <span class="s2">"event"</span><span class="p">,</span> <span class="s2">"="</span><span class="p">,</span> <span class="s2">"delete"</span><span class="p">)</span>
+                            <span class="p">.</span><span class="nx">orWhere</span><span class="p">(</span> <span class="s2">"event"</span><span class="p">,</span> <span class="s2">"="</span><span class="p">,</span> <span class="s2">"insert"</span><span class="p">)</span>
+                        <span class="p">.</span><span class="nx">endGroup</span><span class="p">()</span>
+                    <span class="p">.</span><span class="nx">endGroup</span><span class="p">()</span>
+                    <span class="p">.</span><span class="nx">orderBy</span><span class="p">(</span><span class="s2">"eventDate desc"</span><span class="p">)</span>
+                    <span class="p">.</span><span class="nx">run</span><span class="p">();</span> <span class="c1">// the run() method executes the query and returns a query object.  If you don't</span>
+                            <span class="c1">// run() then it returns the dao object, which you can later use to add to the</span>
+                            <span class="c1">// criteria, or run at your leasure.</span>
+
+<span class="k">for</span><span class="p">(</span> <span class="kd">var</span> <span class="nx">rec</span> <span class="k">in</span> <span class="nx">query</span> <span class="p">){</span>
+    <span class="c1">//do something with the record</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The MySQL generated from the above example would look something like:</p>
+
+<div class="highlight highlight-sql"><pre></pre></div>
+
+<p>This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
+to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.</p>
+
 <h1>
 <a name="the-ormsh-side-of-dao" class="anchor" href="#the-ormsh-side-of-dao"><span class="octicon octicon-link"></span></a>The ORM'sh side of DAO</h1>
 
