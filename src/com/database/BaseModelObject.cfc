@@ -213,7 +213,7 @@ component accessors="true" output="false" {
 			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
 
 			// If the property exists, compare the old value to the new value (case sensitive)
-			if( structKeyExists( variables, propName ) ){
+			if( structKeyExists( variables, propName ) && isSimpleValue( v ) ){
 				//If the old value isn't identical to the new value, set the isDirty flag to true
 				variables._isDirty = compare( v, variables[ propName ] ) != 0;
 			}
