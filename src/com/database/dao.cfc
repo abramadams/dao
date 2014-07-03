@@ -144,7 +144,7 @@
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "" ){
+		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "", any callbackArgs = {} ){
 			var LOCAL = {};
 			if( !structKeyExists( variables.tabledefs, arguments.table ) ){
 				variables.tabledefs[ arguments.table ] = new tabledef( tablename = arguments.table, dsn = getDSN() );
@@ -180,8 +180,8 @@
 			}
 			// Insert has been performed.  If a callback was provided, fire it off.
 			if( isCustomFunction( onFinish ) ){
-				var callbackData = { "data" = LOCAL.table.getRows(), "ID" = newRecord };
-				onFinish( callbackData );
+				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = newRecord } );
+				onFinish( argumentCollection = callbackArgs );
 			}
 
 			return newRecord;
@@ -196,7 +196,7 @@
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished updating.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function update( required string table, required struct data, string IDField = "ID", string ID = "", boolean dryRun = false, any onFinish = "" ){
+		public function update( required string table, required struct data, string IDField = "ID", string ID = "", boolean dryRun = false, any onFinish = "", any callbackArgs = {}  ){
 			var LOCAL = {};
 
 			LOCAL.isDirty = false;
@@ -272,8 +272,12 @@
 			}
 
 			if( isCustomFunction( onFinish ) ){
-				var callbackData = { "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ] };
-				onFinish( LOCAL.callbackData );
+				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ] } );
+				try{
+					onFinish( argumentCollection = callbackArgs );
+				}catch(any e){
+					writeDump([callbackArgs,e]);abort;
+				}
 			}
 
 			return val( arguments.ID );
@@ -302,7 +306,7 @@
 		* @IDField ID Field of record to be deleted. Default value = table's Primary Key.
 		* @onFinish Will execute when finished deleting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public boolean function delete( required string table, required string recordID, string IDField = "", any onFinish = "" ){
+		public boolean function delete( required string table, required string recordID, string IDField = "", any onFinish = "", any callbackArgs = {}  ){
 			var ret = true;
 	 		try{
 				transaction{
@@ -319,8 +323,8 @@
 
 
 			if( isCustomFunction( onFinish ) ){
-				var callbackData = { "ID" = arguments.recordID };
-				onFinish( callbackData );
+				structAppend( arguments.callbackArgs, { "table" = arguments.table, "id" = arguments.recordID } );
+				onFinish( argumentCollection = callbackArgs );
 			}
 
 			return ret;
@@ -582,7 +586,7 @@
 			var returnStruct = {};
 			// best guess if
 			if( ( reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
-				arguments.cfsqltype = "cf_sql_date";
+				arguments.cfsqltype = "cf_sql_timestamp";
 			}else if( !len( trim( cfsqltype ) ) ){
 				// default to varchar
 				arguments.cfsqltype = "cf_sql_varchar";
@@ -598,9 +602,15 @@
 		* @list Whether or not to param as a list (i.e. for passing a param'd list to IN() statements )
 		* @null Whether the value is null or not
 		**/
-		public function queryParamStruct( required string value, string cfsqltype = "cf_sql_varchar", boolean list = false, boolean null = false ){
+		public function queryParamStruct( required string value, string cfsqltype = "", boolean list = false, boolean null = false ){
 			var returnStruct = {};
-
+			// best guess if
+			if( ( reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
+				arguments.cfsqltype = "cf_sql_timestamp";
+			}else if( !len( trim( cfsqltype ) ) ){
+				// default to varchar
+				arguments.cfsqltype = "cf_sql_varchar";
+			}
 			returnStruct.cfsqltype = reReplaceNoCase( getCFSQLType( arguments.cfsqltype ), '\$queryparam', 'INVALID', 'all' );
 			// strip out any queryparam calls in the value, this will prevent the ability to submit malicious code through the SQL string
 			returnStruct.value = reReplaceNoCase( arguments.value, '\$queryparam', 'INVALID', 'all');
@@ -614,7 +624,7 @@
 		* I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.
 		* @sql SQL statement (or partial SQL statement) which contains tokenized queryParam calls
 		**/
-		public function parameterizeSQL( required string sql ) output="false" {
+		public function parameterizeSQL( required string sql, boolean autoParameterize = false ) output="false" {
 
 			var LOCAL = {};
 			var tmp = {};
@@ -625,28 +635,72 @@
 			var tmpSQL = parseQueryParams( arguments.sql );
 
 			LOCAL.statements = [];
-			if( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ){
+			if( autoParameterize && ( listLen( tmpSQL, chr( 998 ) ) LT 2 || !len( trim( listGetAt( tmpSQL, 2, chr( 998 ) ) ) ) ) ){
 
 				// So, we didn't have the special characters (998) that indicate the parameters were created
 				// using the queryParam() method, however, there may be some where clause type stuff that can
 				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
 				// unharmed.
 				if( tmpSQL contains "where "){
+					// var tmpWheres = listToArray( replaceNoCase( tmpSQL, "where", chr(888), "all" ), chr(888) );
+					// // writeDump(wheres);abort;
+					// joins = [];
+					// wheres = [];
+					// for( var i = 1; i lte arrayLen( tmpWheres ); i++ ){
+					// 	var where = tmpWheres[ i ];
+					// 	arrayAppend( wheres, { "where" = where, "joins" = listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) ) } );
+					// 	// arrayAppend( joins, listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) );
+					// 		// arrayAppend( wheres[where].joins, listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) ) );
+					// }
+					// writeDump(wheres);abort;
+
+					var operators = ["\bwhere\b\s","\band\b\s","\bor\b\s"];
+					var comparer = "\!\=|<>|=|<|>|in(\s*?)\(";
+					var regexCore = "(.*)(\b\!=\b|\b<>\b|=|<|>|in(\s*?)\(?)(\s*)(\S.*?)(\s*)(\)|\$|\bgroup\b|\bhaving\b|\border\b|\band\b|\bor\b|;*)";
+					// var newTmpSQL = tmpSQL;
+					// newTmpSQL = reReplaceNoCase( newTmpSQL, "''", "&quot;&quot;", "all");
+					// newTmpSQL = reReplaceNoCase( newTmpSQL, "\(\)", chr(654), "all");
+					// // for( var oper in operators ){
+					// 	// regex = "(#oper#)(.*?)(#comparer#)(.*?)(\)|\$|group|having|order|and|or|;)";
+					// 	regex = "(\bwhere\b\s|\band\b\s|\bor\b\s)#regexCore#";
+					// 	newTmpSQL = reReplaceNoCase( newTmpSQL, regex, "\1 \2 \3 \4 $queryParam(value=""\6"")$ \7 \8");
+					// 	writeDump([regex]);
+					// // }
+					// newTmpSQL = reReplaceNoCase( newTmpSQL, "&quot;&quot;", "''", "all");
+					// newTmpSQL = reReplaceNoCase( newTmpSQL, chr(654), "()", "all");
+					// writeDump([tmpsql,newTmpSQL]);abort;
+					// writeDump([newTmpSQL]);abort;
+					// abort;
 					var selectClause = findNoCase( "where ", tmpSQL ) GT 1 ? left( tmpSQL, findNoCase( "where ", tmpSQL )-1 ) : "";
 
 					var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
+					// whereClause = reReplaceNoCase( whereClause, "''", "&quot;&quot;", "all");
+					whereClause = reReplaceNoCase( whereClause, "\(\)", chr(654), "all");
 					var newTmpSQL = "";
 
 					// Attempt to pull out any values used in the sql criteria and wrap them
 					// in a queryParam() call.
+					// @TODO: Fix to support field names ... ie.. where table.field1 = table2.field1
+					// newTmpSQL = listAppend( selectClause,
+					// 	reReplaceNoCase( whereClause,
+					// 			"(\!\=|<>|=|<|>|in(\s*?)\(|like+?)(\s*?)(\S.*?)(\s*?)(\)|\$|group|having|order|and|or|;)",
+					// 			"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all" ),
+					// 			chr( 10 ) );
 					newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-								"(where\s|and\s|or\s+?)(\s*?)(\S+?)(\s*?)(<>|=|<|>|like|in\(+?)(\s*?)(\S.*?)(\s*?)(\)|$|and\s|or\s|;)",
-								"\1\2\3\4\5 $queryParam(value=""\7"")$ \8\9"), chr( 10 ) );
-
+								"(\b\!\=\b|\b<>\b|=|<|>|\bin(\s*?)\(\b|\blike\b+?)(\s*?)(\S.*?)(\s*?)(\)|\$|\bgroup\b|\bhaving\b|\border\b|\band\b|\bor\b|\bwhere\n|;)",
+								"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all" ),
+								chr( 10 ) );
+					// See if we accidentally paramed a nested sql statement, then un-param it
+					if( reFindNoCase( "\$queryParam\(value=""select(.*?)""\)\$", newTmpSQL ) ){
+						newTmpSQL = reReplaceNoCase( newTmpSQL, "\$queryParam\(value=""(.*?)""\)\$", "\1", "all" );
+					}
+					// // If "in()" clause found, make sure we param as a list type.
+					newTmpSQL = reReplaceNoCase( newTmpSQL, "(in(\s*?)\()(\s*?)(\$queryParam\(+)", '\1\2\3\4 list="true", ', "all" );
 					// Now parse the pseudo queryParams() into dao-sql friendly queryparams
-					// writeDump([sql, whereClause,newTmpSQL]);abort;
 					newTmpSQL = parseQueryParams( newTmpSQL );
+					// newTmpSQL = reReplaceNoCase( newTmpSQL, "&quot;&quot;", "''", "all");
+					newTmpSQL = reReplaceNoCase( newTmpSQL, chr(654), "()", "all");
 				}else{
 					newTmpSQL = tmpSQL;
 				}
@@ -792,7 +846,8 @@
 
 					tmpString = "{" & reReplaceNoCase( tmpString, "\s*?(\S*?)=", """\1"":", "all" ) & "}";
 					if( !isJSON( tmpString ) ){
-						throw( errorcode="881", message="Invalid QueryParam", detail="##The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. #originalString# ==> #tmpString#");
+						throw( errorcode="881", message="Invalid QueryParam",
+							detail="##The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. #originalString# ==> #tmpString#  || #arguments.str#");
 					}
 					// turn the JSON into a CF struct
 					tmpString = deSerializeJSON( tmpString );

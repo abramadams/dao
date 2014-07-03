@@ -19,6 +19,7 @@ component accessors="true" output="false" {
 	property name="deleteStatusCode" type="numeric" persistent="false" ;
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" persistent="false";
+	property name="dynamicMappings" type="struct" persistent="false";
 
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
@@ -36,7 +37,8 @@ component accessors="true" output="false" {
 								string idFieldGenerator = "",
 								numeric deleteStatusCode = 1,
 								any dao = "",
-								boolean dropcreate = false){
+								boolean dropcreate = false,
+								struct dynamicMappings = {} ){
 
 		var LOCAL = {};
 		// Make sure we have a dao (see dao.cfc)
@@ -48,9 +50,10 @@ component accessors="true" output="false" {
 
 		variables.dropcreate = arguments.dropcreate;
 		// used to introspect the given table.
-		variables.meta = getMetaData( this );
+		// variables.meta = getMetaData( this );
 		// Hack to make variables.meta a true CF data type so we can "for in" loop it.
-        variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
+        // variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
+        variables.meta =_getMetaData();
 
 		if( !len( trim( arguments.table ) ) ){
 			// If the table name was not passed in, see if the table property was set on the component
@@ -80,6 +83,7 @@ component accessors="true" output="false" {
 				// load the table definition based on the given table.
 				variables.tabledef = new tabledef( tableName = getTable(), dsn = getDao().getDSN() );
 			} catch (any e){
+				// writeDump([e,arguments]);abort;
 				if( e.type eq 'Database' ){
 					if (e.Message neq 'Datasource #getDao().getDSN()# could not be found.'){
 						// The table didn't exist, so let's make it
@@ -98,7 +102,7 @@ component accessors="true" output="false" {
 		setIDField( arguments.IDField );
         setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
 		setDeleteStatusCode( arguments.deleteStatusCode );
-
+		setDynamicMappings( arguments.dynamicMappings );
         variables.dao.addTableDef( variables.tabledef );
 
         variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
@@ -182,6 +186,11 @@ component accessors="true" output="false" {
 
 	    return this;
 	}
+
+	private function _getMetaData(){
+		return deSerializeJSON( serializeJSON( getMetadata( this ) ) );
+
+	}
 	/**
 	* Convenience method for choosing the correct setter for the type.
 	**/
@@ -198,6 +207,12 @@ component accessors="true" output="false" {
 		}
 
 		return setter;
+	}
+	/**
+	* Convenience method for genteric setter.
+	**/
+	private function _setter( required string property, any value ){
+		variables[ property ] = value;
 	}
 	/**
 	* This function will replace each public setter so that the isDirty
@@ -274,11 +289,11 @@ component accessors="true" output="false" {
 	/**
 	* I create a new empty instance of the entity
 	**/
-	public function new(){
+	public function new( dao dao = getDao(), string table = getTable() ){
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() );
+			return createObject( "component", "BaseModelObject" ).init( dao = dao, table = table );
 		}else{
-			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao());
+			return createObject( "component", variables.meta.fullName ).init( dao = dao );
 		}
 	}
 	/**
@@ -339,6 +354,9 @@ component accessors="true" output="false" {
 		var limit = arguments.missingMethodName is "loadTop" ? arguments.missingMethodArguments[ 1 ] : "";
 		var orderby = arguments.missingMethodName is "loadTop" ? "ORDER BY " & arguments.missingMethodArguments[2] : '';
 		var where = "1=1";
+
+		// @TODO: create custom "getters" to dynamically bind and load realted entities.
+
 
 		// Allow "loadFirst" method to instantiate the entity and load it with the first
 		// record returned per the "By" criteria
@@ -494,16 +512,68 @@ component accessors="true" output="false" {
 			}else{
 				var record = getRecord( ID = arguments.ID );
 			}
-
 			for ( var fld in listToArray( record.columnList ) ){
-				variables[ fld ] = record[ fld ][ 1 ];
+				// var setterFunc = this["set" & fld ];
+				// setterFunc(record[ fld ][ 1 ]);
+				// // or set directly - doesn't work in cf9
+				// variables[ fld ] = record[ fld ][ 1 ];
+
+				// Using evaluate is the only way in cfscript (cf9) to retain context when calling methods
+				// on a nested object otherwise I'd use the above to set the fk col value
+				try{
+					evaluate("set#fld#(record[ fld ][ 1 ])");
+				}catch( any e ){
+					variables[ fld ] = record[ fld ][ 1 ];
+					// writeDump([fld, record, e]);abort;
+				}
 				variables._isDirty = false;
 			}
 		}
 		/*  Now iterate the properties and see if there are any relationships we can resolve */
 		for ( var col in props ){
+			// Dynamically load one to many relationships by convention.  This will check to see if the current property
+			// ends with _ID, and does not have a cfc associated with it. If both of those statements are true we'll try
+			// to load the child table via BaseModelObject.
+			if( !structKeyExists( col, 'cfc' ) && listLen( col.name, '_') GT 1 && listLast( col.name, '_' ) == 'ID' ){
+				// We have a field ending with _ID, which typically indicates a "foriegn key" property to a tabled named whatever prefixes the _ID
+				// Using this convention, if the parent table is "orders" and the field name is "orders_ID" we can load the parent
+				try{
+					var newTableName = var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
+					if( structKeyExists( getDynamicMappings(), col.name ) ){
+						newTableName = getDynamicMappings()[ col.name ];
+					}
+					var newObj = new( table = newTableName, dao = this.getDao() );
+					newObj.setTable( newTableName );
+					// Load data into new object
+					writeLog('Loading dynamic relationship entity #newTableName# with id of #variables[col.name]#');
+					newObj.load( variables[ col.name ], lazy );
+					writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#')
+					// Create setter methods for this relationship property.
+					variables[ "set" & propertyName ] = _setter;
+					// Now set the relationhsip property value to the newly created and instantiated object.
+					variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
+					// Append the relationship property to the meta properties
+					arrayAppend( variables.meta.properties, {
+										"column" = propertyName,
+										"name" = propertyName,
+										"dynamic" = true,
+										"cfc" = "BaseModelObject",
+										"table" = newTableName,
+										"inverseJoinColumn" = newObj.getIDField(),
+										"fkcolumn" = col.name,
+										"fieldType" = "one-to-many"
+									} );
+					this[ "get" & propertyName ] = getFunc;
 
-			/* Load all child objects */
+				} catch ( any e ){
+					if( e.type != 'BMO' ){
+						// throw(e.detail);
+						writeDump(e);abort;
+					}
+				}
+			}
+
+			// Load all child objects
 			if( structKeyExists( col, 'cfc' ) ){
 				var tmp = createObject( "component", col.cfc ).init( dao = this.getDao(), dropcreate = this.getDropCreate() );
 				var setterFunc = this["set" & col.name ];
@@ -521,8 +591,8 @@ component accessors="true" output="false" {
 					//If lazy == true, we will just overload the "getter" method with an anonymous method that will instantiate the child entity when called.
 					}else{
 
-						setterFunc( evaluate("tmp.loadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
-						/****** ACF9 Dies when the below code exists *******/
+						setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
+						/****** ACF9 Dies when the below code exists ******
 						// // First, set the property (child column in parent entity) to an array with a single index containing the empty child entity (to be loaded later)
 						// this[col.name] = ( structKeyExists( col, 'type' ) && col.type is 'array' ) ? [ duplicate( tmp ) ] : duplicate( tmp );
 						// // Add a helper property to the parent object.  This will store the data necessary for the "getter" function to instantiate
@@ -591,6 +661,9 @@ component accessors="true" output="false" {
 				}
 			}
 		}
+		// variables.meta = _getMetaData();
+
+		// writeDump([this]);abort;
 
 		return this;
 
@@ -762,7 +835,8 @@ component accessors="true" output="false" {
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
-
+			// writeDump([this,variables.meta.properties]);abort;
+			// Iterate through each property and generate a struct representation
 			for ( var prop in variables.meta.properties ){
 				arg = prop.name;
 				LOCAL.functionName = "get" & arg;
@@ -770,7 +844,7 @@ component accessors="true" output="false" {
 				{
 					if( !findNoCase( '$$_', arg )
 						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
-						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,#ArrayToList(excludeKeys)#",arg ) ){
+						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#",arg ) ){
 
 						if( structKeyExists( this, LOCAL.functionName ) ){
 							//LOCAL.tmpFunc = structKeyExists( this, 'methods' ) ? this.methods[LOCAL.functionName] : this[LOCAL.functionName];
@@ -1141,7 +1215,11 @@ component accessors="true" output="false" {
 	private function makeTable(){
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
+			if( variables.meta.fullName == "basemodelobject"){
+				throw( message = "Table #getTable()# does not exist", type = 'bmo' );
+			}else{
+				throw("If invoking BaseModelObject directly the table must exist.  Please create the table: '#this.getTable()#' and try again.");
+			}
 		}
 
 		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
