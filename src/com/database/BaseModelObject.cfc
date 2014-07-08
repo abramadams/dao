@@ -13,6 +13,7 @@ component accessors="true" output="false" {
 	/* properties */
 
 	property name="table" type="string" persistent="false";
+	property name="parentTable" type="string" persistent="false";
 	property name="IDField" type="string" persistent="false";
 	property name="IDFieldType" type="string" persistent="false";
 	property name="IDFieldGenerator" type="string" persistent="false" ;
@@ -31,6 +32,7 @@ component accessors="true" output="false" {
 	_isDirty = false;
 
 	public any function init( 	string table = "",
+								string parentTable = "",
 								numeric currentUserID = 0,
 								string idField = "ID",
 								string idFieldType = "",
@@ -71,6 +73,7 @@ component accessors="true" output="false" {
 		}else{
 			setTable( arguments.table );
 		}
+		setParentTable( arguments.parentTable );
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
 		if( variables.dropcreate ){
@@ -289,7 +292,7 @@ component accessors="true" output="false" {
 	/**
 	* I create a new empty instance of the entity
 	**/
-	public function new( dao dao = getDao(), string table = getTable() ){
+	public function new( string table = getTable(), dao dao = getDao() ){
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
 			return createObject( "component", "BaseModelObject" ).init( dao = dao, table = table );
 		}else{
@@ -355,8 +358,103 @@ component accessors="true" output="false" {
 		var orderby = arguments.missingMethodName is "loadTop" ? "ORDER BY " & arguments.missingMethodArguments[2] : '';
 		var where = "1=1";
 
-		// @TODO: create custom "getters" to dynamically bind and load realted entities.
+		// ReturnType allows us to return a different representation of the object if loading an entity or getting related entities.
+		var returnType = "object";
+		if( right( arguments.missingMethodName, 7 ) == "asArray" ){
+			returnType = "array";
+			arguments.missingMethodName = mid( arguments.missingMethodName, 1, len( arguments.missingMethodName ) - 7 );
+		}else if( right( arguments.missingMethodName, 8 ) == "asStruct" ){
+			returnType = "struct";
+			arguments.missingMethodName = mid( arguments.missingMethodName, 1, len( arguments.missingMethodName ) - 8 );
+		}else if( right( arguments.missingMethodName, 6 ) == "asJSON" ){
+			returnType = "json";
+			arguments.missingMethodName = mid( arguments.missingMethodName, 1, len( arguments.missingMethodName ) - 6 );
+		}
 
+		// writeDump([missingMethodName,left( arguments.missingMethodName, 3 ),mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) ), missingMethodName contains "By"]);abort;
+		if( left( arguments.missingMethodName, 3 ) is "get"){
+			var getterInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
+
+			if( getterInstructions does not contain "By"){
+				// If the "getter" doesn't contain a "by" clause, we'll look to see if the current entity
+				// has a FK matching the convention <name>_ID.  So if the method call was getUsers() and the
+				// current entity has a users_ID property we will try to load an entity based on a Users table
+				// and populate it with the record matching the current entitty's users_ID value.
+				try{
+					var newTableName = var propertyName = getterInstructions;
+					// MANY-TO-ONE
+					if( structKeyExists( variables, getterInstructions & "_ID" ) ){
+						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = getterInstructions & "_ID", returnType = returnType );
+
+					}else{
+						// ONE-TO-MANY
+						// If the current entity didn't have a FK to the table, maybe we need to load a one-to-many.
+						// Let's try to find a table matching the getterInstructions and load all records matching the
+						// current entity's ID value.
+
+						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ) );
+						writeLog('CALLING _getOneToMany() for #newTableName# #returnType#');
+						writeDump([this,arguments]);abort;
+						var newObj = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
+						return newObj;
+					}
+					return variables[ propertyName ];
+				} catch ( any e ){
+					if( e.type != 'BMO' ){
+						// throw(e.detail);
+						writeDump(e);abort;
+					}
+				}
+			}else if( getterInstructions contains "By"){
+				try{
+					var newTableName = var propertyName = left( getterInstructions, findNoCase( 'by', getterInstructions ) - 1 );
+					var byClause = mid( getterInstructions, findNoCase( 'by', getterInstructions ) + 2, len( getterInstructions ) );
+
+
+					// writeDump([arguments,newTableName,byClause,variables[byClause],_getManyToOne( table = lcase( newTableName ), fkColumn = "modified_by_users_ID" ) ]);abort;
+					if( structKeyExists( variables, byClause ) ){
+						// MANY-TO-ONE
+						// If the "getter" contains the "by" clause, we'll try to load
+						// the child record based on the "by" clause.  For instance
+						// if the method call was getUsersByCreated_Users_ID we would try to load
+						// the record from the users table where users.ID == the current entity's
+						// Created_Users_ID value.
+						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = byClause, returnType = returnType );
+						return variables[ propertyName ];
+
+					}else{
+						// @TODO: add support for multiple By clauses (i.e. byInvoice_NumberAndCompanies_ID)
+						// ONE-TO-MANY
+						// If the by clause was not a property in the current entity, we'll try to load one-to-many
+						// records from the given table based on the by clause.
+						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ), pkValue = this.getID(), fkColumn = byClause );
+						// return variables[ propertyName ];
+						writeLog('CALLING _getOneToMany() for #newTableName# using byClause #byClause# #right(arguments.missingMethodName, 8)#');
+						return _getOneToMany( table = lcase( newTableName ), pkValue = this.getID(), fkColumn = byClause, returnType = returnType );
+
+					}
+
+				} catch ( any e ){
+					if( e.type != 'BMO' ){
+						// throw(e.detail);
+						writeDump(e);abort;
+					}
+				}
+			}
+			// return this;
+		}else if( left( arguments.missingMethodName, 7 ) is "hasMany" ){
+			// Inject array of child objects
+			var newTableName = mid( arguments.missingMethodName, findNoCase( "hasMany", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
+			writeLog('CALLING _getOneToMany() for #newTableName# using hasmany missing method handler');
+			variables[ newTableName ] = this[ newTableName ] = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
+
+			return this;
+		}else if( left( arguments.missingMethodName, 9 ) is "belongsTo" ){
+			var newTableName = mid( arguments.missingMethodName, findNoCase( "belongsTo", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
+			variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = newTableName & "_ID", returnType = returnType );
+
+			return this;
+		}
 
 		// Allow "loadFirst" method to instantiate the entity and load it with the first
 		// record returned per the "By" criteria
@@ -392,6 +490,7 @@ component accessors="true" output="false" {
 					LOCAL.columnName = structCount( LOCAL.columnName ) && structKeyExists( LOCAL.columnName.owner, 'column' ) ? LOCAL.columnName.owner.column : queryArguments[ i ];
 
 					recordSQL &= " AND #LOCAL.columnName# = #getDao().queryParam(value="#arguments.missingMethodArguments[ i ]#")#";
+
 					//Setup defaults
 					LOCAL.functionName = "set" & queryArguments[ i ];
 
@@ -426,24 +525,47 @@ component accessors="true" output="false" {
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
-					var recordArray = [];
-					var qn = queryNew( record.columnList );
-					var recCount = record.recordCount;
-					queryAddRow( qn, 1 );
+				writeLog('lazy load all #getTable()# - [#originalMethodName# | #getParentTable()#]');
+				var recordArray = [];
+				var qn = queryNew( record.columnList );
+				var recCount = record.recordCount;
+				queryAddRow( qn, 1 );
 
-					for ( var rec = 1; rec LTE recCount; rec++ ){
-						// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
-						// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-						for( var col in listToArray( record.columnList ) ){
-							querySetCell( qn, col, record[ col ][ rec ] );
-						}
-						var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 ;
+				for ( var rec = 1; rec LTE recCount; rec++ ){
+					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
+					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
+					for( var col in listToArray( record.columnList ) ){
+						querySetCell( qn, col, record[ col ][ rec ] );
+					}
+					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
+					var cachedObject = cacheGet( '#getTable()#-#qn[ getIDField() ][ 1 ]#' );
+
+					writeLog('is object cached? #yesNoFormat(!isNull(cachedObject))#');
+					if( !isNull( cachedObject ) ){
+						// object cached, load from memory.
+						var tmpNewEntity = cachedObject;
+					}else{
+
 						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
 						// does not appear to be thread safe and ends up causing concurrency issues.
-						var tmpNewEntity = this.new(); //createObject("component", variables.meta.fullName ).init( dao = this.getDao() );
-						tmpNewEntity.load( ID = qn , lazy = tmpLazy );
-						arrayAppend( recordArray, tmpNewEntity );
+						var tmpNewEntity = new(); //createObject("component", variables.meta.fullName ).init( dao = this.getDao() );
+						tmpNewEntity.load( ID = qn , lazy = tmpLazy, parent = getParentTable() );
+
 					}
+					cachePut( '#getTable()#-#qn[ getIDField() ][ 1 ]#' , tmpNewEntity, createTimeSpan( 0, 0, 0, 20 ) );
+					if( returnType is "struct" || returnType is "array" ){
+						tmpNewEntity = tmpNewEntity.toStruct();
+					}else if (returnType is "json"){
+						tmpNewEntity = tmpNewEntity.toJSON();
+					}
+
+					arrayAppend( recordArray, tmpNewEntity );
+				}
+					// writeDump([tmplazy,this,variables.meta,arguments,getFunctionCalledName(),recordArray]);abort;
+				if( returnType is "json" ){
+					return "[" & arrayToList( recordArray ) & "]";
+				}
+
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
@@ -478,9 +600,24 @@ component accessors="true" output="false" {
 	* correspond (via name) to properties in the entity.  See convenience function 'populate()'
 	*
 	**/
-	public any function load( required any ID, boolean lazy = false ){
+	public any function load( required any ID, boolean lazy = false, string parentTable = getParentTable() ){
 		var LOCAL = {};
 		var props = variables.meta.properties;
+
+		if( isSimpleValue( ID ) ){
+			var cachedObject = cacheGet( '#getTable()#-#ID#' );
+			writeLog('loading #getTable()#-#ID#, do we already have it? #yesNoFormat(!isNull( cachedObject ))#');
+			if( !isNull( cachedObject ) ){
+				// writeDump(cachedObject);abort;
+				// this = cachedObject ;
+				// return this;
+				// this = cachedObject;
+				for( prop in cachedObject ){
+					variables[ prop ] = this[ prop ] = cachedObject[ prop ];
+				}
+				return this;
+			}
+		}
 
 		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
 			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
@@ -538,33 +675,17 @@ component accessors="true" output="false" {
 				// We have a field ending with _ID, which typically indicates a "foriegn key" property to a tabled named whatever prefixes the _ID
 				// Using this convention, if the parent table is "orders" and the field name is "orders_ID" we can load the parent
 				try{
-					var newTableName = var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
-					if( structKeyExists( getDynamicMappings(), col.name ) ){
-						newTableName = getDynamicMappings()[ col.name ];
+					// if( col.name == 'orders_id'){
+					// 	writeDump([getParentTable(), col, super, getMetadata(this), getFunctionCalledName()]);
+					// 	throw("bad");
+					// }
+					var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
+					writeLog("#this.getParentTable()# neq #propertyName# ? #yesNoFormat(getParentTable() neq propertyName)#");
+					if( parentTable != propertyName ){
+						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
+					}else{
+						writeDump( [this.getParentTable(), propertyName] );abort;
 					}
-					var newObj = new( table = newTableName, dao = this.getDao() );
-					newObj.setTable( newTableName );
-					// Load data into new object
-					writeLog('Loading dynamic relationship entity #newTableName# with id of #variables[col.name]#');
-					newObj.load( variables[ col.name ], lazy );
-					writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#')
-					// Create setter methods for this relationship property.
-					variables[ "set" & propertyName ] = _setter;
-					// Now set the relationhsip property value to the newly created and instantiated object.
-					variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
-					// Append the relationship property to the meta properties
-					arrayAppend( variables.meta.properties, {
-										"column" = propertyName,
-										"name" = propertyName,
-										"dynamic" = true,
-										"cfc" = "BaseModelObject",
-										"table" = newTableName,
-										"inverseJoinColumn" = newObj.getIDField(),
-										"fkcolumn" = col.name,
-										"fieldType" = "one-to-many"
-									} );
-					this[ "get" & propertyName ] = getFunc;
-
 				} catch ( any e ){
 					if( e.type != 'BMO' ){
 						// throw(e.detail);
@@ -664,10 +785,102 @@ component accessors="true" output="false" {
 		// variables.meta = _getMetaData();
 
 		// writeDump([this]);abort;
-
+		if( isSimpleValue( ID ) ){
+			cachePut( '#getTable()#-#ID#', this, createTimeSpan( 0, 0, 0, 20 )  );
+		}
 		return this;
 
 	}
+	/************************************************************************
+	* DYNAMIC ENTITY RELATIONSHIPS
+	************************************************************************/
+	/**
+	* Loads One-To-Many relationships into the current entity
+	**/
+	private any function _getOneToMany( required string table, any pkValue = getID(), string fkColumn = getTable() & "_ID", string returnType = "object" ){
+		var newObj = new( table = table, dao = this.getDao() );
+		newObj.setTable( table );
+
+		newObj.setParentTable( getTable() );
+		writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
+		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
+			return evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
+
+		}else{
+		// Return an array of child objects.
+		if( !val(pkValue) ){
+			writeDump([arguments, this]);
+			throw("The PKValue value was '#pkvalue#', but it needs to be something.");
+		}
+		return evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#)");
+
+		}
+	}
+	/**
+	* Loads Many-To-One relationships into the current entity
+	**/
+	private any function _getManyToOne( required string table, required string fkColumn, string returnType = "object" ){
+		if( !structKeyExists( variables, fkColumn) ){
+			throw( message = "Unknown Foreign Key Property", type="BMO", detail="The Foreign Key: #fkColumn# did not exist in #table#.");
+		}
+		var FKValue = variables[ fkColumn ];
+		var newTableName = var propertyName = table;
+		if( structKeyExists( getDynamicMappings(), newTableName ) ){
+			newTableName = getDynamicMappings()[ newTableName ];
+		}
+		var newObj = new( table = newTableName, dao = this.getDao() );
+		newObj.setTable( newTableName );
+		// Load data into new object
+		writeLog('Loading dynamic many-to-one relationship entity #newTableName# #getParentTable()# with id of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
+		newObj.load( ID = FKValue, lazy = getParentTable() == newTableName );
+		writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
+		// Now set the relationhsip property value to the newly created and instantiated object.
+		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
+		// Append the relationship property to the meta properties
+		arrayAppend( variables.meta.properties, {
+							"column" = propertyName,
+							"name" = propertyName,
+							"dynamic" = true,
+							"cfc" = "BaseModelObject",
+							"table" = newTableName,
+							"inverseJoinColumn" = newObj.getIDField(),
+							"fkcolumn" = fkColumn,
+							"fieldType" = "many-to-one"
+						} );
+		this[ "get" & propertyName ] = getFunc;
+		if( returnType is "struct" || returnType is "array" ){
+			return newObj.toStruct();
+		}else if( returnType is "json" ){
+			return newObj.toJSON();
+		}
+
+		return newObj;
+	}
+
+	public any function hasMany( required string table, string fkColumn = getIDField(), string property = table, string returnType = "object" ){
+		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), fkColumn = fkColumn, returnType = returnType );
+		// Append the relationship property to the meta properties
+		arrayAppend( variables.meta.properties, {
+						"column" = property,
+						"name" = property,
+						"dynamic" = true,
+						"cfc" = "BaseModelObject",
+						"table" = table,
+						"fkcolumn" = fkColumn,
+						"fieldType" = "one-to-many"
+					} );
+		this[ "get" & property ] = getFunc;
+		return this;
+	}
+	public any function belongsTo( required string table, string pkValue = getID(), string property = table, string fkColumn = property & "_ID", string returnType = "object" ){
+		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), pkValue = pkValue, fkColumn = fkColumn, returnType = returnType );
+		return this;
+	}
+
+	/************************************************************************
+	* END: DYNAMIC ENTITY RELATIONSHIPS
+	************************************************************************/
+
 	/**
 	* I am a conveniece method for loading an object with pre-existing data.
 	* I take a struct that contains keys that match properties on the given
@@ -835,52 +1048,49 @@ component accessors="true" output="false" {
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
-			// writeDump([this,variables.meta.properties]);abort;
+
 			// Iterate through each property and generate a struct representation
 			for ( var prop in variables.meta.properties ){
 				arg = prop.name;
 				LOCAL.functionName = "get" & arg;
 				try
 				{
+					// We will bypass internal properties, as well as any "excludeKeys" we find.
 					if( !findNoCase( '$$_', arg )
 						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
 						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#",arg ) ){
 
-						if( structKeyExists( this, LOCAL.functionName ) ){
-							//LOCAL.tmpFunc = structKeyExists( this, 'methods' ) ? this.methods[LOCAL.functionName] : this[LOCAL.functionName];
+						// Now, append the property to the struct we will be returning
+						if( structKeyExists( variables, arg ) ){
+							returnStruct[ lcase( arg ) ] = variables[ arg ];
+						}
+						// Checking to see if the property was appended to the struct. This prevents errors that sometimes occur if the variables[ arg ] is null (i.e. returned null from Java call )
+						if( structKeyExists( returnStruct, arg ) ){
+							// If it's not a simple value, we'll need to recursively call toStruct() to resolve all the nested structs.
+							if( !isSimpleValue( returnStruct[ arg ] ) ){
 
-							if( structKeyExists( variables, arg ) ){
-								returnStruct[ lcase( arg ) ] = variables[ arg ];
-								//writeDump(variables[ arg ]);
-								//returnStruct[ lcase( arg ) ] = LOCAL.tmpFunc( arg );
-							}
+								if( isArray( returnStruct[ arg ] ) ){
 
-							if( structKeyExists( returnStruct, arg ) ){
-								if( !isSimpleValue( returnStruct[ arg ] ) ){
-
-									if( isArray( returnStruct[ arg ] ) ){
-
-										for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
-											if( isObject( returnStruct[ lcase( arg ) ][ i ] ) ){
-												returnStruct[ lcase( arg ) ][ i ] = returnStruct[ lcase( arg ) ][ i ].toStruct( excludeKeys = excludeKeys );
-											}
+									for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
+										if( isObject( returnStruct[ lcase( arg ) ][ i ] ) ){
+											returnStruct[ lcase( arg ) ][ i ] = returnStruct[ lcase( arg ) ][ i ].toStruct( excludeKeys = excludeKeys );
 										}
-									}else if( isObject( returnStruct[ lcase( arg ) ] ) ){
-										returnStruct[ lcase( arg ) ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys );
 									}
-								}else if( isNumeric( returnStruct[ lcase( arg ) ] )
-										&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
+								}else if( isObject( returnStruct[ lcase( arg ) ] ) ){
 
-									returnStruct[ lcase( arg ) ] = javaCast( 'int', returnStruct[ lcase( arg ) ] );
+									returnStruct[ lcase( arg ) ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys );
 								}
+							}else if( isNumeric( returnStruct[ lcase( arg ) ] )
+									&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
+								// Since CF likes to convert our numbers to strings, let's javacast it as an int
+								returnStruct[ lcase( arg ) ] = javaCast( 'int', returnStruct[ lcase( arg ) ] );
 							}
 						}
 
 					}
 				}
 				catch (any e){
-					writeDump('Error in toStruct');
-					writeDump(e);abort;
+					throw(message='Error in toStruct method', detail=e.detail);
 				}
 			}
 		return returnStruct;
