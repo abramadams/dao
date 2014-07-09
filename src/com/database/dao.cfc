@@ -624,7 +624,7 @@
 		* I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.
 		* @sql SQL statement (or partial SQL statement) which contains tokenized queryParam calls
 		**/
-		public function parameterizeSQL( required string sql, boolean autoParameterize = false ) output="false" {
+		public function parameterizeSQL( required string sql, boolean autoParameterize = true ) output="false" {
 
 			var LOCAL = {};
 			var tmp = {};
@@ -642,40 +642,10 @@
 				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
 				// unharmed.
 				if( tmpSQL contains "where "){
-					// var tmpWheres = listToArray( replaceNoCase( tmpSQL, "where", chr(888), "all" ), chr(888) );
-					// // writeDump(wheres);abort;
-					// joins = [];
-					// wheres = [];
-					// for( var i = 1; i lte arrayLen( tmpWheres ); i++ ){
-					// 	var where = tmpWheres[ i ];
-					// 	arrayAppend( wheres, { "where" = where, "joins" = listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) ) } );
-					// 	// arrayAppend( joins, listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) );
-					// 		// arrayAppend( wheres[where].joins, listToArray( replaceNoCase( where, "JOIN", chr(555), "all" ), chr(555) ) );
-					// }
-					// writeDump(wheres);abort;
 
-					var operators = ["\bwhere\b\s","\band\b\s","\bor\b\s"];
-					var comparer = "\!\=|<>|=|<|>|in(\s*?)\(";
-					var regexCore = "(.*)(\b\!=\b|\b<>\b|=|<|>|in(\s*?)\(?)(\s*)(\S.*?)(\s*)(\)|\$|\bgroup\b|\bhaving\b|\border\b|\band\b|\bor\b|;*)";
-					// var newTmpSQL = tmpSQL;
-					// newTmpSQL = reReplaceNoCase( newTmpSQL, "''", "&quot;&quot;", "all");
-					// newTmpSQL = reReplaceNoCase( newTmpSQL, "\(\)", chr(654), "all");
-					// // for( var oper in operators ){
-					// 	// regex = "(#oper#)(.*?)(#comparer#)(.*?)(\)|\$|group|having|order|and|or|;)";
-					// 	regex = "(\bwhere\b\s|\band\b\s|\bor\b\s)#regexCore#";
-					// 	newTmpSQL = reReplaceNoCase( newTmpSQL, regex, "\1 \2 \3 \4 $queryParam(value=""\6"")$ \7 \8");
-					// 	writeDump([regex]);
-					// // }
-					// newTmpSQL = reReplaceNoCase( newTmpSQL, "&quot;&quot;", "''", "all");
-					// newTmpSQL = reReplaceNoCase( newTmpSQL, chr(654), "()", "all");
-					// writeDump([tmpsql,newTmpSQL]);abort;
-					// writeDump([newTmpSQL]);abort;
-					// abort;
 					var selectClause = findNoCase( "where ", tmpSQL ) GT 1 ? left( tmpSQL, findNoCase( "where ", tmpSQL )-1 ) : "";
-
 					var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
-					// whereClause = reReplaceNoCase( whereClause, "''", "&quot;&quot;", "all");
-					whereClause = reReplaceNoCase( whereClause, "\(\)", chr(654), "all");
+					whereClause = reReplaceNoCase( whereClause, "\(\)", chr(654), "all") & ";";
 					var newTmpSQL = "";
 
 					// Attempt to pull out any values used in the sql criteria and wrap them
@@ -687,10 +657,16 @@
 					// 			"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all" ),
 					// 			chr( 10 ) );
 					newTmpSQL = listAppend( selectClause,
-						reReplaceNoCase( whereClause,
-								"(\b\!\=\b|\b<>\b|=|<|>|\bin(\s*?)\(\b|\blike\b+?)(\s*?)(\S.*?)(\s*?)(\)|\$|\bgroup\b|\bhaving\b|\border\b|\band\b|\bor\b|\bwhere\n|;)",
-								"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all" ),
-								chr( 10 ) );
+							reReplaceNoCase( whereClause,
+								"(\b\!\=\b|\b<>\b|=|<|>|in(\s*?)\(|\blike\b)(\s*)(.*?)(\)|\$|group|having|order|and|or|where|;|\n)",
+								"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all"
+							),
+							chr( 10 )
+						);
+
+					// Clean up any quoted values
+					newTmpSQL = reReplaceNoCase( newTmpSQL, "value=""'(.*?)'(\s*)""", 'value="\1"', "all" );
+
 					// See if we accidentally paramed a nested sql statement, then un-param it
 					if( reFindNoCase( "\$queryParam\(value=""select(.*?)""\)\$", newTmpSQL ) ){
 						newTmpSQL = reReplaceNoCase( newTmpSQL, "\$queryParam\(value=""(.*?)""\)\$", "\1", "all" );
@@ -701,6 +677,7 @@
 					newTmpSQL = parseQueryParams( newTmpSQL );
 					// newTmpSQL = reReplaceNoCase( newTmpSQL, "&quot;&quot;", "''", "all");
 					newTmpSQL = reReplaceNoCase( newTmpSQL, chr(654), "()", "all");
+
 				}else{
 					newTmpSQL = tmpSQL;
 				}
