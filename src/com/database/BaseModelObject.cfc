@@ -4,8 +4,8 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.57
-*   @updated 05/29/2014
+*   @version 0.0.60
+*   @updated 07/9/2014
 *   @author Abram Adams
 **/
 component accessors="true" output="false" {
@@ -393,8 +393,7 @@ component accessors="true" output="false" {
 						// current entity's ID value.
 
 						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ) );
-						writeLog('CALLING _getOneToMany() for #newTableName# #returnType#');
-						writeDump([this,arguments]);abort;
+						//writeLog('CALLING _getOneToMany() for #newTableName# #returnType#');
 						var newObj = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
 						return newObj;
 					}
@@ -429,7 +428,7 @@ component accessors="true" output="false" {
 						// records from the given table based on the by clause.
 						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ), pkValue = this.getID(), fkColumn = byClause );
 						// return variables[ propertyName ];
-						writeLog('CALLING _getOneToMany() for #newTableName# using byClause #byClause# #right(arguments.missingMethodName, 8)#');
+						//writeLog('CALLING _getOneToMany() for #newTableName# using byClause #byClause# #right(arguments.missingMethodName, 8)#');
 						return _getOneToMany( table = lcase( newTableName ), pkValue = this.getID(), fkColumn = byClause, returnType = returnType );
 
 					}
@@ -445,7 +444,7 @@ component accessors="true" output="false" {
 		}else if( left( arguments.missingMethodName, 7 ) is "hasMany" ){
 			// Inject array of child objects
 			var newTableName = mid( arguments.missingMethodName, findNoCase( "hasMany", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
-			writeLog('CALLING _getOneToMany() for #newTableName# using hasmany missing method handler');
+			//writeLog('CALLING _getOneToMany() for #newTableName# using hasmany missing method handler');
 			variables[ newTableName ] = this[ newTableName ] = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
 
 			return this;
@@ -525,7 +524,7 @@ component accessors="true" output="false" {
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
-				writeLog('lazy load all #getTable()# - [#originalMethodName# | #getParentTable()#]');
+				//writeLog('lazy load all #getTable()# - [#originalMethodName# | #getParentTable()#]');
 				var recordArray = [];
 				var qn = queryNew( record.columnList );
 				var recCount = record.recordCount;
@@ -540,7 +539,7 @@ component accessors="true" output="false" {
 					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
 					var cachedObject = cacheGet( '#getTable()#-#qn[ getIDField() ][ 1 ]#' );
 
-					writeLog('is object cached? #yesNoFormat(!isNull(cachedObject))#');
+					//writeLog('is object cached? #yesNoFormat(!isNull(cachedObject))#');
 					if( !isNull( cachedObject ) ){
 						// object cached, load from memory.
 						var tmpNewEntity = cachedObject;
@@ -606,7 +605,7 @@ component accessors="true" output="false" {
 
 		if( isSimpleValue( ID ) ){
 			var cachedObject = cacheGet( '#getTable()#-#ID#' );
-			writeLog('loading #getTable()#-#ID#, do we already have it? #yesNoFormat(!isNull( cachedObject ))#');
+			//writeLog('loading #getTable()#-#ID#, do we already have it? #yesNoFormat(!isNull( cachedObject ))#');
 			if( !isNull( cachedObject ) ){
 				// writeDump(cachedObject);abort;
 				// this = cachedObject ;
@@ -680,7 +679,7 @@ component accessors="true" output="false" {
 					// 	throw("bad");
 					// }
 					var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
-					writeLog("#this.getParentTable()# neq #propertyName# ? #yesNoFormat(getParentTable() neq propertyName)#");
+					//writeLog("#this.getParentTable()# neq #propertyName# ? #yesNoFormat(getParentTable() neq propertyName)#");
 					if( parentTable != propertyName ){
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
 					}else{
@@ -743,7 +742,7 @@ component accessors="true" output="false" {
 
 				}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' && structKeyExists( col, 'cfc' ) ){
 					if( !lazy ){
-						writeLog('aggressively loading one-to-one object: #col.cfc# [#col.name#]');
+						//writeLog('aggressively loading one-to-one object: #col.cfc# [#col.name#]');
 						var tmpID = len( trim( evaluate("this.get#col.fkcolumn#()") ) ) ? variables[ col.fkcolumn ] : '0';
 						setterFunc( tmp.load( tmpID ) );
 
@@ -802,7 +801,7 @@ component accessors="true" output="false" {
 		newObj.setTable( table );
 
 		newObj.setParentTable( getTable() );
-		writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
+		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			return evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
 
@@ -831,9 +830,9 @@ component accessors="true" output="false" {
 		var newObj = new( table = newTableName, dao = this.getDao() );
 		newObj.setTable( newTableName );
 		// Load data into new object
-		writeLog('Loading dynamic many-to-one relationship entity #newTableName# #getParentTable()# with id of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
+		//writeLog('Loading dynamic many-to-one relationship entity #newTableName# #getParentTable()# with id of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
 		newObj.load( ID = FKValue, lazy = getParentTable() == newTableName );
-		writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
+		//writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
 		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
 		// Append the relationship property to the meta properties
