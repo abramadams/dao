@@ -16,8 +16,11 @@ component accessors="true" output="false" {
 	property name="parentTable" type="string" persistent="false";
 	property name="IDField" type="string" persistent="false";
 	property name="IDFieldType" type="string" persistent="false";
-	property name="IDFieldGenerator" type="string" persistent="false" ;
-	property name="deleteStatusCode" type="numeric" persistent="false" ;
+	property name="IDFieldGenerator" type="string" persistent="false";
+	property name="deleteStatusCode" type="numeric" persistent="false";
+	property name="fromCache" type="boolean" persistent="false";
+	property name="cachedWithin" type="any" persistent="false";
+
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" persistent="false";
 	property name="dynamicMappings" type="struct" persistent="false";
@@ -25,7 +28,6 @@ component accessors="true" output="false" {
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
 	property name="tabledef" type="tabledef" persistent="false";
-	property name="entityQuery" type="entityQuery" persistent="false";
 
 	// Some "private" variables
 	_isNew = true;
@@ -40,9 +42,12 @@ component accessors="true" output="false" {
 								numeric deleteStatusCode = 1,
 								any dao = "",
 								boolean dropcreate = false,
-								struct dynamicMappings = {} ){
+								struct dynamicMappings = {},
+								any cachedWithin = createTimeSpan( 0, 0, 0, 20 ) ){
 
 		var LOCAL = {};
+		setFromCache( false );
+
 		// Make sure we have a dao (see dao.cfc)
 		if( isValid( "component", arguments.dao ) ){
 			variables.dao = arguments.dao;
@@ -74,6 +79,8 @@ component accessors="true" output="false" {
 			setTable( arguments.table );
 		}
 		setParentTable( arguments.parentTable );
+		setcachedWithin( arguments.cachedWithin );
+
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
 		if( variables.dropcreate ){
@@ -182,7 +189,7 @@ component accessors="true" output="false" {
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					// now override the setter with the new function that will set the dirty flag.
 					prop.type = structKeyExists( prop, 'type' ) ? prop.type : '';
-					this[ "set" & prop.name ] = _getSetter( prop.type );;
+					this[ "set" & prop.name ] = _getSetter( prop.type );
 				}
 			}
 		}
@@ -386,7 +393,8 @@ component accessors="true" output="false" {
 					if( structKeyExists( variables, getterInstructions & "_ID" ) ){
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = getterInstructions & "_ID", returnType = returnType );
 
-					}else{
+					}else {
+						// if( !structKeyExists( variables.meta.properties[ newTableName ], "cfc" ) ){
 						// ONE-TO-MANY
 						// If the current entity didn't have a FK to the table, maybe we need to load a one-to-many.
 						// Let's try to find a table matching the getterInstructions and load all records matching the
@@ -394,8 +402,8 @@ component accessors="true" output="false" {
 
 						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ) );
 						//writeLog('CALLING _getOneToMany() for #newTableName# #returnType#');
-						var newObj = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
-						return newObj;
+						return _getOneToMany( table = lcase( newTableName ), returnType = returnType );
+
 					}
 					return variables[ propertyName ];
 				} catch ( any e ){
@@ -551,7 +559,7 @@ component accessors="true" output="false" {
 						tmpNewEntity.load( ID = qn , lazy = tmpLazy, parent = getParentTable() );
 
 					}
-					cachePut( '#getTable()#-#qn[ getIDField() ][ 1 ]#' , tmpNewEntity, createTimeSpan( 0, 0, 0, 20 ) );
+					cachePut( '#getTable()#-#qn[ getIDField() ][ 1 ]#' , tmpNewEntity, getcachedWithin() );
 					if( returnType is "struct" || returnType is "array" ){
 						tmpNewEntity = tmpNewEntity.toStruct();
 					}else if (returnType is "json"){
@@ -603,20 +611,41 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		var props = variables.meta.properties;
 
-		if( isSimpleValue( ID ) ){
+		// If the ID was a simple value, chances are we may have the object alreayd cached, let's try to load it.
+		if( isSimpleValue( ID ) && len( trim( ID ) ) ){
+
+			// Load from cache if we've got it
 			var cachedObject = cacheGet( '#getTable()#-#ID#' );
-			//writeLog('loading #getTable()#-#ID#, do we already have it? #yesNoFormat(!isNull( cachedObject ))#');
+			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
 			if( !isNull( cachedObject ) ){
-				// writeDump(cachedObject);abort;
-				// this = cachedObject ;
-				// return this;
-				// this = cachedObject;
-				for( prop in cachedObject ){
-					variables[ prop ] = this[ prop ] = cachedObject[ prop ];
+				// If we made it this far, the object was found in cache.  Now, to "laod" the cache object's data into the
+				// current object is going to take some trickery.
+				// First, we'll set the "fromCache" flag so that later we can see this was loaded from cache.
+				cachedObject.setFromCache( true );
+				// Now, setup a temp var to hold the properties we are loading into the "this" scope.  This is needed because
+				// we also need to pump those into the "variables" scope, which throws "not defined" errors  if we just try to
+				// set them directly (don't know why).  So this will store the key/values and we'll structAppend it later.
+				var tmpProperties = {};
+				for( var prop in props ){
+					// For each of the properties, we have to use the dreaded "evaluate()".  This is because using invoke() doesn't
+					// retain the onMissingMethod functionality and setting up a getter func ( i.e. cachedObject["get#prop.name#"]() )
+					// looses context so will always return empty values.
+					this[ prop.name ] = evaluate("cachedObject.get#prop.name#()");
+					tmpProperties[ prop.name ] = structKeyExists( this, prop.name) ? this[ prop.name ] : '';
 				}
+				// Ok, like I said, we can now move the newly loaded properties into the variables scope.
+				structAppend( variables, tmpProperties );
+				// Now that we've loaded the data, we need to identify if it is a new record or not.
+				variables._isnew = !len( trim( this.getID() ) );
+
 				return this;
+
 			}
+
 		}
+		// If we've made it this far, the object wasn't in cache so we'll need to load it manually.  Now, let's
+		// set a flag to tell us later that this object was not pulled from cache.
+		this.setFromCache( false );
 
 		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
 			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
@@ -660,7 +689,6 @@ component accessors="true" output="false" {
 					evaluate("set#fld#(record[ fld ][ 1 ])");
 				}catch( any e ){
 					variables[ fld ] = record[ fld ][ 1 ];
-					// writeDump([fld, record, e]);abort;
 				}
 				variables._isDirty = false;
 			}
@@ -674,12 +702,8 @@ component accessors="true" output="false" {
 				// We have a field ending with _ID, which typically indicates a "foriegn key" property to a tabled named whatever prefixes the _ID
 				// Using this convention, if the parent table is "orders" and the field name is "orders_ID" we can load the parent
 				try{
-					// if( col.name == 'orders_id'){
-					// 	writeDump([getParentTable(), col, super, getMetadata(this), getFunctionCalledName()]);
-					// 	throw("bad");
-					// }
+
 					var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
-					//writeLog("#this.getParentTable()# neq #propertyName# ? #yesNoFormat(getParentTable() neq propertyName)#");
 					if( parentTable != propertyName ){
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
 					}else{
@@ -781,11 +805,9 @@ component accessors="true" output="false" {
 				}
 			}
 		}
-		// variables.meta = _getMetaData();
 
-		// writeDump([this]);abort;
 		if( isSimpleValue( ID ) ){
-			cachePut( '#getTable()#-#ID#', this, createTimeSpan( 0, 0, 0, 20 )  );
+			cachePut( '#getTable()#-#ID#', this, getcachedWithin() );
 		}
 		return this;
 
@@ -797,6 +819,10 @@ component accessors="true" output="false" {
 	* Loads One-To-Many relationships into the current entity
 	**/
 	private any function _getOneToMany( required string table, any pkValue = getID(), string fkColumn = getTable() & "_ID", string returnType = "object" ){
+		if ( !structKeyExists( variables, fkColumn ) ){
+			// nevermind...
+			return;
+		}
 		var newObj = new( table = table, dao = this.getDao() );
 		newObj.setTable( table );
 
@@ -1108,8 +1134,14 @@ component accessors="true" output="false" {
     * I save the current state to the database. I either insert or update based on the isNew flag
     **/
 	public any function save( struct overrides = {}, boolean force = false, any callback ){
+
 		var tempID = this.getID();
 		var callbackArgs = { ID = getID(), method = 'save' };
+
+		// remove object from cache (if it exists)
+		writeLog('removing #getTable()#-#getID()# from cache' );
+		cacheRemove( '#getTable()#-#getID()#' );
+
 		// Either insert or update the record
 		if ( isNew() ){
 			callbackArgs.isNew = true;
@@ -1242,6 +1274,9 @@ component accessors="true" output="false" {
 			callback( this, callbackArgs );
 		}
 
+		// Cache saved object
+		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+
 		return this;
 	}
 
@@ -1355,7 +1390,8 @@ component accessors="true" output="false" {
 		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
 			callback( this, callbackArgs );
 		}
-
+		// Remove deleted object from cache
+		cacheRemove( '#getTable()#-#getID()#' );
 	}
 
 	/**

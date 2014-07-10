@@ -146,7 +146,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -175,7 +176,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -206,7 +208,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -229,6 +232,7 @@
 
 			<cfcatch type="any">
 				<cfdump var="#arguments#" label="Arguments passed to select()">
+				<cfdump var="#tmpSQL#" label="parsed SQL Statement">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
 				<cfsetting showdebugoutput="false">

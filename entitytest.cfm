@@ -1,6 +1,6 @@
 <cfscript>
 
-    dao = new com.database.dao( dsn = "dao" );
+    dao = new com.database.dao( dsn = "dao", autoParameterize = true );
     /*
      By default the dao will detect the dbtype based on the datasource
      and will use the appropriate "connector" if available ( currently
@@ -10,9 +10,9 @@
         dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
     */
 
-    testEntity = new com.database.BaseModelObject( dao = dao, table = "eventLog" );
+    testEntity = new com.database.BaseModelObject( table = "eventLog", dao = dao, cachedWithin = createTimeSpan(0,0,0,20) );
 
-        // change event to 'test'
+
     list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
 
     list2 = testEntity.listAsArray( where = "where `event` in( 'test insert', 'test delete', 'fred\'s list' )");

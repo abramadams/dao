@@ -42,6 +42,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	// call getRecord on instantiated object without ID
      	testEntity.load( 208 );
      	qry = testEntity.getRecord();
+
      	// should return a single record
 		$assert.typeOf( "query", qry );
      	$assert.isTrue( qry.recordCount eq 1 );
@@ -74,18 +75,20 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
      function loadChangeAndSaveEntity() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          // var testEntity = new model.EventLog( dao = request.dao );
+     	var testEntity = new com.database.BaseModelObject( table = "eventLog", dao = request.dao );
 
-     	testEntity.load( 208 );
-     	// loaded record ID 208
-     	$assert.isTrue( testEntity.getID() == 208 );
-     	// proove that "event" == delete
-     	$assert.isTrue( testEntity.getEvent() eq 'delete' );
-     	// change event to 'test'
-     	testEntity.setEvent('test');
-     	// save changes
-     	testEntity.save();
-     	// now entity's getEvent should return 'test'
+          testEntity.load( 208 );
+
+          $assert.isTrue( testEntity.getID() == 208 );
+          // proove that "event" == delete
+          $assert.isTrue( testEntity.getEvent() eq 'delete' );
+          // change event to 'test'
+          testEntity.setEvent('test');
+          // save changes
+          testEntity.save();
+
+          // now entity's getEvent should return 'test'
 		$assert.isTrue( testEntity.getEvent() eq 'test' && testEntity.getID() == 208 );
 
      	testEntity.setEvent('delete');
@@ -315,7 +318,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	var testStruct = { event = 'delete', id = 208 };
 
      	testEntity.populate( testStruct );
-
+          // writeDump( testEntity );abort;
      	$assert.isTrue( testEntity.getEvent() eq 'delete' && !testEntity.isNew() );
      }
 

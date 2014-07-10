@@ -59,6 +59,7 @@
 	<cfproperty name="dbtype" type="string">
 	<cfproperty name="dbversion" type="string">
 	<cfproperty name="writeTransactionLog" type="boolean">
+	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
 
 	<cfset _resetCriteria() />
 	<cfscript>
@@ -73,7 +74,7 @@
 		* @transactionLogFile Location to write the transaction log
 		* @useCFQueryParams Determines if execute queries will use cfqueryparam
 		**/
-		public DAO function init( required string dsn, string dbtype = "", string user = "", string password ="", boolean writeTransactionLog = false, string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql", boolean useCFQueryParams = true ){
+		public DAO function init( required string dsn, string dbtype = "", string user = "", string password ="", boolean writeTransactionLog = false, string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql", boolean useCFQueryParams = true, boolean autoParameterize = false ){
 
 			//This is the datasource name for the system
 			variables.dsn = arguments.dsn;
@@ -105,7 +106,7 @@
 
 			variables.transactionLogFile = arguments.transactionLogFile;
 			variables.useCFQueryParams = arguments.useCFQueryParams;
-
+			variables.autoParameterize = arguments.autoParameterize;
 			variables.tabledefs = {};
 
 
@@ -584,7 +585,7 @@
 			var returnString = {};
 			var returnStruct = {};
 			// best guess if
-			if( ( reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
+			if( ( reFindNoCase( "${ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
 				arguments.cfsqltype = "cf_sql_timestamp";
 			}else if( !len( trim( cfsqltype ) ) ){
 				// default to varchar
@@ -604,7 +605,7 @@
 		public function queryParamStruct( required string value, string cfsqltype = "", boolean list = false, boolean null = false ){
 			var returnStruct = {};
 			// best guess if
-			if( ( reFindNoCase( "{ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
+			if( ( reFindNoCase( "${ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
 				arguments.cfsqltype = "cf_sql_timestamp";
 			}else if( !len( trim( cfsqltype ) ) ){
 				// default to varchar
@@ -623,7 +624,7 @@
 		* I build a struct containing all of the where clause of the SQL statement, parameterized when possible.  The returned struct will contain an array of each parameterized clause containing the data necessary to build a <cfqueryparam> tag.
 		* @sql SQL statement (or partial SQL statement) which contains tokenized queryParam calls
 		**/
-		public function parameterizeSQL( required string sql, boolean autoParameterize = true ) output="false" {
+		public function parameterizeSQL( required string sql, boolean autoParameterize = getAutoParameterize() ) output="false" {
 
 			var LOCAL = {};
 			var tmp = {};
