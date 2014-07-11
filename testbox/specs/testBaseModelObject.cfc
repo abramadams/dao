@@ -139,7 +139,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	// change event to 'test'
      	testEntity.loadFirstByEvent( 'test insert' );
-
+          // writeDump( testEntity );abort;
      	// now entity's getEvent should return 'test'
 		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
 		// isNew should be false now
@@ -476,7 +476,9 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	// now list should contain an array of records (structs)
 		$assert.typeOf( "query", list );
-
+          // if( !list.recordcount ){
+          //      writeDump([testEntity, list]);abort;
+          // }
 		$assert.isTrue( list.recordCount );
 
      }

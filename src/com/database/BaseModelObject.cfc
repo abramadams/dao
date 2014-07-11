@@ -355,7 +355,6 @@ component accessors="true" output="false" {
 	**/
 	public any function onMissingMethod( required string missingMethodName, required struct missingMethodArguments ){
 		var LOCAL = {};
-		var queryArguments = [];
 		var originalMethodName = arguments.missingMethodName;
 		var args = {};
 		var i = 0;
@@ -467,7 +466,8 @@ component accessors="true" output="false" {
 		// record returned per the "By" criteria
 		if( left( arguments.missingMethodName, 9 ) is "loadFirst" ){
 			limit = 1;
-			arguments.missingMethodName = "load" & mid( arguments.missingMethodName, 10, len( arguments.missingMethodName ) );
+			// arguments.missingMethodName = "load" & mid( arguments.missingMethodName, 10, len( arguments.missingMethodName ) );
+			arguments.missingMethodName = reReplaceNoCase( arguments.missingMethodName, "loadFirst", "load", "one" );
 		}
 
 		if( left( arguments.missingMethodName, 6 ) is "loadBy"
@@ -482,8 +482,8 @@ component accessors="true" output="false" {
 
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
-				arguments.missingMethodName = reReplaceNoCase(reReplaceNoCase(arguments.missingMethodName,'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy','','all'), 'And','|','all' );
-				queryArguments = listToArray( arguments.missingMethodName, '|' );
+				var queryArguments = listToArray( reReplaceNoCase( reReplaceNoCase( arguments.missingMethodName, 'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy', '', 'all' ), 'And', '|', 'all' ), '|' );
+				// queryArguments = listToArray( tableName, '|' );
 				for ( i = 1; i LTE arrayLen( queryArguments ); i++ ){
 					args[ queryArguments[ i ] ] = arguments.missingMethodArguments[ i ];
 					// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
@@ -527,7 +527,9 @@ component accessors="true" output="false" {
 				limit = limit,
 				name = "model_load_by_handler"
 			);
-
+			// if( limit ){
+			// 	writeDump([record,arguments,where, recordsql, getTable(), columns, originalMethodName]);abort;
+			// }
 			variables._isNew = record.recordCount EQ 0;
 
 			//If a record existed, load it
@@ -579,6 +581,8 @@ component accessors="true" output="false" {
 				return recordArray;
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
+
+
 				for ( i = 1; i LTE arrayLen(queryArguments); i++ ){
 					//Setup defaults
 					LOCAL.functionName = "set" & queryArguments[ i ];
@@ -696,6 +700,8 @@ component accessors="true" output="false" {
 				try{
 					if( validateProperty( fld, record[ fld ][ 1 ] ).valid  ){
 						evaluate("set#fld#(record[ fld ][ 1 ])");
+					}else{
+						variables[ fld ] = record[ fld ][ 1 ];
 					}
 				}catch( any e ){
 					// Setter failed, probably invalid type or something not caught by validateProperty.
@@ -1416,6 +1422,9 @@ component accessors="true" output="false" {
 		var error = "";
 
 		for( var prop in properties ){
+			if( !structKeyExists( variables, prop.name ) ){
+				continue;
+			}
 			error = _validate( prop, variables[ prop.name ] );
 			if( len( trim( error ) ) ){
 				arrayAppend( errors, error );
@@ -1452,23 +1461,33 @@ component accessors="true" output="false" {
 			if( type == "range" ){
 				if( structKeyExists( property, 'min' )
 					&& structKeyExists( property, 'max' )
-					&& !isValid( type, variables[ property.name ], property.min, property.max ) ){
+					&& !isValid( type, value, property.min, property.max ) ){
 					error = "#property.name# is not within the valid range: #property.min# - #property.max#";
 				}
 			}else if( type == "regex" ){
 				if( structKeyExists( property, 'regex' )
-					&& !isValid( type, variables[ property.name ], property.regex ) ){
+					&& !isValid( type, value, property.regex ) ){
 					error = "#property.name# did not match the format: '#property.regex#'";
 				}
 			}else if( !ArrayFindNoCase( ['any','array','Boolean','date','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
 				// The "type" was not a valid type accepted by the isValid function.  We'll assume it is a specific cfc.
-				if( !isValid( "component", variables[ property.name ] )
-					|| !isInstanceOf( variables[ property.name ], type ) ){
+				if( !isValid( "component", value )
+					|| !isInstanceOf( value, type ) ){
 					error = "#property.name# was not an instance of: '#type#'";
 				}
+			}else if( structKeyExists( property, 'allowNulls' )
+				&& !property.allowNulls
+				&& ( !len( trim( value.toString() || isNull( value ) ) ) ) ){
+				// Whatever the type, if we don't allow nulls, we don't allow nulls....
+				error = "#property.name# does not allow nulls, yet the currenty value empty.";
+
 			}else{
-				if( !isValid( type, variables[ property.name ] ) ){
-					error = "#property.name# is not a valid #type#";
+				// If we don't have a value, there's nothing to check.  Null checks were done earlier.
+				if( !len( trim( value.toString() ) ) ){
+					return "";
+				}
+				if( !isValid( type, value ) ){
+					error = "The value provided for #property.name# ('#value.toString()#') is not a valid #type#";
 				}
 			}
 		}
