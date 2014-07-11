@@ -504,7 +504,10 @@ component accessors="true" output="false" {
 					try{
 						LOCAL.tmpFunc = this[LOCAL.functionName];
 						LOCAL.tmpFunc(arguments.missingMethodArguments[ i ]);
-					} catch ( any err ){}
+					} catch ( any err ){
+						writeDump( err );
+						throw("Error Loading data into #getTable# object.");
+					}
 				}
 			}
 
@@ -581,9 +584,14 @@ component accessors="true" output="false" {
 					LOCAL.functionName = "set" & queryArguments[ i ];
 					try{
 						LOCAL.tmpFunc = this[ LOCAL.functionName ];
-						LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
+						if( validate( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
+							LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
+						}
 						variables._isDirty = false;
-					} catch ( any err ){}
+					} catch ( any err ){
+						writeDump( err );
+						throw("Setting the value for #queryArguments[ i ]# failed.");
+					}
 				}
 
 				return this;
@@ -686,8 +694,12 @@ component accessors="true" output="false" {
 				// Using evaluate is the only way in cfscript (cf9) to retain context when calling methods
 				// on a nested object otherwise I'd use the above to set the fk col value
 				try{
-					evaluate("set#fld#(record[ fld ][ 1 ])");
+					if( validateProperty( fld, record[ fld ][ 1 ] ).valid  ){
+						evaluate("set#fld#(record[ fld ][ 1 ])");
+					}
 				}catch( any e ){
+					// Setter failed, probably invalid type or something not caught by validateProperty.
+					// bypass setter and move on already.
 					variables[ fld ] = record[ fld ][ 1 ];
 				}
 				variables._isDirty = false;
@@ -1398,42 +1410,71 @@ component accessors="true" output="false" {
 	* I validate each value in the entity per set validation rules (if any)
 	* and return an array of errors (or blank array if no errors)
 	**/
-	public array function validate(){
+	public array function validate( array properties = variables.meta.properties ){
 		// validate each property in the entity based on the table definition
 		var errors = [];
+		var error = "";
 
-		for( var prop in variables.meta.properties ){
-			if( structKeyExists( variables, prop.name )
-				&& structKeyExists( prop, 'type' ) ){
-
-				var type = _safeValidationTypeName( prop.type );
-				if( type == "range" ){
-					if( structKeyExists( prop, 'min' )
-						&& structKeyExists( prop, 'max' )
-						&& !isValid( type, variables[ prop.name ], prop.min, prop.max ) ){
-						arrayAppend( errors, "#prop.name# is not within the valid range: #prop.min# - #prop.max#");
-					}
-				}else if( type == "regex" ){
-					if( structKeyExists( prop, 'regex' )
-						&& !isValid( type, variables[ prop.name ], prop.regex ) ){
-						arrayAppend( errors, "#prop.name# did not match the format: '#prop.regex#'");
-					}
-				}else if( !ArrayFindNoCase( ['any','array','Boolean','date','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
-					// The "type" was not a valid type accepted by the isValid function.  We'll assume it is a specific cfc.
-					if( !isValid( "component", variables[ prop.name ] )
-						|| !isInstanceOf( variables[ prop.name ], type ) ){
-						arrayAppend( errors, "#prop.name# was not an instance of: '#type#'");
-					}
-				}else{
-					if( !isValid( type, variables[ prop.name ] ) ){
-						arrayAppend( errors, "#prop.name# is not a valid #type#");
-					}
-				}
+		for( var prop in properties ){
+			error = _validate( prop, variables[ prop.name ] );
+			if( len( trim( error ) ) ){
+				arrayAppend( errors, error );
 			}
+			error = "";
 		}
 
 		return errors;
 	}
+	/**
+	* I validate a single field and return an error (or "true" if no errors)
+	**/
+	public any function validateProperty( required string property, any value ){
+		var val = structKeyExists( arguments, value ) ? arguments.value : ( structKeyExists( variables, property ) ) ? variables[ property ] : '';
+		var ret = { valid = false, message = "Property '#property#' was not found" };
+		var error = "";
+		for( var prop in variables.meta.properties ){
+			if( prop.name == property ){
+				error = _validate( prop, val );
+				return { valid = len( error ), message = error };
+			}
+		}
+		return ret;
+	}
+	/**
+	* Private helper to validate that the given value is legal for the the given property.
+	**/
+	private string function _validate( required struct property, required any value ){
+		var error = "";
+		if( structKeyExists( variables, property.name )
+			&& structKeyExists( property, 'type' ) ){
+
+			var type = _safeValidationTypeName( property.type );
+			if( type == "range" ){
+				if( structKeyExists( property, 'min' )
+					&& structKeyExists( property, 'max' )
+					&& !isValid( type, variables[ property.name ], property.min, property.max ) ){
+					error = "#property.name# is not within the valid range: #property.min# - #property.max#";
+				}
+			}else if( type == "regex" ){
+				if( structKeyExists( property, 'regex' )
+					&& !isValid( type, variables[ property.name ], property.regex ) ){
+					error = "#property.name# did not match the format: '#property.regex#'";
+				}
+			}else if( !ArrayFindNoCase( ['any','array','Boolean','date','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
+				// The "type" was not a valid type accepted by the isValid function.  We'll assume it is a specific cfc.
+				if( !isValid( "component", variables[ property.name ] )
+					|| !isInstanceOf( variables[ property.name ], type ) ){
+					error = "#property.name# was not an instance of: '#type#'";
+				}
+			}else{
+				if( !isValid( type, variables[ property.name ] ) ){
+					error = "#property.name# is not a valid #type#";
+				}
+			}
+		}
+		return error;
+	}
+
 	private any function _safeValidationTypeName( string typeName ){
 		var type = arguments.typeName;
 
