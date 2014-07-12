@@ -221,7 +221,7 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
 
 ## Dynamic Entities
-Sometimes it's a pain in the arse to create entity CFCs that for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
+Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
 ```javascript
 /* EventLog.cfc */
 component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
@@ -256,14 +256,14 @@ component persistent="true" table="eventLog" extends="com.database.BaseModelObje
 	property name="description" type="string";
 }
 ```
-And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
+And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need many-to-many relationships, formulas, custom validation, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
 
 ### Dynamic Entity - A step further
-In many cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
+In some cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
 ```javascript
 eventLog = new com.database.BaseModelObject( dao = dao, table = 'eventLog' );
 ```
-That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not a feature of dynamic entities itself, but of any object that extends BaseModelObject : See more below about relationships ).
+That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends BaseModelObject : See more below about dynamic relationships ).
 
 ## Relationships
 In the example above, Pet.cfc defines a one-to-one relationship with the user.  This will automatically load the correct "User" object into the Pet object
@@ -302,7 +302,7 @@ There you have it.  A JSON representation of your data.  Ok, now say you just wa
 	order.hasMany( 'order_items' );
 	order.toStruct();// or order.toJSON();
 ```
-The "hasMany" function can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as, say, `orderItem` you could do this:
+The "hasMany" function can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
 ```javascript
 	order.hasMany( table = 'order_items', property = 'orderItems' );
 	order.getOrderItems().toStruct();
