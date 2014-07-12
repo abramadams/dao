@@ -355,6 +355,7 @@ component accessors="true" output="false" {
 	**/
 	public any function onMissingMethod( required string missingMethodName, required struct missingMethodArguments ){
 		var LOCAL = {};
+		var queryArguments = [];
 		var originalMethodName = arguments.missingMethodName;
 		var args = {};
 		var i = 0;
@@ -400,7 +401,7 @@ component accessors="true" output="false" {
 						// current entity's ID value.
 
 						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ) );
-						//writeLog('CALLING _getOneToMany() for #newTableName# #returnType#');
+						// writeLog('CALLING _getOneToMany() for #newTableName# #returnType# (dynamically called via #arguments.missingMethodName# on #getTable()#)');
 						return _getOneToMany( table = lcase( newTableName ), returnType = returnType );
 
 					}
@@ -482,7 +483,7 @@ component accessors="true" output="false" {
 
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
-				var queryArguments = listToArray( reReplaceNoCase( reReplaceNoCase( arguments.missingMethodName, 'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy', '', 'all' ), 'And', '|', 'all' ), '|' );
+				queryArguments = listToArray( reReplaceNoCase( reReplaceNoCase( arguments.missingMethodName, 'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy', '', 'all' ), 'And', '|', 'all' ), '|' );
 				// queryArguments = listToArray( tableName, '|' );
 				for ( i = 1; i LTE arrayLen( queryArguments ); i++ ){
 					args[ queryArguments[ i ] ] = arguments.missingMethodArguments[ i ];
@@ -642,6 +643,7 @@ component accessors="true" output="false" {
 					// For each of the properties, we have to use the dreaded "evaluate()".  This is because using invoke() doesn't
 					// retain the onMissingMethod functionality and setting up a getter func ( i.e. cachedObject["get#prop.name#"]() )
 					// looses context so will always return empty values.
+					// writeLog("cachedObject.get#prop.name#()");
 					this[ prop.name ] = evaluate("cachedObject.get#prop.name#()");
 					tmpProperties[ prop.name ] = structKeyExists( this, prop.name) ? this[ prop.name ] : '';
 				}
@@ -700,12 +702,14 @@ component accessors="true" output="false" {
 				try{
 					if( validateProperty( fld, record[ fld ][ 1 ] ).valid  ){
 						evaluate("set#fld#(record[ fld ][ 1 ])");
-					}else{
-						variables[ fld ] = record[ fld ][ 1 ];
 					}
+					this[ fld ] = record[ fld ][ 1 ];
+					variables[ fld ] = record[ fld ][ 1 ];
+
 				}catch( any e ){
 					// Setter failed, probably invalid type or something not caught by validateProperty.
 					// bypass setter and move on already.
+					this[ fld ] = record[ fld ][ 1 ];
 					variables[ fld ] = record[ fld ][ 1 ];
 				}
 				variables._isDirty = false;
@@ -837,13 +841,15 @@ component accessors="true" output="false" {
 	* Loads One-To-Many relationships into the current entity
 	**/
 	private any function _getOneToMany( required string table, any pkValue = getID(), string fkColumn = getTable() & "_ID", string returnType = "object" ){
-		if ( !structKeyExists( variables, fkColumn ) ){
-			// nevermind...
+
+		try{
+			// try to load the table into a new object.  If the table doesn't
+			// exist we'll just return void;
+			var newObj = new( table = table, dao = this.getDao() );
+		}catch( any e ){
 			return;
 		}
-		var newObj = new( table = table, dao = this.getDao() );
 		newObj.setTable( table );
-
 		newObj.setParentTable( getTable() );
 		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
@@ -1444,6 +1450,9 @@ component accessors="true" output="false" {
 		for( var prop in variables.meta.properties ){
 			if( prop.name == property ){
 				error = _validate( prop, val );
+				// if (len(error)){
+				// 	writelog( error);
+				// }
 				return { valid = len( error ), message = error };
 			}
 		}
@@ -1469,7 +1478,7 @@ component accessors="true" output="false" {
 					&& !isValid( type, value, property.regex ) ){
 					error = "#property.name# did not match the format: '#property.regex#'";
 				}
-			}else if( !ArrayFindNoCase( ['any','array','Boolean','date','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
+			}else if( !ArrayFindNoCase( ['any','array','Bit','Boolean','date','double','numeric','query','string','struct','UUID','GUID','binary','integer','float','eurodate','time','creditcard','email','ssn','telephone','zipcode','url','regex','range','component','variableName'], type ) ){
 				// The "type" was not a valid type accepted by the isValid function.  We'll assume it is a specific cfc.
 				if( !isValid( "component", value )
 					|| !isInstanceOf( value, type ) ){

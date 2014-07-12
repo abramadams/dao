@@ -67,7 +67,10 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 			   )
 	");
 	// newID2 would also contain the record's new PK value
-	//This is true for insert and replace statements only.
+	// This is true for insert and replace statements only.
+
+	// You can also use $queryParam()$, which will be evaluated at runtime (as aposed to compile time)
+	// This is helpful if your SQL is persisted in storage and later read and executed.
 
 	// Return all records in a table
 	users = dao.read( "users" );
@@ -81,7 +84,9 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 ```
 # Entity Queries
 New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
-to build criteria in an OO and platform agnostic way.  Here's an example of how to use this new feature:
+to build criteria in an OO and platform agnostic way.  This will also be the only query language available
+when communicating with a non-RDBMS data store (i.e. couchbase, mongoDB, etc...)
+Here's an example of how to use this new feature:
 ```javascript
 // build the query criteria
 var query = request.dao.from( "eventLog" )
@@ -216,7 +221,7 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
 
 ## Dynamic Entities
-Sometimes it's a pain in the arse to create entity CFCs that just point to a single table.  You must create properties for each field in the table.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
+Sometimes it's a pain in the arse to create entity CFCs that for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
 ```javascript
 /* EventLog.cfc */
 component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
@@ -254,20 +259,54 @@ component persistent="true" table="eventLog" extends="com.database.BaseModelObje
 And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
 
 ### Dynamic Entity - A step further
-I believe it's best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
+In many cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
 ```javascript
 eventLog = new com.database.BaseModelObject( dao = dao, table = 'eventLog' );
 ```
-That would have returned an entity instance with all the properties from the eventLog table.  I'm not saying this is a best practice, but it is possible.  It hasn't been tested in the wild, so YMMV - but it passes our internal manual tests.
+That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not a feature of dynamic entities itself, but of any object that extends BaseModelObject : See more below about relationships ).
 
 ## Relationships
-Since this Pet.cfc defines a one-to-one relationship with the user, this will automatically load the correct "User" object into the Pet object
+In the example above, Pet.cfc defines a one-to-one relationship with the user.  This will automatically load the correct "User" object into the Pet object
 when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User
 is also evaluated and saved (if any changes were detected ).
 
 One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
 relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
+
+## Dyanmic Relationships
+Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  See:
+### MANY-TO-ONE Relationship
+```javascript
+	var order = new com.database.BaseModelObject( dao = dao, table = 'orders');
+	order.load(123); // load order with ID of 123
+	writeDump( order.getCustomers().getName() );
+	// ^ If the customers table has a field named "name" this writeDump will
+	// output the customer name associated with order 123
+```
+### ONE-TO-MANY Relationship
+Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ).  Using the same ```order``` object created above, we could do this:
+```javascript
+	writeDump( order.getOrder_Items() );
+```
+That would dump an array of "order_item" entity objects, one for each order_items record associated with order 123.  Note that we didn't need to create a single CFC file, or define any relationships, or create any methods.  Sometimes, however, you don't want the objects.  You just need the data in a struct format.
+```javascript
+	writeDump( order.getOrder_ItemsAsArray() );
+```
+That will dump an array of struct representation of the order_items associated with order 123.  Awesome, I know.  However, when writing an API, you sometimes need just JSON:
+```javascript
+	writeDump( order.getOrder_ItemsAsJSON() );
+```
+There you have it.  A JSON representation of your data.  Ok, now say you just want to retrieve order 123 and return it, and all of it's related data as a struct.  This is a little trickier since the dynamic relationships need to know something about your related data.  We achieved that above by using the table name and return types in the method call ( get `Order_Items` as `JSON` ).  If you just want to load the data and return it with all child data, you need to define what you want back:
+```javascript
+	order.hasMany( 'order_items' );
+	order.toStruct();// or order.toJSON();
+```
+The "hasMany" function can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as, say, `orderItem` you could do this:
+```javascript
+	order.hasMany( table = 'order_items', property = 'orderItems' );
+	order.getOrderItems().toStruct();
+```
 
 ## lazy loading
 If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related
