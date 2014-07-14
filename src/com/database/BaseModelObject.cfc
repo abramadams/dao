@@ -1520,7 +1520,7 @@ component accessors="true" output="false" {
     * I drop the current table.
     **/
 	private function dropTable(){
-		variables.dao.execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
+		variables.dao.dropTable( this.getTable() );
 	}
 
 	/**

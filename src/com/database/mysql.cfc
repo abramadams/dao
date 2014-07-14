@@ -581,5 +581,11 @@
 
 		}
 
+		/**
+	    * I drop a table based on the passed in table name.
+	    **/
+		package tabledef function dropTable( required string table ){
+			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
+		}
 	</cfscript>
 </cfcomponent>

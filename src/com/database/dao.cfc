@@ -872,6 +872,13 @@
 			return this.conn.makeTable( arguments.tabledef );
 		}
 
+		/**
+		* Delegates the dropping of a "table" to the underlying persistence storage "connector"
+		**/
+		public tabledef function dropTable( required string table ){
+			return this.conn.dropTable( arguments.table );
+		}
+
 		// Entity Query API - Provides LINQ'ish style queries
 		public function from( required string from ){
 			_resetCriteria();
