@@ -525,10 +525,10 @@
 		/**
 		* I return a list of columns for the passed table
 		**/
-		public function getColumns( required string table ){
+		public function getColumns( required string table, string prefix = table ){
 			var def = new tabledef( tablename = arguments.table, dsn = variables.dsn );
-			var cols = def.getColumns();
-
+			var cols = def.getColumns( prefix = prefix );
+			// writeDump(cols);abort;
 			if( !len( trim( cols ) ) ){
 				cols = "*";
 			}
@@ -880,21 +880,29 @@
 		}
 
 		// Entity Query API - Provides LINQ'ish style queries
-		public function from( required string from ){
+		public function from( required string from, any joins = [] ){
 			_resetCriteria();
 			_criteria.from = arguments.from;
+			_criteria.columns = getColumns( arguments.from );
+			_criteria.callStack = [ { from = from, joins = joins } ];
+			if( arrayLen( joins ) ){
+				for( var table in joins ){
+					join( type = table.type, table = table.table, on = table.on );
+					_criteria.columns = listAppend( _criteria.columns, table.columns );
+				}
+			}
 
 			return this;
 		}
 
 		public function where( required string column, required string operator, required string value ){
 			// There can be only one where.
-			if ( arrayLen( _criteria.where ) && left( _criteria.where[ 1 ] , 5 ) != "WHERE" ){
-				arrayPrepend( _criteria.where, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			if ( arrayLen( _criteria.clause ) && left( _criteria.clause[ 1 ] , 5 ) != "WHERE" ){
+				arrayPrepend( _criteria.clause, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}else{
-				_criteria.where[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
+				_criteria.clause[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
 			}
-
+			arrayAppend(_criteria.callStack, { where = { column = column, operator = operator, value = value } } );
 			return this;
 		}
 		public function andWhere( required string column, required string operator, required string value ){
@@ -912,7 +920,8 @@
 		**/
 		public function beginGroup( string operator = "AND"){
 
-			arrayAppend( _criteria.where, "#operator# ( " );
+			arrayAppend( _criteria.clause, "#operator# ( " );
+			arrayAppend(_criteria.callStack, { beginGroup = { operator = operator } } );
 			return this;
 		}
 		/**
@@ -921,25 +930,36 @@
 		**/
 		public function endGroup(){
 
-			arrayAppend( _criteria.where, " )" );
+			arrayAppend( _criteria.clause, " )" );
+			arrayAppend(_criteria.callStack, { endGroup = "" });
+			return this;
+		}
+
+		public function join( string type = "LEFT", required string table, required string on, string alias = arguments.table ){
+			arrayAppend( _criteria.joins, "#type# JOIN #_getSafeColumnName( table )# #alias# on #on#" );
+			arrayAppend(_criteria.callStack, { join = { type = type, table = table, on = on, alias = alias } } );
+
 			return this;
 		}
 
 		public function orderBy( required string orderBy ){
 
 			_criteria.orderBy = orderBy;
+			arrayAppend(_criteria.callStack, { orderBy = { orderBy = orderBy } } );
 			return this;
 		}
 
 		public function limit( required any limit ){
 
 			_criteria.limit = arguments.limit;
+			arrayAppend(_criteria.callStack, { limit = { limit = limit } } );
 			return this;
 		}
 
 		public function run(){
 			return read( table = _criteria.from,
-						 where = arrayToList( _criteria.where, ' ' ),
+						 columns = _criteria.columns,
+						 where = arrayToList( _criteria.joins ) & " " & arrayToList( _criteria.clause, ' ' ),
 						 limit = _criteria.limit,
 						 orderBy = _criteria.orderBy );
 		}
@@ -948,19 +968,27 @@
 			return _criteria;
 		}
 
+		public function getCriteriaAsJSON(){
+			var ret = _criteria;
+			structDelete( _criteria, 'callStack' );
+
+			return serializeJSON( ret );
+		}
+
 		// EntityQuery "helper" functions
 		private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
-			if ( arrayLen( _criteria.where )
-				&& ( left( _criteria.where[ arrayLen( _criteria.where ) ] , 5 ) != "AND ("
-				&& left( _criteria.where[ arrayLen( _criteria.where ) ] , 4 ) != "OR (" ) ){
-				arrayAppend( _criteria.where, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			if ( arrayLen( _criteria.clause )
+				&& ( left( _criteria.clause[ arrayLen( _criteria.clause ) ] , 5 ) != "AND ("
+				&& left( _criteria.clause[ arrayLen( _criteria.clause ) ] , 4 ) != "OR (" ) ){
+				arrayAppend( _criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}else{
-				arrayAppend( _criteria.where, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				arrayAppend( _criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}
+			arrayAppend(_criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
 			return this;
 		}
 		private function _resetCriteria(){
-			_criteria = { from = "", where = [], limit = "*", orderBy = "" };
+			_criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [] };
 		}
 
 		/**
@@ -972,6 +1000,9 @@
 		private function _getSafeColumnName( required string column ){
 
 			if( isValid( "variableName", column ) ){
+				if( listLen( arguments.column, '.' ) GT 1 ){
+					return getSafeColumnName( listFirst( arguments.column, '.' ) ) & '.' & getSafeColumnName( listRest( arguments.column, '.' ) );
+				}
 				return getSafeColumnName( arguments.column );
 			}
 

@@ -12,6 +12,18 @@
 
     testEntity = new com.database.BaseModelObject( table = "eventLog", dao = dao, cachedWithin = createTimeSpan(0,0,0,20) );
 
+    query = dao.from( "pets", [{ table = "users", columns = "users.first_name as fname", type = "LEFT OUTER", on = "users.ID = pets.userID" }] )
+                    .where( 1, "=", 1 )
+                    .beginGroup("and")
+                        .andWhere( "pets.ID", "<=", 1)
+                        .beginGroup("or")
+                            .andWhere( "pets.firstName", "=", "rat")
+                            .orWhere( "pets.lastName", "=", "cat")
+                        .endGroup()
+                    .endGroup()
+                    // .join( type = "LEFT OUTER", table = "users", on = "users.ID = pets.userID")
+                    .orderBy("firstName desc");
+    writeDump([ dao.getCriteria(), dao.getCriteriaAsJSON(), dao.run()] );
 
     list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
 

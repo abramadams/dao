@@ -28,8 +28,8 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 		var query = request.dao.from( "eventLog" ).where( "ID", ">=", 5 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
-		$assert.typeOf( "array", query.getCriteria().where );
-        $assert.includes( query.getCriteria().where[1], "WHERE `ID` >=" );
+		$assert.typeOf( "array", query.getCriteria().clause );
+        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` >=" );
 	}
 
 	function andWhere() test{
@@ -39,10 +39,10 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 					.andWhere( "event", "=", "delete")
 					.orWhere( "event", "=", "insert");
 		$assert.typeOf( "struct", query.getCriteria() );
-        $assert.typeOf( "array", query.getCriteria().where );
+        $assert.typeOf( "array", query.getCriteria().clause );
 
-        $assert.includes( query.getCriteria().where[1], "WHERE `ID` <=" );
-        $assert.includes( query.getCriteria().where[2], "AND `ID` >=" );
+        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` <=" );
+        $assert.includes( query.getCriteria().clause[2], "AND `ID` >=" );
 	}
 
 	function orderBy() test{
@@ -113,7 +113,6 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 					.endGroup()
 					.orderBy("eventDate desc");
 		$assert.typeOf( "struct", query.getCriteria() );
-
 		var results = query.run();
 
 

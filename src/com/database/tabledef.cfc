@@ -141,11 +141,15 @@
 	}
 
 	//	GETTERS
-	public string function getColumns( string exclude = "" ){
+	public string function getColumns( string exclude = "", string prefix ="" ){
 		if( len( trim( exclude ) ) ){
 			return listDeleteAt( this.instance.table.columnlist, listFindNoCase( this.instance.table.columnlist, exclude ) );
 		}
-		return this.instance.table.columnlist;
+		var prefixedColumnList = this.instance.table.columnlist;
+		if( len( trim( prefix ) ) ){
+			prefixedColumnList = prefix & '.' & listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
+		}
+		return prefixedColumnList;
 	}
 
 	public query function getRows(){

@@ -42,6 +42,7 @@ component accessors="true" output="false" {
 								numeric deleteStatusCode = 1,
 								any dao = "",
 								boolean dropcreate = false,
+								boolean createTableIfNotExist = false,
 								struct dynamicMappings = {},
 								any cachedWithin = createTimeSpan( 0, 0, 0, 20 ) ){
 
@@ -97,7 +98,11 @@ component accessors="true" output="false" {
 				if( e.type eq 'Database' ){
 					if (e.Message neq 'Datasource #getDao().getDSN()# could not be found.'){
 						// The table didn't exist, so let's make it
-						makeTable();
+						if( createTableIfNotExist && !variables.meta.name == "BaseModelObject" ){
+							makeTable();
+						}else{
+							return false;
+						}
 					}else{
 						throw( e.message );
 					}
@@ -717,6 +722,7 @@ component accessors="true" output="false" {
 		}
 		/*  Now iterate the properties and see if there are any relationships we can resolve */
 		for ( var col in props ){
+			var tmpChildObj = false;
 			// Dynamically load one to many relationships by convention.  This will check to see if the current property
 			// ends with _ID, and does not have a cfc associated with it. If both of those statements are true we'll try
 			// to load the child table via BaseModelObject.
@@ -727,7 +733,12 @@ component accessors="true" output="false" {
 
 					var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
 					if( parentTable != propertyName ){
-						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
+						tmpChildObj = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
+						// If a table matches the propertyName, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
+						// false.  We only need to inject it if it was true.
+						if( isObject( tmpChildObj ) ){
+							variables[ propertyName ] = this[ propertyName ] = tmpChildObj;
+						}
 					}else{
 						writeDump( [this.getParentTable(), propertyName] );abort;
 					}
@@ -849,6 +860,9 @@ component accessors="true" output="false" {
 		}catch( any e ){
 			return;
 		}
+		if( !isObject( newObj ) ){
+			return false;
+		}
 		newObj.setTable( table );
 		newObj.setParentTable( getTable() );
 		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
@@ -877,7 +891,10 @@ component accessors="true" output="false" {
 		if( structKeyExists( getDynamicMappings(), newTableName ) ){
 			newTableName = getDynamicMappings()[ newTableName ];
 		}
-		var newObj = new( table = newTableName, dao = this.getDao() );
+		var newObj = new( table = newTableName, dao = this.getDao(), createTableIfNotExist = false );
+		if( !isObject( newObj ) ){
+			return false;
+		}
 		newObj.setTable( newTableName );
 		// Load data into new object
 		//writeLog('Loading dynamic many-to-one relationship entity #newTableName# #getParentTable()# with id of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
