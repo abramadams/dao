@@ -98,7 +98,7 @@ component accessors="true" output="false" {
 				if( e.type eq 'Database' ){
 					if (e.Message neq 'Datasource #getDao().getDSN()# could not be found.'){
 						// The table didn't exist, so let's make it
-						if( createTableIfNotExist && !variables.meta.name == "BaseModelObject" ){
+						if( createTableIfNotExist ){
 							makeTable();
 						}else{
 							return false;
@@ -224,10 +224,31 @@ component accessors="true" output="false" {
 		return setter;
 	}
 	/**
-	* Convenience method for genteric setter.
+	* Convenience method for synthesised setters.
 	**/
 	private function _setter( required string property, any value ){
-		variables[ property ] = value;
+		var propName = getFunctionCalledName();
+		propName = mid( propName, 4, len( propName ) );
+		variables[ propName ] = value;
+		variables._isDirty = compare( value, variables[ propName ] ) != 0;
+	}
+	/**
+	* Convenience method for synthesised getters.
+	**/
+	private function _getter( any value ){
+		var propName = getFunctionCalledName();
+		propName = mid( propName, 4, len( propName ) );
+		return variables[ propName ];
+	}
+	/**
+	* Convenience method for synthesised adders.
+	**/
+	private function _adder( any value ){
+		var propName = getFunctionCalledName();
+		propName = mid( propName, 4, len( propName ) );
+		arrayAppend( variables[ propName ], value );
+		arrayAppend( this[ propName ], value );
+		variables._isDirty = true;
 	}
 	/**
 	* This function will replace each public setter so that the isDirty
@@ -594,7 +615,7 @@ component accessors="true" output="false" {
 					LOCAL.functionName = "set" & queryArguments[ i ];
 					try{
 						LOCAL.tmpFunc = this[ LOCAL.functionName ];
-						if( validate( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
+						if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
 							LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
 						}
 						variables._isDirty = false;
@@ -735,7 +756,7 @@ component accessors="true" output="false" {
 					if( parentTable != propertyName ){
 						tmpChildObj = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
 						// If a table matches the propertyName, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
-						// false.  We only need to inject it if it was true.
+						// false.  We only need to inject it if it was an object.
 						if( isObject( tmpChildObj ) ){
 							variables[ propertyName ] = this[ propertyName ] = tmpChildObj;
 						}
@@ -753,7 +774,17 @@ component accessors="true" output="false" {
 			// Load all child objects
 			if( structKeyExists( col, 'cfc' ) ){
 				var tmp = createObject( "component", col.cfc ).init( dao = this.getDao(), dropcreate = this.getDropCreate() );
-				var setterFunc = this["set" & col.name ];
+				// Skip if setter doesn't exist (happens on dynamic child properties)
+				if( !structKeyExists( this, "set" & col.name ) ){
+					if( structKeyExists( this, "add" & col.name ) ){
+						var setterFunc = this["add" & col.name ];
+					}else{
+						continue;
+					}
+				}else{
+					var setterFunc = this["set" & col.name ];
+				}
+
 				var childWhere = structKeyExists( col, 'where' ) ? col.where : '1=1';
 
 				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && structKeyExists( col, 'cfc' ) ){
@@ -865,6 +896,8 @@ component accessors="true" output="false" {
 		}
 		newObj.setTable( table );
 		newObj.setParentTable( getTable() );
+		this[ "add" & table ] = _adder;
+		this[ "get" & table ] = _getter;
 		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			return evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
@@ -902,6 +935,7 @@ component accessors="true" output="false" {
 		//writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
 		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
+		// this["add" & propertyName ] =
 		// Append the relationship property to the meta properties
 		arrayAppend( variables.meta.properties, {
 							"column" = propertyName,
@@ -924,6 +958,7 @@ component accessors="true" output="false" {
 	}
 
 	public any function hasMany( required string table, string fkColumn = getIDField(), string property = table, string returnType = "object" ){
+
 		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), fkColumn = fkColumn, returnType = returnType );
 		// Append the relationship property to the meta properties
 		arrayAppend( variables.meta.properties, {
@@ -935,7 +970,11 @@ component accessors="true" output="false" {
 						"fkcolumn" = fkColumn,
 						"fieldType" = "one-to-many"
 					} );
-		this[ "get" & property ] = getFunc;
+		// this[ "get" & property ] = getFunc;
+		// variables[ "get" & property ] = getFunc;
+		this[ "add" & property ] = _adder;
+		this[ "get" & property ] = _getter;
+
 		return this;
 	}
 	public any function belongsTo( required string table, string pkValue = getID(), string property = table, string fkColumn = property & "_ID", string returnType = "object" ){
