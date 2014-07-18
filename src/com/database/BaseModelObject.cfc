@@ -1,17 +1,36 @@
 /**
+*
+*	Copyright (c) 2013-2014, Abram Adams
+*
+*	Licensed under the Apache License, Version 2.0 (the "License");
+*	you may not use this file except in compliance with the License.
+*	You may obtain a copy of the License at
+*
+*		http://www.apache.org/licenses/LICENSE-2.0
+*
+*	Unless required by applicable law or agreed to in writing, software
+*	distributed under the License is distributed on an "AS IS" BASIS,
+*	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*	See the License for the specific language governing permissions and
+*	limitations under the License.
+*
+*****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.60
-*   @updated 07/9/2014
+*   @version 0.0.62
+*   @updated 07/18/2014
 *   @author Abram Adams
 **/
+
 component accessors="true" output="false" {
 
-	/* properties */
+	property name="_norm_version" type="string";
+	property name="_norm_updated" type="string";
 
+	/* properties */
 	property name="table" type="string" persistent="false";
 	property name="parentTable" type="string" persistent="false";
 	property name="IDField" type="string" persistent="false";
@@ -58,10 +77,16 @@ component accessors="true" output="false" {
 
 		variables.dropcreate = arguments.dropcreate;
 		// used to introspect the given table.
-		// variables.meta = getMetaData( this );
-		// Hack to make variables.meta a true CF data type so we can "for in" loop it.
-        // variables.meta = deSerializeJSON( serializeJSON( variables.meta ) );
         variables.meta =_getMetaData();
+
+        // Convenience properties so developers can find out which version they are using.
+        if(!structKeyExists(variables.meta,'version')){
+	        set_Norm_Version( variables.meta.extends.version );
+	        set_Norm_Updated( variables.meta.extends.updated );
+        }else{
+	        set_Norm_Version( variables.meta.version );
+	        set_Norm_Updated( variables.meta.updated );
+        }
 
 		if( !len( trim( arguments.table ) ) ){
 			// If the table name was not passed in, see if the table property was set on the component

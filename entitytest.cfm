@@ -11,7 +11,7 @@
     */
 
     testEntity = new com.database.BaseModelObject( table = "eventLog", dao = dao, cachedWithin = createTimeSpan(0,0,0,20) );
-
+    writeDump(getmetaData( testEntity ) );
     query = dao.from( "pets", [{ table = "users", columns = "users.first_name as fname", type = "LEFT OUTER", on = "users.ID = pets.userID" }] )
                     .where( 1, "=", 1 )
                     .beginGroup("and")

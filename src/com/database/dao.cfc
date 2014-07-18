@@ -1,4 +1,22 @@
-<!--- **********************************************************
+<!---
+************************************************************
+*
+*	Copyright (c) 2007-2014, Abram Adams
+*
+*	Licensed under the Apache License, Version 2.0 (the "License");
+*	you may not use this file except in compliance with the License.
+*	You may obtain a copy of the License at
+*
+*		http://www.apache.org/licenses/LICENSE-2.0
+*
+*	Unless required by applicable law or agreed to in writing, software
+*	distributed under the License is distributed on an "AS IS" BASIS,
+*	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*	See the License for the specific language governing permissions and
+*	limitations under the License.
+*
+***********************************************************
+
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
@@ -93,7 +111,9 @@
 			this.password=arguments.password;
 
 			//This is the actual db specific connection.
-			this.conn = createObject("component", variables.dbType);
+			this.conn = createObject( "component", variables.dbType );
+			// hmmm... isInstanceOf requires the full path from root to the "type", so I'd have to know that IDAOConnector would always be in com.database.IDAOConnector
+			// writeDump([this.conn, isInstanceOf(this.conn,"com.database.IDAOConnector")] ); abort;
 			this.conn.init(
 					dao = this,
 					dsn = variables.dsn,

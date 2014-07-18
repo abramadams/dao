@@ -9,7 +9,7 @@
 
 	  ********************************************************** --->
 
-<cfcomponent output="false" accessors="true">
+<cfcomponent output="false" accessors="true" implements="IDAOConnector">
 	<cfproperty name="dao" type="dao"/>
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
@@ -510,7 +510,7 @@
 		/**
 	    * I create a table based on the passed in tabledef object's properties.
 	    **/
-		package tabledef function makeTable( required tabledef tabledef ){
+		public tabledef function makeTable( required tabledef tabledef ){
 
 			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
@@ -584,7 +584,7 @@
 		/**
 	    * I drop a table based on the passed in table name.
 	    **/
-		package tabledef function dropTable( required string table ){
+		public tabledef function dropTable( required string table ){
 			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
 		}
 	</cfscript>
