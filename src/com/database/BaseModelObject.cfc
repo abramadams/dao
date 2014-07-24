@@ -609,8 +609,9 @@ component accessors="true" output="false" {
 					}
 					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
 
-					var cachedObject = cacheGet( '#getTable()#-#qn[ getIDField() ][ 1 ]#' );
-
+					lock type="readonly" name="#getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="1"{
+						var cachedObject = cacheGet( '#getTable()#-#qn[ getIDField() ][ 1 ]#' );
+					}
 					//writeLog('is object cached? #yesNoFormat(!isNull(cachedObject))#');
 					if( !isNull( cachedObject ) ){
 						// object cached, load from memory.
@@ -688,10 +689,13 @@ component accessors="true" output="false" {
 		// are added via hasMany or belongsTo, or the entity is persisted to the database (.save() is called )
 		if( isSimpleValue( ID ) && len( trim( ID ) ) ){
 			// Load from cache if we've got it
-			var cachedObject = cacheGet( '#getTable()#-#ID#' );
+			// cacheremove( '#getTable()#-#ID#' );
+			lock type="readonly" name="#getTable()#-#ID#" timeout="1"{
+				var cachedObject = cacheGet( '#getTable()#-#ID#' );
+			}
 			// writeLog('Loaded #getTable()#-#ID# from cache');
 			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
-			if( !isNull( cachedObject ) ){
+			if( !isNull( cachedObject ) && len( trim( cachedObject.getID() ) ) ){
 				// If we made it this far, the object was found in cache.  Now, to "laod" the cache object's data into the
 				// current object is going to take some trickery.
 				// First, we'll set the "fromCache" flag so that later we can see this was loaded from cache.
@@ -703,18 +707,25 @@ component accessors="true" output="false" {
 				// in this case we'll just iterate the cachedObject directly (NOTE: calling getMetaData() on the
 				// cachedObject will just return the metadata of BaseModelObject, and not the instantiated object's
 				// injected properties )
+
 				for( var prop in cachedObject ){
 					if(!isCustomFunction( cachedObject[prop] ) && prop != "METHODS" ){
 						this[ prop ] = cachedObject[ prop ];
 						variables[ prop ] = cachedObject[ prop ];
+						writeLog('Pumping #prop# into the object from cache...');
 						arrayAppend( variables.meta.properties, { name = prop, column = prop, type = isObject( cachedObject[ prop ] ) ? "object" : "string" } );
 					}
 				}
 
 				// Now that we've loaded the data, we need to identify if it is a new record or not.
-				variables._isnew = !len( trim( this.getID() ) );
-
-				return cachedObject;
+				variables._isNew = !len( trim( this.getID() ) );
+				// HACK ALERT - Somehow, sometimes, the object pulled from cache is empty, even though we check for
+				// an empty getID() before we even get here.... nutso, right?  All cache operations are locked, so
+				// not really sure why this happens.  So when it does happen, we'll just bypass the cache and load
+				// the object from scratch.  If this didn't happen, we'll return the cached object.
+				if( len( trim( this.getID() ) ) ){
+					return cachedObject;
+				}
 
 			}
 
@@ -744,7 +755,9 @@ component accessors="true" output="false" {
 			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
 				// First let's put this guy in our cache for faster retrieval.
-				cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+				lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+					cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+				}
 				return this;
 			}
 
@@ -911,7 +924,9 @@ component accessors="true" output="false" {
 
 		if( isSimpleValue( ID ) && !this.isNew() ){
 			// Now cache this thing.  The next time we need to call it (within the cachedwithin timespan) we can just pull it from memory.
-			cachePut( '#getTable()#-#ID#', this, getcachedWithin() );
+			lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+				cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+			}
 		}
 		return this;
 
@@ -940,7 +955,9 @@ component accessors="true" output="false" {
 		this[ "set" & table ] = variables[ "set" & table ] = _setter;
 		this[ "get" & table ] = variables[ "get" & table ] = _getter;
 		// Update Cache
-		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		}
 		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			return evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
@@ -983,7 +1000,9 @@ component accessors="true" output="false" {
 		this[ "set" & property ] = variables[ "set" & property ] = _adder;
 		this[ "get" & property ] = variables[ "get" & property ] = _getter;
 		// Update Cache
-		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		}
 		return this;
 	}
 
@@ -991,12 +1010,13 @@ component accessors="true" output="false" {
 	* Loads Many-To-One relationships into the current entity
 	* Example: Many OrderItems entities belong to the same Order
 	**/
-	private any function _getManyToOne( required string table, required string fkColumn, string returnType = "object" ){
+	private any function _getManyToOne( required string table, required string fkColumn, string property = arguments.table, string returnType = "object" ){
 		if( !structKeyExists( variables, fkColumn) ){
 			throw( message = "Unknown Foreign Key Property", type="BMO", detail="The Foreign Key: #fkColumn# did not exist in #table#.");
 		}
 		var FKValue = variables[ fkColumn ];
-		var newTableName = var propertyName = table;
+		var newTableName = table;
+
 		if( structKeyExists( getDynamicMappings(), newTableName ) ){
 			newTableName = getDynamicMappings()[ newTableName ];
 		}
@@ -1013,12 +1033,12 @@ component accessors="true" output="false" {
 		}
 		// writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
-		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
-		// this["add" & propertyName ] =
+		variables[ property ] = this[ property ] = variables.properties[ property ] = newObj;
+		// this["add" & property ] =
 		// Append the relationship property to the meta properties
 		arrayAppend( variables.meta.properties, {
-							"column" = propertyName,
-							"name" = propertyName,
+							"column" = property,
+							"name" = property,
 							"dynamic" = true,
 							"cfc" = "BaseModelObject",
 							"table" = newTableName,
@@ -1027,13 +1047,14 @@ component accessors="true" output="false" {
 							"fieldType" = "many-to-one"
 						} );
 
-		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _setter;
-		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
+		this[ "add" & property ] = variables[ "add" & property ] = _setter;
+		this[ "get" & property ] = variables[ "get" & property ] = _getter;
 
 		// Update Cache
-		cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
-		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
-
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
+			cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		}
 		if( returnType is "struct" || returnType is "array" ){
 			return newObj.toStruct();
 		}else if( returnType is "json" ){
@@ -1044,10 +1065,12 @@ component accessors="true" output="false" {
 	}
 
 	public any function belongsTo( required string table, string fkColumn = arguments.table & "_ID", string property = arguments.table, string returnType = "object" ){
-		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), fkColumn = fkColumn, returnType = returnType );
+		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), fkColumn = fkColumn, property = property, returnType = returnType );
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
-		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		}
 		return this;
 	}
 
@@ -1299,7 +1322,9 @@ component accessors="true" output="false" {
 
 		// remove object from cache (if it exists)
 		// Removing #getTable()#-#getID()# from cache
-		cacheRemove( '#getTable()#-#getID()#' );
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cacheRemove( '#getTable()#-#getID()#' );
+		}
 
 		// Either insert or update the record
 		if ( isNew() ){
@@ -1437,7 +1462,9 @@ component accessors="true" output="false" {
 		}
 
 		// Cache saved object
-		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		}
 
 		return this;
 	}
@@ -1496,6 +1523,10 @@ component accessors="true" output="false" {
     **/
 	public void function delete( boolean soft = false, any callback ){
 		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};
+		// Remove deleted object from cache
+		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
+			cacheRemove( '#getTable()#-#getID()#' );
+		}
 
 		if( len( trim( getID() ) ) gt 0 && !isNew() ){
 
@@ -1554,8 +1585,7 @@ component accessors="true" output="false" {
 		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
 			callback( this, callbackArgs );
 		}
-		// Remove deleted object from cache
-		cacheRemove( '#getTable()#-#getID()#' );
+
 	}
 
 	/**
