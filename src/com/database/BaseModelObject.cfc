@@ -20,8 +20,8 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.62
-*   @updated 07/18/2014
+*   @version 0.0.65
+*   @updated 07/24/2014
 *   @author Abram Adams
 **/
 
@@ -37,12 +37,12 @@ component accessors="true" output="false" {
 	property name="IDFieldType" type="string" persistent="false";
 	property name="IDFieldGenerator" type="string" persistent="false";
 	property name="deleteStatusCode" type="numeric" persistent="false";
-	property name="fromCache" type="boolean" persistent="false";
+	property name="__fromCache" type="boolean" persistent="false";
 	property name="cachedWithin" type="any" persistent="false";
 
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" persistent="false";
-	property name="dynamicMappings" type="struct" persistent="false";
+	property name="dynamicMappings" type="struct" persistent="false" hint="Defines alias to table name mappings.  So if you want the entity property to be OrderItems, but the table is order_items you would pass in { 'OrderItems' = 'order_items' } ";
 
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
@@ -63,10 +63,10 @@ component accessors="true" output="false" {
 								boolean dropcreate = false,
 								boolean createTableIfNotExist = false,
 								struct dynamicMappings = {},
-								any cachedWithin = createTimeSpan( 0, 0, 0, 20 ) ){
+								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
 
 		var LOCAL = {};
-		setFromCache( false );
+		set__FromCache( false );
 
 		// Make sure we have a dao (see dao.cfc)
 		if( isValid( "component", arguments.dao ) ){
@@ -320,7 +320,7 @@ component accessors="true" output="false" {
 			return this[ name ];
 		}
 
-		if( left( getFunctionCalledName(), 3) == "get" && getFunctionCalledName() != 'getterFunc' ){
+		if( left( getFunctionCalledName(), 3) == "get" && getFunctionCalledName() != 'getterFunc' && getFunctionCalledName() != 'getter' ){
 
 			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
 			return variables[ propName ];
@@ -442,6 +442,7 @@ component accessors="true" output="false" {
 					var newTableName = var propertyName = getterInstructions;
 					// MANY-TO-ONE
 					if( structKeyExists( variables, getterInstructions & "_ID" ) ){
+						// Loading Many to One relationship for getterInstructions
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = getterInstructions & "_ID", returnType = returnType );
 
 					}else {
@@ -453,7 +454,7 @@ component accessors="true" output="false" {
 
 						// variables[ propertyName ] = this[ propertyName ] = _getOneToMany( table = lcase( newTableName ) );
 						// writeLog('CALLING _getOneToMany() for #newTableName# #returnType# (dynamically called via #arguments.missingMethodName# on #getTable()#)');
-						return _getOneToMany( table = lcase( newTableName ), returnType = returnType );
+						return _getOneToMany( table = lcase( newTableName ), property = propertyName, returnType = returnType );
 
 					}
 					return variables[ propertyName ];
@@ -512,6 +513,11 @@ component accessors="true" output="false" {
 			variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = newTableName & "_ID", returnType = returnType );
 
 			return this;
+		}else if( left( arguments.missingMethodName, 3 ) is "has" ){
+			var propertyName =  mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
+			return structKeyExists( variables, propertyName )
+				&& ( ( isArray( variables[ propertyName ] ) && arrayLen( variables[ propertyName ] ) )
+				|| ( isStruct( variables[ propertyName ] ) && structCount( variables[ propertyName ] ) ) );
 		}
 
 		// Allow "loadFirst" method to instantiate the entity and load it with the first
@@ -602,6 +608,7 @@ component accessors="true" output="false" {
 						querySetCell( qn, col, record[ col ][ rec ] );
 					}
 					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
+
 					var cachedObject = cacheGet( '#getTable()#-#qn[ getIDField() ][ 1 ]#' );
 
 					//writeLog('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -616,7 +623,7 @@ component accessors="true" output="false" {
 						tmpNewEntity.load( ID = qn , lazy = tmpLazy, parent = getParentTable() );
 
 					}
-					cachePut( '#getTable()#-#qn[ getIDField() ][ 1 ]#' , tmpNewEntity, getcachedWithin() );
+
 					if( returnType is "struct" || returnType is "array" ){
 						tmpNewEntity = tmpNewEntity.toStruct();
 					}else if (returnType is "json"){
@@ -672,45 +679,49 @@ component accessors="true" output="false" {
 	*
 	**/
 	public any function load( required any ID, boolean lazy = false, string parentTable = getParentTable() ){
-		var LOCAL = {};
 		var props = variables.meta.properties;
 
 		// If the ID was a simple value, chances are we may have the object alreayd cached, let's try to load it.
+		// Typically we'd only use a short lived cache to help resolve circular dependancies and loading the same
+		// object multiple times in quick succession.  However, the cachedWithin property can be altered to extend
+		// the chache's life as long as you'd like.  Note that the cached object is only updated when relationships
+		// are added via hasMany or belongsTo, or the entity is persisted to the database (.save() is called )
 		if( isSimpleValue( ID ) && len( trim( ID ) ) ){
-
 			// Load from cache if we've got it
 			var cachedObject = cacheGet( '#getTable()#-#ID#' );
+			// writeLog('Loaded #getTable()#-#ID# from cache');
 			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
 			if( !isNull( cachedObject ) ){
 				// If we made it this far, the object was found in cache.  Now, to "laod" the cache object's data into the
 				// current object is going to take some trickery.
 				// First, we'll set the "fromCache" flag so that later we can see this was loaded from cache.
-				cachedObject.setFromCache( true );
-				// Now, setup a temp var to hold the properties we are loading into the "this" scope.  This is needed because
-				// we also need to pump those into the "variables" scope, which throws "not defined" errors  if we just try to
-				// set them directly (don't know why).  So this will store the key/values and we'll structAppend it later.
-				var tmpProperties = {};
-				for( var prop in props ){
-					// For each of the properties, we have to use the dreaded "evaluate()".  This is because using invoke() doesn't
-					// retain the onMissingMethod functionality and setting up a getter func ( i.e. cachedObject["get#prop.name#"]() )
-					// looses context so will always return empty values.
-					// writeLog("cachedObject.get#prop.name#()");
-					this[ prop.name ] = evaluate("cachedObject.get#prop.name#()");
-					tmpProperties[ prop.name ] = structKeyExists( this, prop.name) ? this[ prop.name ] : '';
+				cachedObject.set__FromCache( true );
+
+				// When an object is loaded from cache the variables.meta.properties doesn't
+				// know about any relationships that were added after the object was originally loaded.
+				// So though we'd normally iterate the variables.meta.properties array to flesh out the entity,
+				// in this case we'll just iterate the cachedObject directly (NOTE: calling getMetaData() on the
+				// cachedObject will just return the metadata of BaseModelObject, and not the instantiated object's
+				// injected properties )
+				for( var prop in cachedObject ){
+					if(!isCustomFunction( cachedObject[prop] ) && prop != "METHODS" ){
+						this[ prop ] = cachedObject[ prop ];
+						variables[ prop ] = cachedObject[ prop ];
+						arrayAppend( variables.meta.properties, { name = prop, column = prop, type = isObject( cachedObject[ prop ] ) ? "object" : "string" } );
+					}
 				}
-				// Ok, like I said, we can now move the newly loaded properties into the variables scope.
-				structAppend( variables, tmpProperties );
+
 				// Now that we've loaded the data, we need to identify if it is a new record or not.
 				variables._isnew = !len( trim( this.getID() ) );
 
-				return this;
+				return cachedObject;
 
 			}
 
 		}
 		// If we've made it this far, the object wasn't in cache so we'll need to load it manually.  Now, let's
 		// set a flag to tell us later that this object was not pulled from cache.
-		this.setFromCache( false );
+		this.set__FromCache( false );
 
 		if ( isStruct( arguments.ID ) || isArray( arguments.ID ) ){
 			// If the ID field was part of the struct, load the record first. This allows updating vs inserting
@@ -732,6 +743,8 @@ component accessors="true" output="false" {
 			}
 			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
+				// First let's put this guy in our cache for faster retrieval.
+				cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
 				return this;
 			}
 
@@ -779,6 +792,7 @@ component accessors="true" output="false" {
 
 					var propertyName = listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
 					if( parentTable != propertyName ){
+						// writeLog('[#parentTable#] [#propertyName#] :#col.name#: dynamic #structKeyExists(col, "dynamic") ? col.dynamic : 'false'# -- #getFunctionCalledName()#');
 						tmpChildObj = _getManyToOne( table = lcase( propertyName ), fkColumn = col.name );
 						// If a table matches the propertyName, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
 						// false.  We only need to inject it if it was an object.
@@ -895,7 +909,8 @@ component accessors="true" output="false" {
 			}
 		}
 
-		if( isSimpleValue( ID ) ){
+		if( isSimpleValue( ID ) && !this.isNew() ){
+			// Now cache this thing.  The next time we need to call it (within the cachedwithin timespan) we can just pull it from memory.
 			cachePut( '#getTable()#-#ID#', this, getcachedWithin() );
 		}
 		return this;
@@ -906,6 +921,7 @@ component accessors="true" output="false" {
 	************************************************************************/
 	/**
 	* Loads One-To-Many relationships into the current entity
+	* Example: On an Order entity you have multiple OrderItems
 	**/
 	private any function _getOneToMany( required string table, any pkValue = getID(), string fkColumn = getTable() & "_ID", string returnType = "object" ){
 
@@ -921,8 +937,10 @@ component accessors="true" output="false" {
 		}
 		newObj.setTable( table );
 		newObj.setParentTable( getTable() );
-		this[ "add" & table ] = _adder;
-		this[ "get" & table ] = _getter;
+		this[ "set" & table ] = variables[ "set" & table ] = _setter;
+		this[ "get" & table ] = variables[ "get" & table ] = _getter;
+		// Update Cache
+		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
 		//writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			return evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
@@ -930,15 +948,48 @@ component accessors="true" output="false" {
 		}else{
 		// Return an array of child objects.
 		if( !val(pkValue) ){
-			writeDump([arguments, this]);
-			throw("The PKValue value was '#pkvalue#', but it needs to be something.");
+			// No pkValue, which probably means this is a new record not yet persisted.  Return a blank
+			// entity.
+			return [newObj];
 		}
 		return evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#)");
 
 		}
 	}
+
+	/**
+	* Tells BMO about one-to-many relationships.  This is needed if the column names don't follow convention (and are not mapped via dynamicMappings)
+	* Example: order = new BaseModelObject( table = "orders", dao = dao );
+	* 		   order.load(123);
+	* 		   order.hasMany( table = "order_items", fkColumn = "orders_ID", property = "OrderItem" );
+	* 		^^ Assumes table order_items has a column named orders_ID, which points to the PK column in orders.
+	**/
+	public any function hasMany( required string table, string fkColumn = getIDField(), string property = arguments.table, string returnType = "object" ){
+
+		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), pkValue = getID(), fkColumn = fkColumn, returnType = returnType );
+		// Append the relationship property to the meta properties
+		arrayAppend( variables.meta.properties, {
+						"column" = property,
+						"name" = property,
+						"dynamic" = true,
+						"cfc" = "BaseModelObject",
+						"table" = table,
+						"fkcolumn" = fkColumn,
+						"fieldType" = "one-to-many"
+					} );
+		// this[ "get" & property ] = getFunc;
+		// variables[ "get" & property ] = getFunc;
+		this[ "add" & property ] = variables[ "add" & property ] = _adder;
+		this[ "set" & property ] = variables[ "set" & property ] = _adder;
+		this[ "get" & property ] = variables[ "get" & property ] = _getter;
+		// Update Cache
+		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+		return this;
+	}
+
 	/**
 	* Loads Many-To-One relationships into the current entity
+	* Example: Many OrderItems entities belong to the same Order
 	**/
 	private any function _getManyToOne( required string table, required string fkColumn, string returnType = "object" ){
 		if( !structKeyExists( variables, fkColumn) ){
@@ -949,15 +1000,18 @@ component accessors="true" output="false" {
 		if( structKeyExists( getDynamicMappings(), newTableName ) ){
 			newTableName = getDynamicMappings()[ newTableName ];
 		}
-		var newObj = new( table = newTableName, dao = this.getDao(), createTableIfNotExist = false );
+
+		var newObj = new( table = newTableName, dao = this.getDao() );
 		if( !isObject( newObj ) ){
-			return false;
+			return newObj;
 		}
 		newObj.setTable( newTableName );
 		// Load data into new object
-		//writeLog('Loading dynamic many-to-one relationship entity #newTableName# #getParentTable()# with id of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
-		newObj.load( ID = FKValue, lazy = getParentTable() == newTableName );
-		//writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
+		// writeLog('Loading dynamic many-to-one relationship entity #table#[#newTableName#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #variables[fkColumn]#. Lazy? #yesNoFormat(getParentTable() eq newTableName)#');
+		if( len( trim( FKValue ) ) ){
+			newObj.load( ID = FKValue, lazy = getParentTable() == newTableName );
+		}
+		// writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
 		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
 		// this["add" & propertyName ] =
@@ -972,7 +1026,14 @@ component accessors="true" output="false" {
 							"fkcolumn" = fkColumn,
 							"fieldType" = "many-to-one"
 						} );
-		this[ "get" & propertyName ] = getFunc;
+
+		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _setter;
+		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
+
+		// Update Cache
+		cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
+		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
+
 		if( returnType is "struct" || returnType is "array" ){
 			return newObj.toStruct();
 		}else if( returnType is "json" ){
@@ -982,28 +1043,11 @@ component accessors="true" output="false" {
 		return newObj;
 	}
 
-	public any function hasMany( required string table, string fkColumn = getIDField(), string property = table, string returnType = "object" ){
-
-		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), fkColumn = fkColumn, returnType = returnType );
-		// Append the relationship property to the meta properties
-		arrayAppend( variables.meta.properties, {
-						"column" = property,
-						"name" = property,
-						"dynamic" = true,
-						"cfc" = "BaseModelObject",
-						"table" = table,
-						"fkcolumn" = fkColumn,
-						"fieldType" = "one-to-many"
-					} );
-		// this[ "get" & property ] = getFunc;
-		// variables[ "get" & property ] = getFunc;
-		this[ "add" & property ] = _adder;
-		this[ "get" & property ] = _getter;
-
-		return this;
-	}
-	public any function belongsTo( required string table, string pkValue = getID(), string property = table, string fkColumn = property & "_ID", string returnType = "object" ){
-		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), pkValue = pkValue, fkColumn = fkColumn, returnType = returnType );
+	public any function belongsTo( required string table, string fkColumn = arguments.table & "_ID", string property = arguments.table, string returnType = "object" ){
+		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), fkColumn = fkColumn, returnType = returnType );
+		this[ "set" & property ] = variables[ "set" & property ] = _setter;
+		// Update Cache
+		cachePut( '#getTable()#-#getID()#', this, getcachedWithin() );
 		return this;
 	}
 
@@ -1173,54 +1217,65 @@ component accessors="true" output="false" {
     /**
     * I return a struct representation of the object in its current state.
     **/
-	public struct function toStruct( array excludeKeys = [] ){
+	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1 ){
 
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
+			var keysToExclude = "cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
+
 
 			// Iterate through each property and generate a struct representation
 			for ( var prop in variables.meta.properties ){
-				arg = prop.name;
+				arg = preserveCase ? prop.name : lcase( arg );
 				LOCAL.functionName = "get" & arg;
 				try
 				{
 					// We will bypass internal properties, as well as any "excludeKeys" we find.
 					if( !findNoCase( '$$_', arg )
 						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
-						&& !listFindNoCase( "meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#",arg ) ){
+						&& !listFindNoCase( keysToExclude, arg ) ){
 
 						// Now, append the property to the struct we will be returning
 						if( structKeyExists( variables, arg ) ){
-							returnStruct[ lcase( arg ) ] = variables[ arg ];
+							returnStruct[ arg ] = variables[ arg ];
 						}
+
 						// Checking to see if the property was appended to the struct. This prevents errors that sometimes occur if the variables[ arg ] is null (i.e. returned null from Java call )
 						if( structKeyExists( returnStruct, arg ) ){
 							// If it's not a simple value, we'll need to recursively call toStruct() to resolve all the nested structs.
-							if( !isSimpleValue( returnStruct[ arg ] ) ){
-
-								if( isArray( returnStruct[ arg ] ) ){
-
-									for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
-										if( isObject( returnStruct[ lcase( arg ) ][ i ] ) ){
-											returnStruct[ lcase( arg ) ][ i ] = returnStruct[ lcase( arg ) ][ i ].toStruct( excludeKeys = excludeKeys );
+							if( !isSimpleValue( returnStruct[ arg ] )){
+								if(  top == 0 || nestLevel < arguments.top ){
+									if( isArray( returnStruct[ arg ] ) ){
+										for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
+											if( isObject( returnStruct[ arg ][ i ] ) ){
+												returnStruct['__level'] = nestLevel;
+												returnStruct[ arg ][ i ] = returnStruct[ arg ][ i ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+											}
 										}
+									}else if( isObject( returnStruct[ arg ] ) ){
+										returnStruct['__level'] = nestLevel;
+										returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
 									}
-								}else if( isObject( returnStruct[ lcase( arg ) ] ) ){
-
-									returnStruct[ lcase( arg ) ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys );
+								}else{
+									returnStruct[ arg ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
 								}
-							}else if( isNumeric( returnStruct[ lcase( arg ) ] )
-									&& listLast( returnStruct[ lcase( arg ) ], '.' ) GT 0 ){
+							}else if( isNumeric( returnStruct[ arg ] )
+									&& listLast( returnStruct[ arg ], '.' ) GT 0 ){
 								// Since CF likes to convert our numbers to strings, let's javacast it as an int
-								returnStruct[ lcase( arg ) ] = javaCast( 'int', returnStruct[ lcase( arg ) ] );
+								try{
+									returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+								}catch( any e ){
+									returnStruct[ arg ] = returnStruct[ arg ];
+								}
+							}else{
+								returnStruct[ arg ] = returnStruct[ arg ];
 							}
 						}
-
 					}
 				}
 				catch (any e){
-					throw(message='Error in toStruct method', detail=e.detail);
+					throw(message='Error in toStruct method: #e.message#', detail=e.detail);
 				}
 			}
 		return returnStruct;
@@ -1229,10 +1284,9 @@ component accessors="true" output="false" {
 	/**
     * I return a JSON representation of the object in its current state.
     **/
-	public string function toJSON( array excludeKeys = [] ){
-		var json = serializeJSON( this.toStruct( excludeKeys = excludeKeys ) );
+	public string function toJSON( array excludeKeys = [], numeric top = 0, boolean preserveCase = true ){
 
-		return json;
+		return serializeJSON( this.toStruct( excludeKeys = excludeKeys, top = top, preserveCase = preserveCase ) );;
 	}
 
 	/**
@@ -1244,7 +1298,7 @@ component accessors="true" output="false" {
 		var callbackArgs = { ID = getID(), method = 'save' };
 
 		// remove object from cache (if it exists)
-		writeLog('removing #getTable()#-#getID()# from cache' );
+		// Removing #getTable()#-#getID()# from cache
 		cacheRemove( '#getTable()#-#getID()#' );
 
 		// Either insert or update the record
@@ -1308,11 +1362,12 @@ component accessors="true" output="false" {
 					//writeDump(col);abort;
 				}
 			} */
-
-			var newID = variables.dao.insert(
-				table = this.getTable(),
-				data = DATA
-			);
+			transaction{
+				var newID = variables.dao.insert(
+					table = this.getTable(),
+					data = DATA
+				);
+			}
 
 			callbackArgs.newID = variables['ID'] = this['ID'] = newID;
             tempID = newID;
@@ -1364,10 +1419,12 @@ component accessors="true" output="false" {
 			}
 
 			/*** update the thing ****/
-			variables.dao.update(
-				table = this.getTable(),
-				data = DATA
-			);
+			transaction{
+				variables.dao.update(
+					table = this.getTable(),
+					data = DATA
+				);
+			}
 		}
 
 		variables._isNew = false;
@@ -1465,10 +1522,12 @@ component accessors="true" output="false" {
 
 				}
 			}
-			variables.dao.execute(sql="
-					DELETE FROM #this.getTable()#
-					WHERE #this.getIDField()# = #variables.dao.queryParam(value=getID(),cfsqltype='int')#
+			transaction{
+				variables.dao.execute(sql="
+						DELETE FROM #this.getTable()#
+						WHERE #this.getIDField()# = #variables.dao.queryParam(value=getID(),cfsqltype='int')#
 				");
+			}
 			/* disabled for now.  re-instate when getters handle deleted flag */
 			/* if( soft && structKeyExists( variables, 'deleted' ) ){
 				// "Soft" delete

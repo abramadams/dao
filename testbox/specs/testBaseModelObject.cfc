@@ -15,7 +15,9 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.load(208);
-
+          if( testEntity.getID() != 208 ){
+               writeDump(testEntity);abort;
+          }
      	$assert.isTrue( testEntity.getID() GT 0 );
      }
 
@@ -45,6 +47,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	// should return a single record
 		$assert.typeOf( "query", qry );
+
      	$assert.isTrue( qry.recordCount eq 1 );
      }
 
@@ -505,6 +508,19 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 		$assert.isTrue( arrayLen( errors ) == 2 );
      }
 
+
+     function testDynamicHasRelatedEntities() test{
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+
+          testEntity.load( 93 );
+          testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
+          // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );abort;
+          $assert.isTrue( testEntity.hasUser() );
+          // writeDump( testEntity );abort;
+          $assert.isFalse( testEntity.User.getID() == "" );
+
+
+     }
 
 
 
