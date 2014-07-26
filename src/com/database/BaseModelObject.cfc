@@ -541,9 +541,15 @@ component accessors="true" output="false" {
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
 				queryArguments = listToArray( reReplaceNoCase( reReplaceNoCase( arguments.missingMethodName, 'loadBy|loadAllBy|lazyLoadAllBy|lazyLoadBy', '', 'all' ), 'And', '|', 'all' ), '|' );
-				// queryArguments = listToArray( tableName, '|' );
+
+				if( structKeyExists( arguments.missingMethodArguments, "orderBy" ) ){
+					orderby = arguments.missingMethodArguments["orderBy"];
+					structDelete( arguments.missingMethodArguments, "orderby" );
+				}
+
 				for ( i = 1; i LTE arrayLen( queryArguments ); i++ ){
 					args[ queryArguments[ i ] ] = arguments.missingMethodArguments[ i ];
+
 					// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 					LOCAL.tmpCol = structFindValue( variables.meta, queryArguments[ i ], 'all' );
 					LOCAL.columnName = arrayLen( tmpCol ) ? tmpCol[ 1 ] : {};
@@ -567,6 +573,7 @@ component accessors="true" output="false" {
 						throw("Error Loading data into #getTable# object.");
 					}
 				}
+
 			}
 
 			if( structCount( missingMethodArguments ) GT arrayLen( queryArguments ) ){
@@ -687,49 +694,49 @@ component accessors="true" output="false" {
 		// object multiple times in quick succession.  However, the cachedWithin property can be altered to extend
 		// the chache's life as long as you'd like.  Note that the cached object is only updated when relationships
 		// are added via hasMany or belongsTo, or the entity is persisted to the database (.save() is called )
-		if( isSimpleValue( ID ) && len( trim( ID ) ) ){
-			// Load from cache if we've got it
-			// cacheremove( '#getTable()#-#ID#' );
-			lock type="readonly" name="#getTable()#-#ID#" timeout="1"{
-				var cachedObject = cacheGet( '#getTable()#-#ID#' );
-			}
-			// writeLog('Loaded #getTable()#-#ID# from cache');
-			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
-			if( !isNull( cachedObject ) && len( trim( cachedObject.getID() ) ) ){
-				// If we made it this far, the object was found in cache.  Now, to "laod" the cache object's data into the
-				// current object is going to take some trickery.
-				// First, we'll set the "fromCache" flag so that later we can see this was loaded from cache.
-				cachedObject.set__FromCache( true );
+		// if( isSimpleValue( ID ) && len( trim( ID ) ) ){
+		// 	// Load from cache if we've got it
+		// 	// cacheremove( '#getTable()#-#ID#' );
+		// 	lock type="readonly" name="#getTable()#-#ID#" timeout="1"{
+		// 		var cachedObject = cacheGet( '#getTable()#-#ID#' );
+		// 	}
+		// 	// writeLog('Loaded #getTable()#-#ID# from cache');
+		// 	// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
+		// 	if( !isNull( cachedObject ) && len( trim( cachedObject.getID() ) ) ){
+		// 		// If we made it this far, the object was found in cache.  Now, to "laod" the cache object's data into the
+		// 		// current object is going to take some trickery.
+		// 		// First, we'll set the "fromCache" flag so that later we can see this was loaded from cache.
+		// 		cachedObject.set__FromCache( true );
 
-				// When an object is loaded from cache the variables.meta.properties doesn't
-				// know about any relationships that were added after the object was originally loaded.
-				// So though we'd normally iterate the variables.meta.properties array to flesh out the entity,
-				// in this case we'll just iterate the cachedObject directly (NOTE: calling getMetaData() on the
-				// cachedObject will just return the metadata of BaseModelObject, and not the instantiated object's
-				// injected properties )
+		// 		// When an object is loaded from cache the variables.meta.properties doesn't
+		// 		// know about any relationships that were added after the object was originally loaded.
+		// 		// So though we'd normally iterate the variables.meta.properties array to flesh out the entity,
+		// 		// in this case we'll just iterate the cachedObject directly (NOTE: calling getMetaData() on the
+		// 		// cachedObject will just return the metadata of BaseModelObject, and not the instantiated object's
+		// 		// injected properties )
 
-				for( var prop in cachedObject ){
-					if(!isCustomFunction( cachedObject[prop] ) && prop != "METHODS" ){
-						this[ prop ] = cachedObject[ prop ];
-						variables[ prop ] = cachedObject[ prop ];
-						writeLog('Pumping #prop# into the object from cache...');
-						arrayAppend( variables.meta.properties, { name = prop, column = prop, type = isObject( cachedObject[ prop ] ) ? "object" : "string" } );
-					}
-				}
+		// 		for( var prop in cachedObject ){
+		// 			if(!isCustomFunction( cachedObject[prop] ) && prop != "METHODS" ){
+		// 				this[ prop ] = cachedObject[ prop ];
+		// 				variables[ prop ] = cachedObject[ prop ];
+		// 				writeLog('Pumping #prop# into the object from cache...');
+		// 				arrayAppend( variables.meta.properties, { name = prop, column = prop, type = isObject( cachedObject[ prop ] ) ? "object" : "string" } );
+		// 			}
+		// 		}
 
-				// Now that we've loaded the data, we need to identify if it is a new record or not.
-				variables._isNew = !len( trim( this.getID() ) );
-				// HACK ALERT - Somehow, sometimes, the object pulled from cache is empty, even though we check for
-				// an empty getID() before we even get here.... nutso, right?  All cache operations are locked, so
-				// not really sure why this happens.  So when it does happen, we'll just bypass the cache and load
-				// the object from scratch.  If this didn't happen, we'll return the cached object.
-				if( len( trim( this.getID() ) ) ){
-					return cachedObject;
-				}
+		// 		// Now that we've loaded the data, we need to identify if it is a new record or not.
+		// 		variables._isNew = !len( trim( this.getID() ) );
+		// 		// HACK ALERT - Somehow, sometimes, the object pulled from cache is empty, even though we check for
+		// 		// an empty getID() before we even get here.... nutso, right?  All cache operations are locked, so
+		// 		// not really sure why this happens.  So when it does happen, we'll just bypass the cache and load
+		// 		// the object from scratch.  If this didn't happen, we'll return the cached object.
+		// 		if( len( trim( this.getID() ) ) ){
+		// 			return cachedObject;
+		// 		}
 
-			}
+		// 	}
 
-		}
+		// }
 		// If we've made it this far, the object wasn't in cache so we'll need to load it manually.  Now, let's
 		// set a flag to tell us later that this object was not pulled from cache.
 		this.set__FromCache( false );
@@ -813,7 +820,7 @@ component accessors="true" output="false" {
 							variables[ propertyName ] = this[ propertyName ] = tmpChildObj;
 						}
 					}else{
-						writeDump( [this.getParentTable(), propertyName] );abort;
+						// writeDump( [this.getParentTable(), propertyName] );abort;
 					}
 				} catch ( any e ){
 					if( e.type != 'BMO' ){
@@ -839,7 +846,10 @@ component accessors="true" output="false" {
 
 				var childWhere = structKeyExists( col, 'where' ) ? col.where : '1=1';
 
-				if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && structKeyExists( col, 'cfc' ) ){
+				if( structKeyExists( col, 'fieldType' )
+					&& col.fieldType == 'one-to-many'
+					&& structKeyExists( col, 'cfc' )
+					&& structKeyExists( col, 'inverseJoinColumn' ) ){
 					// load child records here....
 					col.fkcolumn = structKeyExists( col, 'fkcolumn' ) ? col.fkcolumn : col.name & this.getIDField();
 
@@ -1246,10 +1256,10 @@ component accessors="true" output="false" {
 			var LOCAL = {};
 			var returnStruct = {};
 			var keysToExclude = "cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
-
+			var props = duplicate( variables.meta.properties );
 
 			// Iterate through each property and generate a struct representation
-			for ( var prop in variables.meta.properties ){
+			for ( var prop in props ){
 				arg = preserveCase ? prop.name : lcase( arg );
 				LOCAL.functionName = "get" & arg;
 				try
@@ -1472,7 +1482,10 @@ component accessors="true" output="false" {
 	private void function _saveTheChildren( any tempID = this.getID() ){
 	 /* Now save any child records */
 		for ( var col in variables.meta.properties ){
-			if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-many' && structKeyExists( arguments, 'tempID' ) && ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
+			if( structKeyExists( col, 'fieldType' )
+				&& col.fieldType eq 'one-to-many'
+				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
+				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
 				//writeDump([col,arguments, this]);abort;
 				if ( !structKeyExists( variables , col.name ) || !isArray( variables[ col.name ] ) ){
 					continue;
@@ -1486,10 +1499,7 @@ component accessors="true" output="false" {
 						/* TODO: when we no longer need to support ACF9, change this to use invoke() */
 						evaluate("child.set#col.fkcolumn#( #tempID# )");
 					}catch (any e){
-						writeDump('Error in setFunc');
-						writeDump(e);
-						writeDump(child );
-						writeDump(variables[ col.name ] );abort;
+						writeDump(['Error in setFunc',e,child, arguments, variables[ col.name ] ]);abort;
 
 					}
 					// call the child's save routine;
