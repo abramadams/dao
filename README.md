@@ -278,77 +278,77 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  See:
 ### MANY-TO-ONE Relationship
 ```javascript
-	var order = new com.database.BaseModelObject( dao = dao, table = 'orders');
-	order.load(123); // load order with ID of 123
-	writeDump( order.getCustomers().getName() );
-	// ^ If the customers table has a field named "name" this writeDump will
-	// output the customer name associated with order 123
+var order = new com.database.BaseModelObject( dao = dao, table = 'orders');
+order.load(123); // load order with ID of 123
+writeDump( order.getCustomers().getName() );
+// ^ If the customers table has a field named "name" this writeDump will
+// output the customer name associated with order 123
 ```
 ### ONE-TO-MANY Relationship
 Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ).  Using the same ```order``` object created above, we could do this:
 ```javascript
-	writeDump( order.getOrder_Items() );
+writeDump( order.getOrder_Items() );
 ```
 That would dump an array of "order_item" entity objects, one for each order_items record associated with order 123.  Note that we didn't need to create a single CFC file, or define any relationships, or create any methods.  Sometimes, however, you don't want the objects.  You just need the data in a struct format.
 ```javascript
-	writeDump( order.getOrder_ItemsAsArray() );
+writeDump( order.getOrder_ItemsAsArray() );
 ```
 That will dump an array of struct representation of the order_items associated with order 123.  Awesome, I know.  However, when writing an API, you sometimes need just JSON:
 ```javascript
-	writeDump( order.getOrder_ItemsAsJSON() );
+writeDump( order.getOrder_ItemsAsJSON() );
 ```
 There you have it.  A JSON representation of your data.  Ok, now say you just want to retrieve order 123 and return it, and all of it's related data as a struct.  This is a little trickier since the dynamic relationships need to know something about your related data.  We achieved that above by using the table name and return types in the method call ( get `Order_Items` as `JSON` ).  If you just want to load the data and return it with all child data, you need to define what you want back:
 ```javascript
-	order.hasMany( 'order_items' );
-	order.toStruct();// or order.toJSON();
+order.hasMany( 'order_items' );
+order.toStruct();// or order.toJSON();
 ```
 The "hasMany" function can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
 ```javascript
-	order.hasMany( table = 'order_items', property = 'orderItems' );
-	order.getOrderItems().toStruct();
+order.hasMany( table = 'order_items', property = 'orderItems' );
+order.getOrderItems().toStruct();
 ```
 ##Dynamic Mappings/Aliases
 Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional `dynamicMappings` argument to the BaseModelObject's init method.  The dynamicMappings argument expects a struct containing `key` and `value` pairs of mappings wher the `key` is the desired property name for one-to-many or column name for many-to-one relationships and the `value` is the actual table name (or a struct, explained later).
 
 So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.
 ```javascript
-	dynamicMappings = { "orderItems" = "order_items" };
-	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
-	order.load( 123 );
-	writeDump( order.getOrderItems() );
+dynamicMappings = { "orderItems" = "order_items" };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getOrderItems() );
 ```
 That would dump an array of entities representing the `order_items` records that are related to the order #123
 
 The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named `<table>_ID`.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a `customers` table which has a `default_payment_terms` field that is a FK to a table called `payment_terms`, here's how we could handle that with simple dynamicMappings:
 ```javascript
-	dynamicMappings = { "default_payment_terms" = "payment_terms" };
-	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
-	order.load( 123 );
-	writeDump( order.getDefault_Payment_Terms() );
+dynamicMappings = { "default_payment_terms" = "payment_terms" };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getDefault_Payment_Terms() );
 ```
 There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the `value` part of the mapping.  The struct consists of two keys: `table` and `property`.  So, if we wanted the `defualt_payment_terms` to be `defaultPaymentTerms` all we'd have to do is:
 ```javascript
-	dynamicMappings = { "default_payment_terms" = { table = "payment_terms", property = "defaultPaymentTerms" } };
-	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
-	order.load( 123 );
-	writeDump( order.getDefaultPaymentTerms() );
+dynamicMappings = { "default_payment_terms" = { table = "payment_terms", property = "defaultPaymentTerms" } };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getDefaultPaymentTerms() );
 ```
 This will dump the exact same as the previous example.  This is only necessary on many-to-one relationships.
 
 __NOTE:__ It is also important to note that the dynamicMappings are passed into any object instantiated during the load() method.  So if you have a dynamicMapping on the order entity, when you load it and it crawls through auto-wiring the order_items, customers, etc... it will apply the same mappings throughout.  So as the example above, the property `defaultPaymentTerms` would be used anytime a property/column named `default_payment_terms` was encoutnerd.
 Here's an example of a more real-world dynamicMapping:
 ```javascript
-	dynamicMappings = {
-		"company" = "customers",
-		"users_ID" = { "table" = "users", property = "User" },
-		"orderItems" = "order_items",
-		"default_payment_terms" = "payment_terms",
-		"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
-		"primary_contact" =  { "table" = "contacts", "property" = "primaryContact" }
-	};
-	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
-	order.load( 123 );
-	writeDump( order.getCompany().getUser() );
+dynamicMappings = {
+	"company" = "customers",
+	"users_ID" = { "table" = "users", property = "User" },
+	"orderItems" = "order_items",
+	"default_payment_terms" = "payment_terms",
+	"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
+	"primary_contact" =  { "table" = "contacts", "property" = "primaryContact" }
+};
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getCompany().getUser() );
 ```
 
 ## lazy loading
