@@ -307,6 +307,49 @@ The "hasMany" function can also specify the primary key ( if other than `<table>
 	order.hasMany( table = 'order_items', property = 'orderItems' );
 	order.getOrderItems().toStruct();
 ```
+##Dynamic Mappings/Aliases
+Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional `dynamicMappings` argument to the BaseModelObject's init method.  The dynamicMappings argument expects a struct containing `key` and `value` pairs of mappings wher the `key` is the desired property name for one-to-many or column name for many-to-one relationships and the `value` is the actual table name (or a struct, explained later).
+
+So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.
+```javascript
+	dynamicMappings = { "orderItems" = "order_items" };
+	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+	order.load( 123 );
+	writeDump( order.getOrderItems() );
+```
+That would dump an array of entities representing the `order_items` records that are related to the order #123
+
+The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named `<table>_ID`.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a `customers` table which has a `default_payment_terms` field that is a FK to a table called `payment_terms`, here's how we could handle that with simple dynamicMappings:
+```javascript
+	dynamicMappings = { "default_payment_terms" = "payment_terms" };
+	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+	order.load( 123 );
+	writeDump( order.getDefault_Payment_Terms() );
+```
+There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the `value` part of the mapping.  The struct consists of two keys: `table` and `property`.  So, if we wanted the `defualt_payment_terms` to be `defaultPaymentTerms` all we'd have to do is:
+```javascript
+	dynamicMappings = { "default_payment_terms" = { table = "payment_terms", property = "defaultPaymentTerms" } };
+	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+	order.load( 123 );
+	writeDump( order.getDefaultPaymentTerms() );
+```
+This will dump the exact same as the previous example.  This is only necessary on many-to-one relationships.
+
+__NOTE:__ It is also important to note that the dynamicMappings are passed into any object instantiated during the load() method.  So if you have a dynamicMapping on the order entity, when you load it and it crawls through auto-wiring the order_items, customers, etc... it will apply the same mappings throughout.  So as the example above, the property `defaultPaymentTerms` would be used anytime a property/column named `default_payment_terms` was encoutnerd.
+Here's an example of a more real-world dynamicMapping:
+```javascript
+	dynamicMappings = {
+		"company" = "customers",
+		"users_ID" = { "table" = "users", property = "User" },
+		"orderItems" = "order_items",
+		"default_payment_terms" = "payment_terms",
+		"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
+		"primary_contact" =  { "table" = "contacts", "property" = "primaryContact" }
+	};
+	order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+	order.load( 123 );
+	writeDump( order.getCompany().getUser() );
+```
 
 ## lazy loading
 If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related

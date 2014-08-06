@@ -9,7 +9,8 @@
 
 	  ********************************************************** --->
 
-<cfcomponent output="false" accessors="true" implements="IDAOConnector">
+<cfcomponent output="false" accessors="true">
+	<!---  implements="IDAOConnector" --->
 	<cfproperty name="dao" type="dao"/>
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
