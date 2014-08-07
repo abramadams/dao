@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.70
+*   @version 0.0.72
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -171,9 +171,6 @@ component accessors="true" output="false" {
 					variables["set" & col] = this["set" & col] = this.methods["set" & col] = setFunc;
 					variables["get" & col] = this["get" & col] = this.methods["get" & col] = getFunc;
 					var mapping = _getMapping( col );
-					if( col != mapping.property){
-						writeLog('#mapping.property# == #mapping.table# for #col#');
-					}
 					var newProp = {
 						"name" = mapping.property,
 						"column" = col,
@@ -282,14 +279,34 @@ component accessors="true" output="false" {
 	private function _adder( any value ){
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
+		variables._isDirty = true;
 		try{
+			if( !value.isNew() ){
+				// Whole lot of rigmarole to see if the entity already exists (based on the "ID" value) before appending.
+				// If it does, we'll replace it instead
+				var found = structFindValue( { "test" = variables[ propName ] }, value.getID(), 'all');
+				if( arrayLen( found ) ){
+					for( var i = 1; i lte arrayLen( found ); i++ ){
+						// If the value was found in the ID property, we have a match.
+						if( found[ i ].key == getIDField() ){
+							// This will extract the original array's index position for replacing.
+							var idx = reReplaceNoCase( found[ i ].path, '.*\[(.*)\].*','\1', 'all' );
+							variables[ propName ][ idx ] = value;
+							this[ propName ][ idx ] = value;
+							return;
+						}
+					}
+				}
+			}
+			// If we made it this far, the entity wasn't found in the array.
 			arrayAppend( variables[ propName ], value );
 			arrayAppend( this[ propName ], value );
+
 		}catch( any e ){
-			writeDump([arguments,variables[ propName ], value, e ]);abort;
+			writeDump([propName , value.getID(), e ]);abort;
 		}
-		variables._isDirty = true;
 	}
+
 	/**
 	* This function will replace each public setter so that the isDirty
 	* flag will be set to true anytime data changes.
@@ -1044,7 +1061,7 @@ component accessors="true" output="false" {
 					} );
 		// writeLog('adding adders/getters/setters for #propertyName#');
 		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _adder;
-		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _adder;
+		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 
 
@@ -1110,6 +1127,9 @@ component accessors="true" output="false" {
 			}
 		}
 
+		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
+		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
+
 		if( !isSimpleValue(fkValue) ){
 			// writeLog('Value for #table# : #mapping.table# [#property#] was alread an object');
 			var newObj = fkValue;
@@ -1143,9 +1163,6 @@ component accessors="true" output="false" {
 							"fkcolumn" = fkColumn,
 							"fieldType" = "many-to-one"
 						} );
-
-		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
-		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 
 		// Update Cache
 		try{
@@ -1612,8 +1629,10 @@ component accessors="true" output="false" {
 				&& col.fieldType eq 'one-to-many'
 				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
 				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
-				//writeDump([col,arguments, this]);abort;
+
+				// writeLog('Saving #arrayLen( variables[ col.name ] )# child records for #this.getTable()#:#tempID#');
 				if ( !structKeyExists( variables , col.name ) || !isArray( variables[ col.name ] ) ){
+					// writeLog('nothing to do for #col.name# - #this.getTable()#:#tempID#');
 					continue;
 				}
 				for ( var child in variables[ col.name ] ){
@@ -1628,6 +1647,7 @@ component accessors="true" output="false" {
 						writeDump(['Error in setFunc',e,child, arguments, variables[ col.name ] ]);abort;
 
 					}
+					// writeLog('Saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 					// call the child's save routine;
 					child.save( force = true );
 
