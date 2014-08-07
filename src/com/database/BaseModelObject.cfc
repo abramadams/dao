@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.69
+*   @version 0.0.70
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -55,7 +55,6 @@ component accessors="true" output="false" {
 
 	public any function init( 	string table = "",
 								string parentTable = "",
-								numeric currentUserID = 0,
 								string idField = "ID",
 								string idFieldType = "",
 								string idFieldGenerator = "",
@@ -258,11 +257,15 @@ component accessors="true" output="false" {
 	/**
 	* Convenience method for synthesised setters.
 	**/
-	private function _setter( required string property, any value ){
+	private function _setter( any value ){
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
 		variables[ propName ] = value;
-		variables._isDirty = compare( value, variables[ propName ] ) != 0;
+		if( isSimpleValue( variables[ propName ] ) ){
+			variables._isDirty = compare( value, variables[ propName ] ) != 0;
+		}else{
+			variables._isDirty = true;
+		}
 	}
 	/**
 	* Convenience method for synthesised getters.
@@ -279,8 +282,12 @@ component accessors="true" output="false" {
 	private function _adder( any value ){
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
-		arrayAppend( variables[ propName ], value );
-		arrayAppend( this[ propName ], value );
+		try{
+			arrayAppend( variables[ propName ], value );
+			arrayAppend( this[ propName ], value );
+		}catch( any e ){
+			writeDump([arguments,variables[ propName ], value, e ]);abort;
+		}
 		variables._isDirty = true;
 	}
 	/**
@@ -443,6 +450,7 @@ component accessors="true" output="false" {
 		}
 
 		// writeDump([missingMethodName,left( arguments.missingMethodName, 3 ),mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) ), missingMethodName contains "By"]);abort;
+		// Handle dynamic getters for relationhsip entities
 		if( left( arguments.missingMethodName, 3 ) is "get"){
 			var getterInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 
@@ -537,6 +545,18 @@ component accessors="true" output="false" {
 			return structKeyExists( variables, propertyName )
 				&& ( ( isArray( variables[ propertyName ] ) && arrayLen( variables[ propertyName ] ) )
 				|| ( isStruct( variables[ propertyName ] ) && structCount( variables[ propertyName ] ) ) );
+		}else if( left( arguments.missingMethodName, 3 ) is "add" ){
+			// Adder was called before relationship was wired up. Try to wire up the one-to-many relationship and add the item.
+			var adderInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
+			var newTableName = var propertyName = adderInstructions;
+			var mapping = _getMapping( adderInstructions );
+			var propertyName = propertyName == mapping.table ? mapping.property : propertyName;
+
+			variables[ newTableName ] = this[ newTableName ] = _getOneToMany( table = lcase( mapping.table ), property = propertyName, returnType = returnType );
+			// try the call again.
+			// writeDump(arguments.missingMethodArguments);abort;
+			return evaluate("this.#arguments.missingMethodName#( arguments.missingMethodArguments[1] )");
+
 		}
 
 		// Allow "loadFirst" method to instantiate the entity and load it with the first
@@ -993,7 +1013,7 @@ component accessors="true" output="false" {
 	* Loads One-To-Many relationships into the current entity
 	* Example: On an Order entity you have multiple OrderItems
 	**/
-	private any function _getOneToMany( required string table, any pkValue = getID(), string property = arguments.table, string fkColumn = getTable() & "_ID", string returnType = "object" ){
+	private array function _getOneToMany( required string table, any pkValue = getID(), string property = arguments.table, string fkColumn = getTable() & "_ID", string returnType = "object", string where = "" ){
 
 		var mapping = _getMapping( table );
 		var propertyName = property == table ? mapping.property : property;
@@ -1003,11 +1023,11 @@ component accessors="true" output="false" {
 			var newObj = new( table = mapping.table, dao = this.getDao() );
 		}catch( any e ){
 			throw( message = "Table #propertyName# does not exist", type="BMO", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
-			return;
+			// return;
 		}
 		if( !isObject( newObj ) ){
 			throw( message = "Table #propertyName# does not exist", type="BMO", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
-			return false;
+			// return false;
 		}
 		newObj.setTable( mapping.table );
 		newObj.setParentTable( getTable() );
@@ -1022,7 +1042,7 @@ component accessors="true" output="false" {
 						"fkcolumn" = fkColumn,
 						"fieldType" = "one-to-many"
 					} );
-		writeLog('adding adders/getters/setters for #propertyName#');
+		// writeLog('adding adders/getters/setters for #propertyName#');
 		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _adder;
 		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _adder;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
@@ -1035,20 +1055,19 @@ component accessors="true" output="false" {
 
 		// writeLog('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
-			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#)");
+			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
 			return this[ propertyName ];
 
 		}else{
 			// Return an array of child objects.
 			if( !val( pkValue ) ){
-				// No pkValue, which probably means this is a new record not yet persisted.  Return a blank
-				// entity.
-				this[ propertyName ] = variables[ propertyName ] = newObj;
-				return newObj;
+				// No pkValue, which probably means this is a new record not yet persisted.  Return an empty array
+				this[ propertyName ] = variables[ propertyName ] = [];
+				return [];
 			}
 			// writeLog("newobject table: #newObj.getTable()#");
-			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#)");
-			return this[ propertyName ];
+			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
+			return isArray( this[ propertyName ] ) ? this[ propertyName ] : [ this[ propertyName ] ];
 
 		}
 	}
@@ -1060,9 +1079,9 @@ component accessors="true" output="false" {
 	* 		   order.hasMany( table = "order_items", fkColumn = "orders_ID", property = "OrderItem" );
 	* 		^^ Assumes table order_items has a column named orders_ID, which points to the PK column in orders.
 	**/
-	public any function hasMany( required string table, string fkColumn = getIDField(), string property = arguments.table, string returnType = "object" ){
+	public any function hasMany( required string table, string fkColumn = getIDField(), string property = arguments.table, string returnType = "object", string where = "" ){
 
-		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), property = property, pkValue = getID(), fkColumn = fkColumn, returnType = returnType );
+		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), property = property, pkValue = getID(), fkColumn = fkColumn, returnType = returnType, where = where );
 
 		// Update Cache
 		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
@@ -1075,7 +1094,7 @@ component accessors="true" output="false" {
 	* Loads Many-To-One relationships into the current entity
 	* Example: Many OrderItems entities belong to the same Order
 	**/
-	private any function _getManyToOne( required string table, required string fkColumn, string property = arguments.table, string returnType = "object" ){
+	private any function _getManyToOne( required string table, required string fkColumn, string property = arguments.table, string returnType = "object", string where = "" ){
 		if( !structKeyExists( variables, fkColumn) ){
 			throw( message = "Unknown Foreign Key Property", type="BMO", detail="The Foreign Key: #fkColumn# did not exist in #table#.");
 		}
@@ -1106,7 +1125,7 @@ component accessors="true" output="false" {
 		// Load data into new object
 		// writeLog('Loading dynamic many-to-one relationship entity #table#[#mapping.table#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #isSimpleValue( variables[fkColumn] ) ? variables[fkColumn] : 'complex object'#. Lazy? #yesNoFormat(getParentTable() eq mapping.table)#');
 		if( len( trim( fkValue ) ) ){
-			newObj.load( ID = fkValue, lazy = getParentTable() == mapping.table );
+			newObj.load( ID = fkValue, lazy = getParentTable() == mapping.table, where = where );
 		}
 
 		// writeLog('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
@@ -1125,7 +1144,7 @@ component accessors="true" output="false" {
 							"fieldType" = "many-to-one"
 						} );
 
-		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _setter;
+		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 
 		// Update Cache
@@ -1146,8 +1165,8 @@ component accessors="true" output="false" {
 		return newObj;
 	}
 
-	public any function belongsTo( required string table, string fkColumn = arguments.table & "_ID", string property = arguments.table, string returnType = "object" ){
-		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), fkColumn = fkColumn, property = property, returnType = returnType );
+	public any function belongsTo( required string table, string fkColumn = arguments.table & "_ID", string property = arguments.table, string returnType = "object", string where = "" ){
+		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( table ), fkColumn = fkColumn, property = property, returnType = returnType, where = where );
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
 		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
@@ -1442,9 +1461,9 @@ component accessors="true" output="false" {
 		lock type="exclusive" name="#getTable()#-#getID()#" timeout="1"{
 			cacheRemove( '#getTable()#-#getID()#' );
 		}
-
 		// Either insert or update the record
 		if ( isNew() ){
+
 			callbackArgs.isNew = true;
 			// set uuid for fields set to generator="uuid"
 			var col = {};
@@ -1467,7 +1486,7 @@ component accessors="true" output="false" {
 
 			}
 			// On an insert we save the child records in two passes.
-			// the first pass (this one) will save one-to-one related data.
+			// the first pass (this one) will save one-to-many related data.
 			// This is done first so that the parent's ID can be set into this
 			// entity instance before we persist to the database.  The second
 			// pass will save the one-to-many related entities as those require
@@ -1782,8 +1801,12 @@ component accessors="true" output="false" {
 				if( !len( trim( value.toString() ) ) ){
 					return "";
 				}
-				if( !isValid( type, value ) ){
-					error = "The value provided for #property.name# ('#value.toString()#') is not a valid #type#";
+				try{
+					if( !isValid( type, value ) ){
+						error = "The value provided for #property.name# ('#value.toString()#') is not a valid #type#";
+					}
+				}catch( any e ){
+					writeDump( [arguments, e] );abort;
 				}
 			}
 		}
@@ -1795,6 +1818,10 @@ component accessors="true" output="false" {
 
 		switch( arguments.typeName) {
 			case "varchar" : type = 'string';
+			break;
+			case "double" : type = 'numeric';
+			break;
+			case "bit" : type = 'boolean';
 			break;
 		}
 

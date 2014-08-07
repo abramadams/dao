@@ -302,11 +302,25 @@ There you have it.  A JSON representation of your data.  Ok, now say you just wa
 order.hasMany( 'order_items' );
 order.toStruct();// or order.toJSON();
 ```
-The "hasMany" function can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
+The `hasMany` method can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
 ```javascript
 order.hasMany( table = 'order_items', property = 'orderItems' );
 order.getOrderItems().toStruct();
 ```
+In addition, the `hasMany` method can take a `where` argument that is used to filter the child entities.  For instance, if you have a column in your order_items table called `status`, in which the value 1 means it's active and 99 means it's deleted you could define your hasMany relationship like:
+```javascript
+order.hasMany( table = 'order_items', property = 'orderItems', where = 'status != 99' );
+order.getOrderItems().toStruct();
+```
+This would only return "active" order_items.
+
+The `hasMany` method is great for defining one-to-many relationships that can't be/aren't defined by naming conventions, but there's also a way to define many-to-one relationships in this manner; the `belongsTo` method.
+```javascript
+order.belongsTo( table = 'customers', property = 'company', fkField = 'customerID' );
+writeDump( order.getCompany() );
+```
+This may not be as useful as the `hasMany` method, as these many-to-one relationships can easily be defined using dynamicMappings (discussed below), but it can bind these relationships after the entity has been loaded, where dynamicMappings occur during load.
+
 ##Dynamic Mappings/Aliases
 Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional `dynamicMappings` argument to the BaseModelObject's init method.  The dynamicMappings argument expects a struct containing `key` and `value` pairs of mappings wher the `key` is the desired property name for one-to-many or column name for many-to-one relationships and the `value` is the actual table name (or a struct, explained later).
 
@@ -349,6 +363,47 @@ dynamicMappings = {
 order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
 order.load( 123 );
 writeDump( order.getCompany().getUser() );
+```
+###Dynamic Relationship Best Practices
+Although you can definitely define your relationships on the fly using naming conventions, the dynamicMappings property, and hasMany/belongsTo methods it may not always be the best practice.  Take for example the code snippet above where we are setting all of those dynamic mappings.  It's likely that everywhere you need the `order` entity you'll probably want those mappings to exist (and be consistent).  To accomplish this you'll want a hybrid aproach using a facade CFC.  Here's a sample of how that could look:
+
+__Order Entity Facade: model/Order.cfc__
+```javascript
+/**
+* I define relationships and preset defaults for the orders entity
+**/
+component accessors="true" output="false" table="orders" extends="com.database.BaseModelObject" {
+
+	public any function load(){
+		// For convenience, we'll just pump in the dao here (pretend it lives in the application scope)
+		setDAO( application.dao );
+
+		// Define alias mappings.  This needs to happen before the entity is loaded, because the
+		// load method needs this mapping to build the entity relationships.
+		setDynamicMappings({
+			"company" = "customers",
+			"users_ID" = { "table" = "users", property = "User" },
+			"orderItems" = "order_items",
+			"default_payment_terms" = "payment_terms",
+			"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
+			"primary_contact" =  { "table" = "contacts", "property" = "primaryContact"
+		});
+
+		// Now load the entity, passing any args that we were given
+		super.load( argumentCollection = arguments );
+
+		// Now that the entity is loaded, we can identify any many-to-one relationships with the hasMany function
+		this.hasMany( table = "order_items", fkcolumn = "orders_ID", property = "orderItems", where = "status != 99" );
+
+		return this;
+	}
+}
+```
+With the above, I can simply instantiate the Order entity like so:
+```javascript
+order = new model.Order();
+writeDump( order.getCompany().getUser() );
+writeDump( order.getOrderItems() );
 ```
 
 ## lazy loading
