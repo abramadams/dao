@@ -35,7 +35,7 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 	// create instance of DAO - must feed it a datasource name
 	dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
 
-	// Insert data (could have easily been a form struct)
+	// Insert data (could have easily been a form scope or "rc" struct)
 	DATA = {
 			"_id" = lcase(createUUID()),
 			"first_name" = "Joe" ,

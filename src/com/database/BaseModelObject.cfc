@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.72
+*   @version 0.0.73
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -305,6 +305,27 @@ component accessors="true" output="false" {
 		}catch( any e ){
 			writeDump([propName , value.getID(), e ]);abort;
 		}
+	}
+	/**
+	* Convenience method for synthesised removers.
+	**/
+	private function _remover( any index ){
+		var propName = getFunctionCalledName();
+		var idx = index;
+		propName = mid( propName, 7, len( propName ) );
+		variables._isDirty = true;
+		try{
+			if( isObject( index ) ){
+				idx = arrayFind( variables[ propName ], index );
+			}
+			if( idx > 0 ){
+				arrayDeleteAt( variables[ propName ] , idx );
+			}
+
+		}catch( any e ){
+			writeDump([propName , index, e ]);abort;
+		}
+		// TODO: work out a way to cascade delete the removed child...
 	}
 
 	/**
@@ -1062,6 +1083,7 @@ component accessors="true" output="false" {
 		// writeLog('adding adders/getters/setters for #propertyName#');
 		this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _adder;
 		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
+		this[ "remove" & propertyName ] = variables[ "remove" & propertyName ] = _remover;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 
 
