@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.73
+*   @version 0.0.74
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -1462,7 +1462,11 @@ component accessors="true" output="false" {
 									&& listLast( returnStruct[ arg ], '.' ) GT 0 ){
 								// Since CF likes to convert our numbers to strings, let's javacast it as an int
 								try{
-									returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+									if( findNoCase( '.', returnStruct[ arg ] ) ){
+										returnStruct[ arg ] = javaCast( 'double', returnStruct[ arg ] );
+									}else{
+										returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+									}
 								}catch( any e ){
 									returnStruct[ arg ] = returnStruct[ arg ];
 								}
