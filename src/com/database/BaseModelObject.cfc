@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.76
+*   @version 0.0.77
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -191,6 +191,9 @@ component accessors="true" output="false" {
 					if( structKeyExists( getDynamicMappings(), col ) ){
 						newProp["table"] = mapping.table;
 						newProp["fkcolumn"] = col;
+					}
+					if( structKeyExists( mapping, 'cfc' ) ){
+						newProp["cfc"] = mapping.cfc;
 					}
 					if ( structKeyExists( variables.tabledef.instance.tablemeta.columns[col], 'length' ) ){
 						newProp["length"] = variables.tabledef.instance.tablemeta.columns[col].length;
@@ -836,7 +839,11 @@ component accessors="true" output="false" {
 						variables[ mapping.property ] = cachedObject[ cachedPropName ];
 						cachedObject[ mapping.property ] = cachedObject[ cachedPropName ];
 						// writeLog('Pumping #prop# into the object from cache...');
-						arrayAppend( variables.meta.properties, { table = mapping.table, name = mapping.property, column = mapping.property, type = isObject( cachedObject[ cachedPropName ] ) ? "object" : "string" } );
+						var newProp = { 'table' = mapping.table, 'name' = mapping.property, 'column' = mapping.property, 'type' = isObject( cachedObject[ cachedPropName ] ) ? "object" : "string" };
+						if( structKeyExists( mapping, 'cfc' ) ){
+							newProp['cfc'] = mapping.cfc;
+						}
+						arrayAppend( variables.meta.properties, newProp );
 					}
 				}
 
@@ -1257,6 +1264,9 @@ component accessors="true" output="false" {
 		return this;
 	}
 
+	/**
+	* I return the field/relationship mapping for a given table
+	**/
 	private any function _getMapping( required string table ){
 
 		var mapping = { "table" = table, "property" = table, "key" = table, "IDField" = getIDField() };
