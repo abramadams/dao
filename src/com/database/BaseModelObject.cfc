@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.75
+*   @version 0.0.76
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams
@@ -267,11 +267,12 @@ component accessors="true" output="false" {
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
 		variables[ propName ] = value;
-		if( isSimpleValue( variables[ propName ] ) ){
+		if( isSimpleValue( variables[ propName ] ) && !variables._isDirty ){
 			variables._isDirty = compare( value, variables[ propName ] ) != 0;
 		}else{
 			variables._isDirty = true;
 		}
+		// writeLog('set called via _setter as #propname# and dirty is: #variables._isDirty#');
 	}
 	/**
 	* Convenience method for synthesised getters.
@@ -352,10 +353,14 @@ component accessors="true" output="false" {
 
 			// If the property exists, compare the old value to the new value (case sensitive)
 			if( structKeyExists( variables, propName ) && isSimpleValue( v ) ){
-				//If the old value isn't identical to the new value, set the isDirty flag to true
-				variables._isDirty = compare( v, variables[ propName ] ) != 0;
+				// If the old value isn't identical to the new value, set the isDirty flag to true
+				// This only needs to be set if it isn't already
+				if( !variables._isDirty ){
+					variables._isDirty = compare( v, variables[ propName ] ) != 0;
+				}
 			}
 
+			// writeLog('set called via setFunc as #getFunctionCalledName()# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
 			// Get the original setter function that we set aside in the init routine.
 			var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
 			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
@@ -587,6 +592,7 @@ component accessors="true" output="false" {
 
 			this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
+			variables._isDirty = true;
 
 			return this;
 
@@ -1546,7 +1552,7 @@ component accessors="true" output="false" {
 
 		var tempID = this.getID();
 		var callbackArgs = { ID = this.getID(), method = 'save' };
-
+		writeDUmp(['is new?', this.isNew(), 'is dirty?', this.isDirty()]);
 		// remove object from cache (if it exists)
 		// Removing #this.getTable()#-#this.getID()# from cache
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
@@ -1631,6 +1637,7 @@ component accessors="true" output="false" {
 
 
 		}else if( isDirty() || arguments.force ){
+		// }else{
 			callbackArgs.isNew = false;
 
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
@@ -1672,10 +1679,15 @@ component accessors="true" output="false" {
 
 			/*** update the thing ****/
 			transaction{
-				variables.dao.update(
-					table = this.getTable(),
-					data = DATA
-				);
+				try{
+
+					variables.dao.update(
+						table = this.getTable(),
+						data = DATA
+					);
+				} catch( any e ){
+					throw( message = "Error updating #this.getTable()#: #e.message#", detail = [data,e] );
+				}
 			}
 		}
 
