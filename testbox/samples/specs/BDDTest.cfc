@@ -1,7 +1,7 @@
 /**
 * This tests the BDD functionality in TestBox. This is CF10+, Railo4+
 */
-component extends="testbox.system.testing.BaseSpec"{
+component extends="testbox.system.BaseSpec"{
 
 /*********************************** LIFE CYCLE Methods ***********************************/
 
@@ -13,14 +13,14 @@ component extends="testbox.system.testing.BaseSpec"{
 
 	function afterAll(){
 		console( "Executed afterAll() at #now()#" );
-		structClear( application );	
+		structClear( application );
 	}
 
 /*********************************** BDD SUITES ***********************************/
 
 	function run(){
 
-		/** 
+		/**
 		* describe() starts a suite group of spec tests.
 		* Arguments:
 		* @title The title of the suite, Usually how you want to name the desired behavior
@@ -29,21 +29,21 @@ component extends="testbox.system.testing.BaseSpec"{
 		* @asyncAll If you want to parallelize the execution of the defined specs in this suite group.
 		* @skip A flag that tells TestBox to skip this suite group from testing if true
 		*/
-		describe( "A spec", function(){
-		
+		describe( title="A spec", labels="luis", body=function(){
+
 			// before each spec in THIS suite group
 			beforeEach(function(){
 				coldbox = 0;
 				coldbox++;
 				debug( "beforeEach suite: coldbox = #coldbox#" );
 			});
-			
+
 			// after each spec in THIS suite group
 			afterEach(function(){
 				foo = 0;
 			});
-			
-			/** 
+
+			/**
 			* it() describes a spec to test. Usually the title is prefixed with the suite name to create an expression.
 			* Arguments:
 			* @title The title of the spec
@@ -51,10 +51,10 @@ component extends="testbox.system.testing.BaseSpec"{
 			* @labels The list or array of labels this spec belongs to
 			* @skip A flag that tells TestBox to skip this spec from testing if true
 			*/
-			it("is just a closure so it can contain code", function(){
+			it(title="is just a closure so it can contain code", body=function(){
 				expect( coldbox ).toBe( 1 );
-			});
-			
+			},labels="luis");
+
 			// more than 1 expectation
 			it("can have more than one expectation test", function(){
 				coldbox = coldbox * 8;
@@ -79,12 +79,17 @@ component extends="testbox.system.testing.BaseSpec"{
 				// delta ranges
 				expect( coldbox ).notToBeCloseTo( expected=10, delta=2 );
 			});
-			
+
+			it( "can get private properties", function(){
+				var oTest = new testbox.tests.resources.Test();
+				expect( getProperty( oTest, "reload" ) ).toBeFalse();
+			});
+
 			// xit() skips
 			xit("can have tests that can be skipped easily like this one", function(){
-				fail( "xit() this should skip" );	
+				fail( "xit() this should skip" );
 			});
-			
+
 			// acf dynamic skips
 			it( title="can have tests that execute if the right environment exists (railo only)", body=function(){
 				expect( server ).toHaveKey( "railo" );
@@ -94,7 +99,7 @@ component extends="testbox.system.testing.BaseSpec"{
 			it( title="can have tests that execute if the right environment exists (acf only)", body=function(){
 				expect( server ).notToHaveKey( "railo" );
 			}, skip=( isRailo() ));
-			
+
 			// specs with a random skip closure
 			it(title="can have a skip that is executed at runtime", body=function(){
 				fail( "Skipped programmatically, this should fail" );
@@ -141,7 +146,7 @@ component extends="testbox.system.testing.BaseSpec"{
 				});
 				foo = false;
 			});
-			
+
 			it("are cool and foo should be really false", function(){
 				expect( foo ).toBeReallyFalse();
 			});
@@ -155,10 +160,10 @@ component extends="testbox.system.testing.BaseSpec"{
 
 				beforeEach(function(){
 					// add custom matcher via CFC
-					addMatchers( new testbox.samples.resources.CustomMatcher() );
+					addMatchers( new testbox.tests.resources.CustomMatcher() );
 					foofoo = false;
 				});
-				
+
 				it("should be awesome", function(){
 					expect( foofoo ).toBeAwesome();
 					debug( " foofoo should be awesome #foofoo#" );
@@ -184,24 +189,24 @@ component extends="testbox.system.testing.BaseSpec"{
 
 			// Another suite
 			describe( "Another Nested Suite", function(){
-				
+
 				it( "can also be awesome", function(){
 					expect(	foo ).toBeFalse();
 				});
-			
+
 			});
 
 		});
 
 		// Skip by env suite
 		describe(title="A railo only suite", body=function(){
-			
+
 			it("should only execute for railo", function(){
-				expect( server ).toHaveKey( "railo" );	
+				expect( server ).toHaveKey( "railo" );
 			});
 
 		}, skip=( !isRailo() ));
-		
+
 		// xdescribe() skips the entire suite
 		xdescribe("A suite that is skipped via xdescribe()", function(){
 			it("will never execute this", function(){
@@ -213,7 +218,7 @@ component extends="testbox.system.testing.BaseSpec"{
 			// before each spec in THIS suite group
 			beforeEach(function(){
 				// using request until railo fixes their closure bugs
-				request.calc = calc = new testbox.samples.resources.Calculator();
+				request.calc = calc = new testbox.tests.resources.Calculator();
 			});
 
 			// after each spec in THIS suite group
@@ -224,12 +229,12 @@ component extends="testbox.system.testing.BaseSpec"{
 			it("Can have a separate beforeEach for this suite", function(){
 				expect( request.calc ).toBeComponent();
 			});
-			
-			it("can add incorrectly", function(){
+
+			xit("can add incorrectly and fail", function(){
 				var r = calc.add( 2, 2 );
 				expect( r ).toBe( 5 );
 			});
-			
+
 			it("cannot divide by zero", function(){
 				expect( function(){
 					request.calc.divide( 4, 0 );
@@ -257,7 +262,7 @@ component extends="testbox.system.testing.BaseSpec"{
 					request.calc.divideWithDetail();
 				} ).toThrow( regex="impossible" );
 			});
-			
+
 			it("can use a mocked stub", function(){
 				c = createStub().$("getData", 4);
 				r = calc.add( 4, c.getData() );
@@ -265,10 +270,10 @@ component extends="testbox.system.testing.BaseSpec"{
 				expect( c.$once( "getData") ).toBeTrue();
 			});
 
-			it("can produce errors", function(){
+			xit("can produce errors", function(){
 				exxpect();
 			});
-			
+
 		});
 
 	}

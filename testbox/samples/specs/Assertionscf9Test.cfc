@@ -1,4 +1,4 @@
-component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="testbox.system.testing.BaseSpec"{
+component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="testbox.system.BaseSpec"{
 
 /*********************************** LIFE CYCLE Methods ***********************************/
 
@@ -64,15 +64,21 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 	}
 
 	function testThatShouldFail(){
-		$assert.fail( "This Test should fail" );
+		try{
+			$assert.fail( "This Test should fail" );
+		}
+		catch(Any e){
+			// should get here
+		}
 	}
 
-	function testFails(){
-		//$assert.fail( "This Test should fail" );
-	}
-
-	function testFailsShortcut() labels="railo"{
-		//fail( "This Test should fail" );
+	function testThatShouldFailWithShortcut(){
+		try{
+			fail( "This Test should fail" );
+		}
+		catch(Any e){
+			// should get here
+		}
 	}
 
 	function testAssert() {
@@ -95,26 +101,26 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 	function f1(){}
 
 
-	function testisEqual() {		
-		
+	function testisEqual() {
+
 		var query = queryNew("");
 		queryAddColumn(query, "id", [1,2,3,4]);
 		queryAddColumn(query, "data", ["tahi","rua","toru", "wha"]);
-		struct = {query=query};	
+		struct = {query=query};
 		$assert.isEqual(struct, duplicate(struct));
 
 		$assert.isEqual(
 			[1,12],		// strings
 			[1*1, 1*12]	// doubles
 		);
-		
+
 		$assert.isEqual(f1, f1);
-		
-		$assert.isEqual( new testbox.system.testing.MockBox(), new testbox.system.testing.MockBox() );
-		
+
+		$assert.isEqual( new testbox.system.MockBox(), new testbox.system.MockBox() );
+
 		var xmlString = '<root><item attr="value" /><item attr="again" /></root>';
 		$assert.isEqual( XMLParse(xmlString), XMLParse(xmlString) );
-		
+
 		$assert.isEqual( 0, 0 );
 		$assert.isEqual( "hello", "HEllO" );
 		$assert.isEqual( [], [] );
@@ -122,7 +128,7 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 	}
 
 	function testisNotEqual() {
-		$assert.isNotEqual( this, new testbox.system.testing.MockBox() );
+		$assert.isNotEqual( this, new testbox.system.MockBox() );
 		$assert.isNotEqual( "hello", "test" );
 		$assert.isNotEqual( 1, 2 );
 		$assert.isNotEqual( [], [1,3] );
@@ -172,11 +178,11 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 	}
 
 	function testInstanceOf() {
-		$assert.instanceOf( new testbox.system.testing.MockBox(), "testbox.system.testing.MockBox" );
+		$assert.instanceOf( new testbox.system.MockBox(), "testbox.system.MockBox" );
 	}
 
 	function testNotInstanceOf() {
-		$assert.notInstanceOf( this, "testbox.system.testing.MockBox" );
+		$assert.notInstanceOf( this, "testbox.system.MockBox" );
 	}
 
 	function testMatch(){
@@ -290,7 +296,7 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 		$assert.isLTE( 5, 10 );
 	}
 
-/*********************************** NON-RUNNABLE Methods ***********************************/	
+/*********************************** NON-RUNNABLE Methods ***********************************/
 
 	function nonStandardNamesWillNotRun() {
 		fail( "Non-test methods should not run" );

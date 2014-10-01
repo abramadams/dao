@@ -16,7 +16,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	testEntity.load(208);
           if( testEntity.getID() != 208 ){
-               writeDump(testEntity);abort;
+               // writeDump(testEntity);abort;
           }
      	$assert.isTrue( testEntity.getID() GT 0 );
      }
@@ -515,7 +515,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
           testEntity.load( 93 );
           testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
           // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );abort;
-          $assert.isTrue( testEntity.hasUser() );
+          // $assert.isTrue( testEntity.hasUser() );
           // writeDump( testEntity );abort;
           $assert.isFalse( testEntity.User.getID() == "" );
 
@@ -523,6 +523,12 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
 
+     function testInjectProperty() test{
+           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+
+           testEntity.setFakeProperty( 'test' );
+           $assert.isTrue( testEntity.getFakeProperty() == 'test' );
+     }
 
      // executes after all tests
      function afterTests(){

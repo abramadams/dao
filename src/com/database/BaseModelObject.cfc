@@ -42,7 +42,7 @@ component accessors="true" output="false" {
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" persistent="false";
 	/* Relationship properties*/
-	property name="autoWire" type="boolean" persistent="false" hint="If false, I prevent the laod() method from auto wiring relationships.  Relationships can be bolted on after load, so this can be used for performance purposes.";
+	property name="autoWire" type="boolean" persistent="false" hint="If false, I prevent the load() method from auto wiring relationships.  Relationships can be bolted on after load, so this can be used for performance purposes.";
 	property name="dynamicMappings" type="struct" persistent="false" hint="Defines alias to table name mappings.  So if you want the entity property to be OrderItems, but the table is order_items you would pass in { 'OrderItems' = 'order_items' } ";
 	property name="__fromCache" type="boolean" persistent="false";
 	property name="__cacheEntities" type="boolean" persistent="false";
@@ -67,7 +67,7 @@ component accessors="true" output="false" {
 								boolean createTableIfNotExist = false,
 								struct dynamicMappings = {},
 								boolean autoWire = true,
-								boolean cacheEntities = false,
+								boolean cacheEntities = true,
 								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
 
 		var LOCAL = {};
@@ -242,6 +242,25 @@ component accessors="true" output="false" {
 	    return this;
 	}
 
+	/**
+	* I inject a property into the current instance.  Shorthand for inserting the
+	* property into the "this" and "variables" scope
+	**/
+	private function _injectProperty( prop, val ){
+		variables[ prop ] = val;
+		this[ prop ] = val;
+		var mapping = _getMapping( prop );
+		var newProp = {
+						"name" = mapping.property,
+						"column" = prop,
+						"generator" = "",
+						"fieldtype" = "",
+						"type" = "",
+						"dynamic" = true
+					};
+		arrayAppend( variables.meta.properties, newProp );
+	}
+
 	private function _getMetaData(){
 		return deSerializeJSON( serializeJSON( getMetadata( this ) ) );
 
@@ -339,6 +358,16 @@ component accessors="true" output="false" {
 			writeDump([propName , index, e ]);abort;
 		}
 		// TODO: work out a way to cascade delete the removed child...
+	}
+
+	/**
+	* Convenience method for synthesised 'has' checks (i.e. hasOrders) .
+	**/
+	private function _has(){
+		var propName = getFunctionCalledName();
+		// writeLog(propName);
+		propName = mid( propName, 4, len( propName ) );
+		return isArray( variables[ propName ] ) && arrayLen( variables[ propName ] );
 	}
 
 	/**
@@ -512,6 +541,11 @@ component accessors="true" output="false" {
 				return variables[ getIDField() ];
 			}
 			if( getterInstructions does not contain "By"){
+				if( structKeyExists( variables, getterInstructions ) ){
+					// Pretend to be a getter
+					// Handle getters that may not have been assigned to dynamic properties
+					return variables[ getterInstructions ];
+				}
 				// If the "getter" doesn't contain a "by" clause, we'll look to see if the current entity
 				// has a FK matching the convention <name>_ID.  So if the method call was getUsers() and the
 				// current entity has a users_ID property we will try to load an entity based on a Users table
@@ -592,16 +626,16 @@ component accessors="true" output="false" {
 			// Handle setters that may not have been assigned to dynamic properties
 			var tableName = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 			var mapping = _getMapping( tableName );
-
-			this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
-			variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
+			_injectProperty( mapping.property, arguments.missingMethodArguments[ 1 ] );
+			// this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
+			// variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			variables._isDirty = true;
 
 			return this;
 
 		}else if( left( arguments.missingMethodName, 7 ) is "hasMany" ){
 			// Inject array of child objects
-			var newTableName = mid( arguments.missingMethodName, findNoCase( "hasMany", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
+			var newTableName = mid( arguments.missingMethodName, 8, len( arguments.missingMethodName ) );
 			//writeLog('CALLING _getOneToMany() for #newTableName# using hasmany missing method handler');
 			variables[ newTableName ] = this[ newTableName ] = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
 
@@ -1132,7 +1166,7 @@ component accessors="true" output="false" {
 		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
 		this[ "remove" & propertyName ] = variables[ "remove" & propertyName ] = _remover;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
-
+		this[ "has" & propertyName ] = _has;
 
 		// Update Cache
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
@@ -1562,7 +1596,7 @@ component accessors="true" output="false" {
 
 		var tempID = this.getID();
 		var callbackArgs = { ID = this.getID(), method = 'save' };
-		writeDUmp(['is new?', this.isNew(), 'is dirty?', this.isDirty()]);
+		// writeDUmp(['is new?', this.isNew(), 'is dirty?', this.isDirty()]);
 		// remove object from cache (if it exists)
 		// Removing #this.getTable()#-#this.getID()# from cache
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{

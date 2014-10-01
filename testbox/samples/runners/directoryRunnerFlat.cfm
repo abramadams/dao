@@ -1,4 +1,4 @@
 <cfsetting showdebugoutput="false" >
 <!--- Directory Runner --->
-<cfset r = new testbox.system.testing.TestBox( directory="testbox.samples.specs" ) >
+<cfset r = new testbox.system.TestBox( directory="testbox.tests.specs" ) >
 <cfoutput>#r.run(reporter="simple")#</cfoutput>

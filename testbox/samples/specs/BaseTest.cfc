@@ -1,4 +1,4 @@
-component extends="testbox.system.testing.compat.framework.TestCase"{
+component extends="testbox.system.compat.framework.TestCase"{
 
 	function testFromInheritance(){
 		assert( true,  "Inheritance call passed" );

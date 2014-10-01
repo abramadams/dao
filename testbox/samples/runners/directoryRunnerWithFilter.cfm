@@ -1,7 +1,7 @@
 <cfsetting showdebugoutput="false" >
 <cfscript>
-r = new testbox.system.testing.TestBox( directory={ 
-		mapping = "testbox.samples.specs", 
+r = new testbox.system.TestBox( directory={ 
+		mapping = "testbox.tests.specs", 
 		recurse = true,
 		filter = function( path ){ return true; }
 });

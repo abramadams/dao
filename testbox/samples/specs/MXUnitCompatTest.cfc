@@ -3,7 +3,7 @@ component extends="BaseTest" {
 /*********************************** LIFE CYCLE Methods ***********************************/
 
 	function beforeTests(){
-		addAssertDecorator( "testbox.samples.resources.CustomAsserts" );
+		addAssertDecorator( "testbox.tests.resources.CustomAsserts" );
 		application.salvador = 1;
 	}
 
@@ -20,14 +20,21 @@ component extends="BaseTest" {
 	}
 
 /*********************************** Test Methods ***********************************/
-	
+
 	function testAddAssertDecorator(){
 		assertIsFunky( 100 );
 		assertIsAwesome( "testbox", "testbox" );
 	}
 
-	function testFails(){
-		fail( "This Test should fail" );
+	function testFailsMethod(){
+		try{
+			fail( "This Test should fail" );
+		}
+		catch( Any e ){
+			if( e.message != "This Test should fail" ){
+				rethrow;
+			}
+		}
 	}
 
 	function testAssert() {
@@ -61,7 +68,9 @@ component extends="BaseTest" {
 	}
 
 	function testassertNotSame() {
-		assertNotSame( this, createObject("component", "testbox.system.testing.MockBox") );
+		assertNotSame( this, createObject("component", "testbox.system.MockBox") );
+		// Even if the same CFC, two separate instances would be "equal" but not the "same".
+		assertNotSame( createObject("component", "testbox.system.MockBox"), createObject("component", "testbox.system.MockBox") );
 	}
 
 	function testassertQueryEquals() {
@@ -78,18 +87,20 @@ component extends="BaseTest" {
 		assertQueryEquals( q1, q2 );
 	}
 
+	function testassertStructEquals() {
+		assertStructEquals( { name="luis", awesome=true }, { name="luis", awesome=true } );
+	}
+
+
 	function testassertSame(){
 		assertSame( this, this );
+		var data = { name="luis", awesome=true };
+		assertSame( data, data );
 	}
-
-	function testassertStructEquals() {
-		assertSame( { name="luis", awesome=true }, { name="luis", awesome=true } );
-	}
-
 	function testAssertTrue() {
 		assertTrue( true );
 	}
-	
+
 	function nonStandardNamesWillNotRun() {
 		fail( "Non-test methods should not run" );
 	}
@@ -127,19 +138,19 @@ component extends="BaseTest" {
 	}
 
 	function testMakePublic(){
-		var t = new coldbox.testing.resources.test1();
+		var t = new testbox.tests.resources.test1();
 		assertTrue( makePublic( t, "aPrivateMethod").aPrivateMethod() );
 
-		var t = new coldbox.testing.resources.test1();
+		var t = new testbox.tests.resources.test1();
 		assertTrue( makePublic( t, "aPrivateMethod", "funkyMethod" ).funkyMethod() );
 
-		var obj1 = new testbox.samples.resources.CallPrivate();
+		var obj1 = new testbox.tests.resources.CallPrivate();
         var obj2 = makePublic( obj1, "callPrivate" );
         assertEquals( "called", obj2.callIt() ); // will fail because variables.callPrivate no longer exists
 	}
 
 	function testMakePublicWithPackage(){
-		variables.test = new somepackage.ComponentInDifferentPackage();
+		variables.test = new test.resources.somepackage.ComponentInDifferentPackage();
 		makepublic(variables.test, "aPackageMethod");
 		assertEquals("test for this value", variables.test.aPackageMethod());
 	}
@@ -212,20 +223,12 @@ component extends="BaseTest" {
 	function testMockMethods(){
 		setMockingFramework( "MockBox" );
 		var m = getMockFactory( "MockBox" );
-		var m = mock( "testbox.system.testing.TestBox" );
-	}
-
-	function testExpectException_should_fail(){
-		expectException("MyException");
+		var m = mock( "testbox.system.TestBox" );
 	}
 
 	function testRaiseException_pass(){
 		expectException("MyException");
 		raiseExpectedException();
-	}
-	function testRaiseException_fail_wrong_exception_raised(){
-		expectException("MyException");
-		raiseUnexpectedException();
 	}
 
 	private	function raiseExpectedException(){
