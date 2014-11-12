@@ -67,7 +67,7 @@ component accessors="true" output="false" {
 								boolean createTableIfNotExist = false,
 								struct dynamicMappings = {},
 								boolean autoWire = true,
-								boolean cacheEntities = true,
+								boolean cacheEntities = false, /* 2014-11-12 still experimental */
 								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
 
 		var LOCAL = {};
