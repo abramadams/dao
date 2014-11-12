@@ -20,7 +20,7 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.77
+*   @version 0.0.78
 *   @dependencies { "dao" : ">=0.0.60" }
 *   @updated 07/24/2014
 *   @author Abram Adams

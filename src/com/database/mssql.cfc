@@ -2,6 +2,8 @@
 		Component	: dao.cfc (MSSQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
+		@version 0.0.61
+	   	@updated 11/12/2014
 		Description	: Targeted database access object that will
 		controll all MSSQL specific database interaction.
 		This component will use MSSQL syntax to perform general

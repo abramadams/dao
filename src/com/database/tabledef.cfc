@@ -2,6 +2,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
+	  	@version 0.0.61
+	   	@updated 11/12/2014
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
