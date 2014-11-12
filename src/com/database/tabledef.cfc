@@ -142,7 +142,7 @@
 
 	//	GETTERS
 	public string function getColumns( string exclude = "", string prefix ="" ){
-		if( len( trim( exclude ) ) ){
+		if( len( trim( exclude ) ) && listFindNoCase( this.instance.table.columnlist, exclude ) ){
 			return listDeleteAt( this.instance.table.columnlist, listFindNoCase( this.instance.table.columnlist, exclude ) );
 		}
 		var prefixedColumnList = this.instance.table.columnlist;
@@ -150,6 +150,10 @@
 			prefixedColumnList = prefix & '.' & listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
 		}
 		return prefixedColumnList;
+	}
+
+	public struct function getColumnDefs( string exclude = "", string prefix ="" ){
+		return this.instance.tablemeta.columns;
 	}
 
 	public query function getRows(){
@@ -333,7 +337,7 @@
 	public string function getIndexColumns(){
 		var keys = [];
 		for ( var col in this.instance.tablemeta.columns ){
-			if( this.instance.tablemeta.columns[col].isIndex == "YES" ){
+			if( this.instance.tablemeta.columns[col].isIndex == true ){
 				arrayAppend( Keys, col );
 			}
 		}
@@ -344,7 +348,7 @@
 	public string function getPrimaryKeyColumns(){
 		var keys = [];
 		for ( var col in this.instance.tablemeta.columns ){
-			if( this.instance.tablemeta.columns[col].isPrimaryKey == "YES" ){
+			if( this.instance.tablemeta.columns[col].isPrimaryKey == true ){
 				arrayAppend( Keys, col );
 			}
 		}
@@ -355,7 +359,9 @@
 	public string function getPrimaryKeyColumn(){
 		var keys = [];
 		for ( var col in this.instance.tablemeta.columns ){
-			if( this.instance.tablemeta.columns[col].isPrimaryKey == "YES" ){
+			writelog(col);
+			writelog(this.instance.tablemeta.columns[col].isPrimaryKey);
+			if( this.instance.tablemeta.columns[col].isPrimaryKey == true ){
 				arrayAppend( Keys, col );
 				break;
 			}
@@ -421,7 +427,9 @@
 		<cfquery name="primaryKeylist" dbtype="query">
 			SELECT * FROM columns
 			WHERE is_primarykey = 'YES'
+			OR type_name LIKE '% identity'
 		</cfquery>
+
 		<!--- strip the statistics index (type = 0) --->
 		<cfquery dbtype="query" name="LOCAL.indexqry_#this.instance.name#" cachedwithin="#createTimeSpan(0,1,0,0)#">
 			SELECT  *

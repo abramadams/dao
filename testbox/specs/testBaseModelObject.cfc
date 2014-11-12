@@ -510,7 +510,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
 
      function testDynamicHasRelatedEntities() test{
-          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets", autowire = true );
 
           testEntity.load( 93 );
           testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );

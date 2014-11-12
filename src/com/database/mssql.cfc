@@ -13,10 +13,10 @@
 <cfcomponent output="false" accessors="true">
 	<cfproperty name="dao" type="dao"/>
 
-	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
+	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize mssql DAO.">
 		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
-		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mysql" />
+		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mssql" />
 		<cfargument name="user" type="string" required="false" default="" hint="Data Source User Name" />
 		<cfargument name="password" type="string" required="false" default="" hint="Data Source Password" />
 		<cfargument name="transactionLogFile" type="string" required="false" hint="Database Type" default="#expandPath('/')#sql_transaction_log.sql" />
@@ -52,7 +52,7 @@
 	</cffunction>
 
 
-	<cffunction name="delete" hint="I delete records from the database.  I am MySQL specific." returntype="boolean" output="false">
+	<cffunction name="delete" hint="I delete records from the database.  I am mssql specific." returntype="boolean" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
 		<cfargument name="recordID" required="true" type="string" hint="Record ID of record to be deleted.">
 		<cfargument name="IDField" required="false" type="string" hint="ID field of record to be deleted.">
@@ -77,7 +77,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="deleteAll" hint="I delete all records from the passed tablename.  I am MySQL specific." returntype="boolean" output="false">
+	<cffunction name="deleteAll" hint="I delete all records from the passed tablename.  I am mssql specific." returntype="boolean" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to delete from.">
 
 		<cfset var ret = true />
@@ -159,14 +159,14 @@
 			<cfelse>
 				<!--- Table select --->
 				<cfif !len( trim( arguments.columns ) ) >
-					<cfset arguments.columns = getSafeColumnNames(variables.dao.getColumns(arguments.table))/>
+					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
 
 						SELECT #arguments.columns#
 						FROM (
-							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns#
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
 							<!---
@@ -199,7 +199,7 @@
 					<cfquery name="get" datasource="#variables.dsn#">
 						SELECT #arguments.columns#
 							FROM (
-								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.columns )#) RowNr, #arguments.columns#
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 								FROM #arguments.table#
 								<cfif len( trim( arguments.where ) )>
 								<!---
@@ -243,7 +243,7 @@
 		<cfreturn get />
 	</cffunction>
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
+	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am mssql specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
 
 		<cfset var curRow = 0 />
@@ -283,7 +283,8 @@
 							<!--- push the cfsqltype into a var scope variable that get's reset at the end of this loop --->
 							<cfset cfsqltype =  current[curRow].cfsqltype>
 							<cfif current[curRow].cfsqltype is "cf_sql_date" or isDate(current[curRow].data) >
-								<cfset current[curRow].cfsqltype = "cf_sql_timestamp">
+								<cfset cfsqltype = "cf_sql_timestamp">
+
 							</cfif>
 							<cfif not len(trim(current[curRow].data))>
 								<cfif len(trim(arguments.tabledef.getColumnDefaultValue(col)))>
@@ -306,6 +307,7 @@
 
 							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#
 							<cfset cfsqltype = "bad">
+
 						</cfloop>
 						)
 				</cfsavecontent>
@@ -319,7 +321,7 @@
 		<cfreturn ret />
 	</cffunction>
 
-	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
+	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am mssql specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
 		<cfargument name="columns" required="false" default="" type="string" hint="Optional list columns to be updated.">
 		<cfargument name="IDField" required="true" type="string" hint="Optional list columns to be updated.">
@@ -367,9 +369,9 @@
 										<cfif not arguments.tabledef.isColumnNullable(col)>
 											<cfset isnull = "false">
 										</cfif>
-										<cfif cfsqltype is "cf_sql_timestamp">
+										<!--- <cfif cfsqltype is "cf_sql_timestamp">
 											<cfset cfsqltype = "cf_sql_varchar">
-										</cfif>
+										</cfif> --->
 									</cfif>
 
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
@@ -381,6 +383,7 @@
 
 						WHERE #getSafeColumnName(pk)# = #qry[pk][currentRow]#
 					</cfsavecontent>
+					<cfset ret = qry[pk][currentRow] />
 
 					<cfif performUpdate>
 						<cfset getDao().execute(upd) />
@@ -399,7 +402,7 @@
 				<cfset constants.ERROR.table.details = define(arguments.tabledef.getTableName()) />
 
 
-				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="#lp.getGlobalLabel('Unexpected Error')#" message="#lp.getGlobalLabel('There was an unexpected error updating the database.  Please contact your administrator')#. #cfcatch.message#">
+				<cfthrow errorcode="803-mssql.update" type="dao.custom.error" detail="#lp.getGlobalLabel('Unexpected Error')#" message="#lp.getGlobalLabel('There was an unexpected error updating the database.  Please contact your administrator')#. #cfcatch.message#">
 
 			</cfcatch>
 
@@ -410,10 +413,10 @@
 	</cffunction>
 
 <!--- Data Definition Functions --->
-	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="query" output="false">
+	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="struct" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to define.">
 
-		<cfset var table = new tabledef(arguments.TableName)>
+		<cfset var table = new tabledef( dsn = getDao().getDSN(), tableName = arguments.TableName )>
 		<cfset var def = table.getTableMeta()>
 
 		<cfreturn def />
@@ -429,24 +432,18 @@
 	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MSSQL specific." returntype="struct" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to return primary key.">
 
-		<cfset var def = define(arguments.tablename)>
+		<cfset var table = new tabledef( dsn = getDao().getDSN(), tableName = arguments.TableName )>
+		<cfset var pk = table.getPrimaryKeyColumn()/>
+		<cfset var type = table.getColumnType( pk )/>
 
-		<cfquery name="get" dbtype="query" maxrows="1">
-			SELECT [Field],[Type] from def
-			WHERE [Key] = 'PRI'
-		</cfquery>
-		<cfset ret = structnew()>
-		<cfset ret.field = get.field>
-		<cfset ret.type = getCFSQLType(get.type)>
-
-		<cfreturn ret />
+		<cfreturn { field = pk, type = type } />
 
 	</cffunction>
 
 	<!--- GETTERS --->
 
 
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
+	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is mssql Specific." output="false">
 		<cfargument name="cols" required="true" type="string">
 
 		<cfset var i = 0 />
@@ -465,7 +462,7 @@
 
 	</cffunction>
 
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
+	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is mssql Specific." output="false">
 		<cfargument name="col" required="true" type="string">
 
 		<cfset var ret = "" />
@@ -476,11 +473,11 @@
 
 	</cffunction>
 
-	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
+	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is mssql Specific." output="false">
 		<cfreturn '[' />
 	</cffunction>
 
-	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
+	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is mssql Specific." output="false">
 		<cfreturn ']' />
 	</cffunction>
 

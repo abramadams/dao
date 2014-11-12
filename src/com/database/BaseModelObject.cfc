@@ -163,7 +163,7 @@ component accessors="true" output="false" {
 		var found = false;
 		if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){
 			// We'll loop through each column in the table definition and see if we have a property, if not, create one.
-			// @TODO when CF9 support is no longer needed, use an arrayFind with a anonymous function to do the search.
+			// @TODO when CF9 support is no longer needed, use an arrayFind with an anonymous function to do the search.
 			for( var col in variables.tabledef.instance.tablemeta.columns ){
 				for ( var existingProp in variables.meta.properties ){
 					if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col )
@@ -198,7 +198,9 @@ component accessors="true" output="false" {
 					if ( structKeyExists( variables.tabledef.instance.tablemeta.columns[col], 'length' ) ){
 						newProp["length"] = variables.tabledef.instance.tablemeta.columns[col].length;
 					}
-					arrayAppend( variables.meta.properties, newProp );
+					if( !structIsEmpty( newProp ) ){
+						arrayAppend( variables.meta.properties, newProp );
+					}
 				}
 
 				found = false;
@@ -246,25 +248,37 @@ component accessors="true" output="false" {
 	* I inject a property into the current instance.  Shorthand for inserting the
 	* property into the "this" and "variables" scope
 	**/
-	private function _injectProperty( prop, val ){
-		variables[ prop ] = val;
-		this[ prop ] = val;
-		var mapping = _getMapping( prop );
-		var newProp = {
-						"name" = mapping.property,
-						"column" = prop,
-						"generator" = "",
-						"fieldtype" = "",
-						"type" = "",
-						"dynamic" = true
-					};
-		arrayAppend( variables.meta.properties, newProp );
+	private function _injectProperty( required string name, required any val, struct prop = {} ){
+		variables[ name ] = val;
+		this[ name ] = val;
+		if( structCount( prop ) ){
+			// Define the property struct (including any existing mappings)
+			var mapping = _getMapping( name );
+			var newProp = {
+							"name" = mapping.property,
+							"column" = name,
+							"generator" = "",
+							"fieldtype" = "",
+							"type" = "",
+							"dynamic" = true
+						};
+		}else{
+			// the prop was passed in, add that to the metadata.
+			var newProp = prop;
+		}
+		if( !structIsEmpty( prop ) ){
+			arrayAppend( variables.meta.properties, newProp );
+		}
 	}
 
+	/**
+	* I return the current object's metadata in a true CF struct
+	**/
 	private function _getMetaData(){
 		return deSerializeJSON( serializeJSON( getMetadata( this ) ) );
 
 	}
+
 	/**
 	* Convenience method for choosing the correct setter for the type.
 	**/
@@ -282,6 +296,7 @@ component accessors="true" output="false" {
 
 		return setter;
 	}
+
 	/**
 	* Convenience method for synthesised setters.
 	**/
@@ -296,6 +311,7 @@ component accessors="true" output="false" {
 		}
 		// writeLog('set called via _setter as #propname# and dirty is: #variables._isDirty#');
 	}
+
 	/**
 	* Convenience method for synthesised getters.
 	**/
@@ -305,6 +321,7 @@ component accessors="true" output="false" {
 		propName = mid( propName, 4, len( propName ) );
 		return variables[ propName ];
 	}
+
 	/**
 	* Convenience method for synthesised adders.
 	**/
@@ -338,6 +355,7 @@ component accessors="true" output="false" {
 			writeDump([propName , value.getID(), e ]);abort;
 		}
 	}
+
 	/**
 	* Convenience method for synthesised removers.
 	**/
@@ -877,7 +895,9 @@ component accessors="true" output="false" {
 						if( structKeyExists( mapping, 'cfc' ) ){
 							newProp['cfc'] = mapping.cfc;
 						}
-						arrayAppend( variables.meta.properties, newProp );
+						if( !structIsEmpty( newProp ) ){
+							arrayAppend( variables.meta.properties, newProp );
+						}
 					}
 				}
 
@@ -962,7 +982,6 @@ component accessors="true" output="false" {
 			// Dynamically load one to many relationships by convention.  This will check to see if the current property
 			// ends with _ID, and does not have a cfc associated with it. If both of those statements are true we'll try
 			// to load the child table via BaseModelObject.
-
 			if( ( !structKeyExists( col, 'cfc' )
 				&& ( ( listLen( col.name, '_') GT 1
 					&& listLast( col.name, '_' ) == 'ID' )
@@ -1346,6 +1365,8 @@ component accessors="true" output="false" {
 	* of the entity, loaded with the key/values specified by the properties arg.
 	**/
 	public any function populate( required any properties, boolean lazy = false ){
+		// Note: The ID passed into load() can either be the PK field value of the record
+		// you wish to load, or a struct containg the key/values you want to load.
 		return load( ID = properties, lazy = lazy );
 	}
 
@@ -1360,18 +1381,15 @@ component accessors="true" output="false" {
 	public query function getRecord( any ID ){
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : this.getID();
-		// var record = variables.dao.read( "
-		// 			SELECT #getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( variables.tabledef.getNonAutoIncrementColumns( exclude = 'ID' ) )# FROM #this.getTable()#
-		// 			WHERE #getIDField()# = #variables.dao.queryParam( value = val( LOCAL.ID ), cfsqltype = getIDFieldType() )#
-		// 		");
+
 		try{
-		// writeDump([this,this.getTable(),tabledef,this.getTableDef().getColumns( exclude = 'ID' )]);
-		var record = this.getDAO().read(
-				table = this.getTable(),
-				columns = "#getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#",
-				where = "WHERE #getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
-				name = "#this.getTable()#_getRecord"
-			);
+
+			var record = this.getDAO().read(
+					table = this.getTable(),
+					columns = "#getIDField()##this.getIDField() neq 'ID' ? ' as ID' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) )#",
+					where = "WHERE #getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
+					name = "#this.getTable()#_getRecord"
+				);
 		}catch( any e ){
 			writeDump( [this, e ]);abort;
 		}
@@ -1512,6 +1530,10 @@ component accessors="true" output="false" {
 			// Iterate through each property and generate a struct representation
 			// writeDump(props);abort;
 			for ( var prop in props ){
+				// Somehow empty props make their way in with MSSQL connectors... this will weed'm out.
+				if( structIsEmpty( prop ) ){
+					continue;
+				}
 				arg = preserveCase ? prop.name : lcase( arg );
 
 				// If the property name is different than the table name ( i.e. relationship created using get<object>() method or
@@ -1606,7 +1628,6 @@ component accessors="true" output="false" {
 		if ( isNew() ){
 
 			callbackArgs.isNew = true;
-			// set uuid for fields set to generator="uuid"
 			var col = {};
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
@@ -1616,8 +1637,8 @@ component accessors="true" output="false" {
 
 			for ( col in props ){
 
+				// set uuid for fields set to generator="uuid"
 				if( structKeyExists( col, 'generator' ) && col.generator eq 'uuid' ){
-
 					variables[ col.name ] = lcase( createUUID() );
 					variables._isDirty = true;
 				}
@@ -1723,15 +1744,10 @@ component accessors="true" output="false" {
 
 			/*** update the thing ****/
 			transaction{
-				try{
-
-					variables.dao.update(
-						table = this.getTable(),
-						data = DATA
-					);
-				} catch( any e ){
-					throw( message = "Error updating #this.getTable()#: #e.message#", detail = [data,e] );
-				}
+				variables.dao.update(
+					table = this.getTable(),
+					data = DATA
+				);
 			}
 		}
 
