@@ -173,6 +173,9 @@
 		if( findNoCase( "int", arguments.type ) ){
 			arguments.type = "INTEGER";
 		}
+		if( findNoCase( "money", arguments.type ) ){
+			arguments.type = "DECIMAL";
+		}
 		if( findNoCase( "text", arguments.type ) || arguments.type is "string" ){
 			arguments.type = "VARCHAR";
 		}
@@ -390,7 +393,7 @@
 			types[ arguments.typeId ] = "datetime";
 		}
 
-		return types[ arguments.typeId];
+		return types[ arguments.typeId ];
 	}
 
 
