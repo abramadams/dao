@@ -2,8 +2,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.61
-	   	@updated 11/17/2014
+	  	@version 0.0.62
+	   	@updated 12/4/2014
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
@@ -184,7 +184,7 @@
 		if( findNoCase( "money", arguments.type ) ){
 			arguments.type = "DECIMAL";
 		}
-		if( findNoCase( "text", arguments.type ) || arguments.type is "string" ){
+		if( findNoCase( "text", arguments.type ) || arguments.type is "string" || findNoCase( "varchar", arguments.type ) ){
 			arguments.type = "VARCHAR";
 		}
 		try{
@@ -395,6 +395,8 @@
 		}
 		if( left( arguments.typeID, 3 ) is "INT" ){
 			arguments.typeID = "integer";
+		}else if( left( arguments.typeID, 7 ) is "VARCHAR"){
+			arguments.typeID = "varchar";
 		}
 		if( structKeyExists(types, arguments.typeID) && types[arguments.typeId] is "timestamp" ){
 			types[ arguments.typeId ] = "datetime";
