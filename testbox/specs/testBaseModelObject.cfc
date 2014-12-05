@@ -1,4 +1,4 @@
-component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
+component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      // executes before all tests
      function beforeTests(){
@@ -101,17 +101,41 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSave() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          var testEntity = new model.EventLog( dao = request.dao );
 
-     	// loaded record ID 208
+          // loaded blank entity
+          $assert.isTrue( testEntity.isNew() );
+          // change event to 'test'
+          testEntity.setEvent('test insert');
+          testEntity.setEventDate(now());
+          // save changes
+          testEntity.save();
+          // now entity's getEvent should return 'test'
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+     }
+
+     function loadBlankEntityChangeAndSaveThenChangeAndSaveAgain() test {
+     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true, debugMode = true );
+
+     	// loaded blank entity
      	$assert.isTrue( testEntity.isNew() );
      	// change event to 'test'
      	testEntity.setEvent('test insert');
      	testEntity.setEventDate(now());
      	// save changes
+          testEntity.save();
+          // now entity's getEvent should return 'test'
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+          // change event to 'test'
+          testEntity.setEvent('not a test insert');
+          testEntity.setEventDate(now());
+          // save changes
      	testEntity.save();
-     	// now entity's getEvent should return 'test'
-		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+          // now entity's getEvent should return 'test'
+		$assert.isTrue( testEntity.getEvent() eq 'not a test insert' && testEntity.getID() gt 0 );
 
      }
 
@@ -514,8 +538,8 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
           testEntity.load( 93 );
           testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
-          // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );abort;
-          // $assert.isTrue( testEntity.hasUser() );
+          // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );
+          // // $assert.isTrue( testEntity.hasUser() );
           // writeDump( testEntity );abort;
           $assert.isFalse( testEntity.User.getID() == "" );
 

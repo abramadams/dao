@@ -109,6 +109,7 @@
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
+		<cfset var idx = "" />
 		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
 			<cfset arguments.table = arguments.sql/>
 		</cfif>
@@ -124,7 +125,7 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+						<cfset var tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 							#tmpSQL.statements[idx].before#
 							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -145,7 +146,7 @@
 							cfqueryparam tags outside of a cfquery.
 							@TODO: refactor to use the query.cfc
 						--->
-						<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+						<cfset var tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 							#tmpSQL.statements[idx].before#
 							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -210,7 +211,7 @@
 									cfqueryparam tags outside of a cfquery.
 									@TODO: refactor to use the query.cfc
 								--->
-								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+								<cfset var tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									#tmpSQL.statements[idx].before#
 									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -288,7 +289,7 @@
 								<cfset cfsqltype = "cf_sql_timestamp">
 
 							</cfif>
-							<cfif not len(trim(current[curRow].data))>
+							<cfif !len(trim(current[curRow].data))>
 								<cfif len(trim(arguments.tabledef.getColumnDefaultValue(col)))>
 									<cfset current[curRow].data = arguments.tabledef.getColumnDefaultValue(col)>
 								<cfelse>
@@ -296,6 +297,7 @@
 									<cfset isnull = "true">
 								</cfif>
 							</cfif>
+
 							<cfif not arguments.tabledef.isColumnNullable(col)>
 								<cfset isnull = "false">
 							</cfif>

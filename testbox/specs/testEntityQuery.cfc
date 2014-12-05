@@ -1,4 +1,4 @@
-component displayName="I test the EntityQuery CFC" extends="testbox.system.testing.BaseSpec"{
+component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseSpec"{
 
 	// executes before all tests
 	function beforeTests(){

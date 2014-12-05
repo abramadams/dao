@@ -1,4 +1,4 @@
-component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
+component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      // executes before all tests
      function beforeTests(){

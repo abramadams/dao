@@ -3,7 +3,7 @@
 		Author		: Abram Adams
 		Date		: 1/2/2007
 	  	@version 0.0.61
-	   	@updated 11/12/2014
+	   	@updated 11/17/2014
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
@@ -64,6 +64,7 @@
 <cfcomponent hint="Instantiates a single table definition" output="false" accessors="true">
 	<cfproperty name="dsn" type="string">
 	<cfproperty name="tableName" type="string">
+	<cfproperty name="isTable" type="boolean">
 	<cfscript>
 
 	public tabledef function init( required string tablename, required string dsn, boolean loadMeta = true ){
@@ -80,7 +81,7 @@
 
 		/* grab the table metadata, unless told not to */
 		if( loadMeta ){
-			loadTableMetaData();
+			setIsTable( loadTableMetaData() );
 		}
 
 		return this;
@@ -144,12 +145,19 @@
 
 	//	GETTERS
 	public string function getColumns( string exclude = "", string prefix ="" ){
-		if( len( trim( exclude ) ) && listFindNoCase( this.instance.table.columnlist, exclude ) ){
-			return listDeleteAt( this.instance.table.columnlist, listFindNoCase( this.instance.table.columnlist, exclude ) );
+		var columns = this.instance.table.columnlist;
+		if( len( trim( exclude ) ) ){
+			arguments.exclude = listToArray( arguments.exclude );
+			for( var excludeCol in arguments.exclude ){
+				if( listFindNoCase( columns, excludeCol ) ){
+					columns = listDeleteAt( columns, listFindNoCase( columns, excludeCol ) );
+				}
+			}
 		}
-		var prefixedColumnList = this.instance.table.columnlist;
+
+		var prefixedColumnList = columns;
 		if( len( trim( prefix ) ) ){
-			prefixedColumnList = prefix & '.' & listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
+			prefixedColumnList = listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
 		}
 		return prefixedColumnList;
 	}
@@ -236,7 +244,6 @@
 	**/
 	public string function getColumnNullValue( required string column ){
 		var ret = getColumnDefaultValue( arguments.column );
-
 		if( !len( trim( ret ) ) ){
 			switch ( lcase( getDummyType( getColumnType( arguments.column ) ) ) ){
 				case "date":
@@ -284,12 +291,14 @@
 	}
 
 	public string function getColumnDefaultValue( required string column ){
-
+		var ret = "";
 		if( structKeyExists( this.instance.tablemeta.columns, arguments.column ) ){
-			return this.instance.tablemeta.columns[arguments.column].defaultValue;
+			ret = reReplaceNoCase( this.instance.tablemeta.columns[arguments.column].defaultValue, '\(\((.*?)\)\)','\1', 'all' );;
 		}
-
-		return "";
+		if( ret == "(getdate())" ){
+			ret = now();
+		}
+		return ret;
 	}
 
 	public boolean function isColumnIndex( required string column ){
@@ -364,8 +373,6 @@
 	public string function getPrimaryKeyColumn(){
 		var keys = [];
 		for ( var col in this.instance.tablemeta.columns ){
-			writelog(col);
-			writelog(this.instance.tablemeta.columns[col].isPrimaryKey);
 			if( this.instance.tablemeta.columns[col].isPrimaryKey == true ){
 				arrayAppend( Keys, col );
 				break;
@@ -400,7 +407,7 @@
 	</cfscript>
 
 <!--- PRIVATE FUNCTIONS --->
-	<cffunction name="loadTableMetaData" output="false" access="public" returntype="void" hint="I load the metadata for the table.">
+	<cffunction name="loadTableMetaData" output="false" access="public" returntype="boolean" hint="I load the metadata for the table.">
 		<cfscript>
 			var columns = "";
 			var indexqryfull = "";
@@ -424,7 +431,11 @@
 
 			// get the columns for the table for any schema
 			d = new dbinfo( datasource = this.getDsn() );
-			columns = d.columns( table = getTableName() );
+			try{
+				columns = d.columns( table = getTableName() );
+			}catch( any e ){
+				return false;
+			}
 			// get a full indexes query for the table
 			indexqryfull = d.index( table = getTableName() );
 		</cfscript>
@@ -493,6 +504,7 @@
 							comment=comment )>
 
 		</cfoutput>
+		<cfreturn true/>
 
 	</cffunction>
 
