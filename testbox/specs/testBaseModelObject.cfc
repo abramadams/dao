@@ -116,7 +116,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSaveThenChangeAndSaveAgain() test {
-     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true, debugMode = true );
+     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true, debugMode = false );
 
      	// loaded blank entity
      	$assert.isTrue( testEntity.isNew() );

@@ -56,6 +56,7 @@ component accessors="true" output="false" {
 	// Some "private" variables
 	_isNew = true;
 	_isDirty = false;
+	_children = [];
 
 	public any function init( 	string table = "",
 								string parentTable = "",
@@ -312,7 +313,7 @@ component accessors="true" output="false" {
 		if( isSimpleValue( variables[ propName ] ) && !variables._isDirty ){
 			variables._isDirty = compare( value, variables[ propName ] ) != 0;
 		}else{
-			variables._isDirty = true;
+			this.set_isDirty( true );
 		}
 		// logIt('set called via _setter as #propname# and dirty is: #variables._isDirty#');
 	}
@@ -333,7 +334,7 @@ component accessors="true" output="false" {
 	private function _adder( any value ){
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
-		variables._isDirty = true;
+		this.set_isDirty( true );
 		try{
 			if( !value.isNew() ){
 				// Whole lot of rigmarole to see if the entity already exists (based on the "ID" value) before appending.
@@ -368,7 +369,7 @@ component accessors="true" output="false" {
 		var propName = getFunctionCalledName();
 		var idx = index;
 		propName = mid( propName, 7, len( propName ) );
-		variables._isDirty = true;
+		this.set_isDirty( true );
 		try{
 			if( isObject( index ) ){
 				idx = arrayFind( variables[ propName ], index );
@@ -513,6 +514,9 @@ component accessors="true" output="false" {
 	public boolean function isDirty(){
 		return variables._isDirty;
 	}
+	public function set_isDirty( required boolean isDirty ){
+		variables._isDirty = isDirty;
+	}
 
 	/**
 	* I provide support for dynamic method calls for loading data into model objects.
@@ -560,13 +564,6 @@ component accessors="true" output="false" {
 		// Handle dynamic getters for relationhsip entities
 		if( left( arguments.missingMethodName, 3 ) is "get"){
 			var getterInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
-			if( arguments.missingMethodName == "getID" ){
-				if( structKeyExists( variables, getIDField() ) ){
-					return variables[ getIDField() ];
-				}else{
-					return "";
-				}
-			}
 			if( getterInstructions does not contain "By"){
 				if( structKeyExists( variables, getterInstructions ) ){
 					// Pretend to be a getter
@@ -657,7 +654,8 @@ component accessors="true" output="false" {
 			_injectProperty( mapping.property, arguments.missingMethodArguments[ 1 ] );
 			// this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			// variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
-			variables._isDirty = true;
+			this.set_isDirty( true );
+			logIt('_savethechildren: #arguments.missingMethodName# :: #isDirty()#');
 
 			return this;
 
@@ -838,7 +836,7 @@ component accessors="true" output="false" {
 						// if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
 						// 	LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
 						// }
-						variables._isDirty = false;
+						this.set_isDirty( false );
 					} catch ( any err ){
 						// writeDump( err );
 						// throw( message = "Setting the value for #queryArguments[ i ]# failed." );
@@ -949,7 +947,7 @@ component accessors="true" output="false" {
 					}else{
 						variables[ prop.name ] = arguments.ID[ prop.name ];
 					}
-					variables._isDirty = true; // <-- may not be, but we can't tell so better safe than sorry
+					this.set_isDirty( true ); // <-- may not be, but we can't tell so better safe than sorry
 				}
 			}
 			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
@@ -989,7 +987,7 @@ component accessors="true" output="false" {
 					this[ fld ] = record[ fld ][ 1 ];
 					variables[ fld ] = record[ fld ][ 1 ];
 				}
-				variables._isDirty = false;
+				this.set_isDirty( false );
 			}
 		}
 		/*  Now iterate the properties and see if there are any relationships we can resolve */
@@ -1158,6 +1156,17 @@ component accessors="true" output="false" {
 		return this;
 
 	}
+	/**
+	* Returns the value of the Primary Key (whatever is set as IDField)
+	**/
+	public any function getID(){
+		if( structKeyExists( variables, getIDField() ) ){
+			return variables[ getIDField() ];
+		}else{
+			return "";
+		}
+	}
+
 	/************************************************************************
 	* DYNAMIC ENTITY RELATIONSHIPS
 	************************************************************************/
@@ -1678,6 +1687,7 @@ component accessors="true" output="false" {
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
 			cacheRemove( '#this.getTable()#-#this.getID()#' );
 		}
+
 		// Either insert or update the record
 		if ( isNew() ){
 
@@ -1694,7 +1704,7 @@ component accessors="true" output="false" {
 				// set uuid for fields set to generator="uuid"
 				if( structKeyExists( col, 'generator' ) && col.generator eq 'uuid' ){
 					variables[ col.name ] = lcase( createUUID() );
-					variables._isDirty = true;
+					this.set_isDirty( true );
 				}
 				if( structKeyExists( col, 'formula' ) && len( trim( col.formula ) ) ){
 					variables[ col.name ] = evaluate( col.formula );
@@ -1756,7 +1766,7 @@ component accessors="true" output="false" {
 
 
 		}else if( isDirty() || arguments.force ){
-		// }else{
+
 			callbackArgs.isNew = false;
 
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
@@ -1803,6 +1813,10 @@ component accessors="true" output="false" {
 					data = DATA
 				);
 			}
+		}else{
+			logIt('_savethechildren: nothing to do for this entity, but maybe a child entity needs to be saved?');
+			_saveTheChildren();
+			// writeDump(this);abort;
 		}
 
 		variables._isNew = false;
@@ -1824,36 +1838,52 @@ component accessors="true" output="false" {
 
 	private void function _saveTheChildren( any tempID = this.getID() ){
 	 /* Now save any child records */
+	 logIt('_savethechildren: saving the children for #this.getTable()#:#arguments.tempID#');
 		for ( var col in variables.meta.properties ){
+	 		logIt('_savethechildren: is #col.name# a fk to a relationship?');
+	 		logIt('_savethechildren: #serializeJSON(col)#');
+
 			if( structKeyExists( col, 'fieldType' )
 				&& col.fieldType eq 'one-to-many'
 				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
 				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
-
-				// logIt('Saving #arrayLen( variables[ col.name ] )# child records for #this.getTable()#:#tempID#');
+				//**************************************************************************************************
+				// ONE TO MANY.   This will iterate all child records and persist them to the back end storage (DB)
+				//**************************************************************************************************
+				logIt('_savethechildren: Saving #arrayLen( variables[ col.name ] )# child records for #this.getTable()#:#tempID#');
 				if ( !structKeyExists( variables , col.name ) || !isArray( variables[ col.name ] ) ){
-					// logIt('nothing to do for #col.name# - #this.getTable()#:#tempID#');
+					logIt('_savethechildren: nothing to do for #col.name# - #this.getTable()#:#tempID#');
 					continue;
 				}
 				for ( var child in variables[ col.name ] ){
-					//var FKFunc = duplicate( child["set" & col.fkcolumn] );
-					//FKFunc( tempID );
-					// Using evaluate is the only way in cfscript (cf9) to retain context when calling methods
-					// on a nested object otherwise I'd use the above to set the fk col value
 					try{
-						/* TODO: when we no longer need to support ACF9, change this to use invoke() */
+						// evaluate retains the scope where anonymous methods don't
 						evaluate("child.set#col.fkcolumn#( #tempID# )");
 					}catch (any e){
 						writeDump(['Error in setFunc',e,child, arguments, variables[ col.name ] ]);abort;
 
 					}
-					// logIt('Saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
+					logIt('_savethechildren: Saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 					// call the child's save routine;
 					child.save( force = true );
 
 				}
 
+			}else if( structKeyExists( col, 'fieldType' )
+				&& col.fieldType eq 'many-to-one'
+				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
+				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
+				//**************************************************************************************************
+				// MANY TO ONE.   This will and persist the child record to the back end storage (DB)
+				//**************************************************************************************************
+				var child = variables[ col.name ];
+				child.save();
+
 			}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' ){
+				//**************************************************************************************************
+				// ONE TO ONE.   This will update the parent with the child's ID and defer to the parent's save to
+				// persist to the back end (DB)
+				//**************************************************************************************************
 				try{
 					/* Set the object's FK to the value of the new parent record  */
 					/* TODO: when we no longer need to support ACF9, change this to use invoke() */
