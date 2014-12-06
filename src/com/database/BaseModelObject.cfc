@@ -20,9 +20,9 @@
 *	Can be altered to run on CF9 by commenting out the anonymous function code
 *   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
 * 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.80
+*   @version 0.0.81
 *   @dependencies { "dao" : ">=0.0.60" }
-*   @updated 11/17/2014
+*   @updated 12/5/2014
 *   @author Abram Adams
 **/
 
@@ -655,7 +655,7 @@ component accessors="true" output="false" {
 			// this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			// variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			this.set_isDirty( true );
-			logIt('_savethechildren: #arguments.missingMethodName# :: #isDirty()#');
+			logIt('#arguments.missingMethodName# :: #isDirty()#');
 
 			return this;
 
@@ -1171,6 +1171,16 @@ component accessors="true" output="false" {
 	* DYNAMIC ENTITY RELATIONSHIPS
 	************************************************************************/
 	/**
+	* I return an array of any child entities related to (and loaded into) the current entity.
+	**/
+	public array function getChildEntities(){
+		return variables._children;
+	}
+
+	public function registerChildEntity( struct definition ){
+		arrayAppend( variables._children, definition );
+	}
+	/**
 	* Loads One-To-Many relationships into the current entity
 	* Example: On an Order entity you have multiple OrderItems
 	**/
@@ -1212,6 +1222,8 @@ component accessors="true" output="false" {
 		this[ "remove" & propertyName ] = variables[ "remove" & propertyName ] = _remover;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 		this[ "has" & propertyName ] = _has;
+
+		this.registerChildEntity( { name = propertyName, table = lcase( mapping.table ), type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
 
 		// Update Cache
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
@@ -1285,6 +1297,8 @@ component accessors="true" output="false" {
 
 		this[ "set" & propertyName ] = variables[ "set" & propertyName ] = _setter;
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
+
+		this.registerChildEntity( { name = propertyName, table = lcase( mapping.table ), type = "many-to-one", parentIDField = arguments.fkColumn, childIDField = pkColumn } );
 
 		if( !isSimpleValue(fkValue) ){
 			// logIt('Value for #table# : #mapping.table# [#property#] was alread an object');
@@ -1816,7 +1830,6 @@ component accessors="true" output="false" {
 		}else{
 			logIt('_savethechildren: nothing to do for this entity, but maybe a child entity needs to be saved?');
 			_saveTheChildren();
-			// writeDump(this);abort;
 		}
 
 		variables._isNew = false;
