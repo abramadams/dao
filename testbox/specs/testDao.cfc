@@ -10,7 +10,62 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	$assert.isTrue( isInstanceOf( test, "com.database.dao" ) );
      }
+     function readWithNamedParams() test{
+          var records = request.dao.read("
+               SELECT *
+               FROM eventLog
+               WHERE ID = :eventLogId or ID = :anotherId{ type='int',null=false}",{ eventLogId=1, anotherId=20 } );
 
+          $assert.typeOf( "query", records );
+     }
+     function readWithNamedParamsDoubleValueParam() test{
+          var records = request.dao.read("
+               SELECT *
+               FROM eventLog
+               WHERE ID = :eventLogId or ID = :anotherId{value='test', type='int',null=false}",{ eventLogId=1, anotherId=20 } );
+
+          $assert.typeOf( "query", records );
+          $assert.isTrue( records.ID == 1 );
+     }
+     function readWithNamedParamsAsList() test{
+          var records = request.dao.read("
+               SELECT *
+               FROM eventLog
+               WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ eventLogIds="1,20" } );
+
+          $assert.typeOf( "query", records );
+          $assert.isTrue( records.ID == 1 );
+     }
+     function readWithMissingNamedParams() test{
+          try{
+
+          var records = request.dao.read("
+               SELECT *
+               FROM eventLog
+               WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ ventLogIds="1,20" } );
+
+          }catch("DAO.parseQueryParams.MissingNamedParameter" e ){
+               $assert.isTrue(true);
+          }catch( any e ){
+               $assert.isTrue(false);
+          }
+     }
+     function insertWithNamedParams() test{
+          var newRecordId = request.dao.execute("
+               INSERT INTO eventLog ( event, description, eventDate )
+               VALUES (:event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'})",
+               { event="test named params", description = "This is a description from a named param", eventDate = now() } );
+          $assert.typeOf( "numeric", newRecordId );
+
+          var rec = request.dao.read("
+               SELECT * FROM eventLog
+               WHERE ID = :newID
+          ", { newId = newRecordId });
+          $assert.typeOf( "query", rec );
+          $assert.isEqual( newRecordId, rec.ID );
+          $assert.isEqual( "test named params", rec.event );
+
+     }
      // function getConnecterType() test{
      //      $assert.fail('test not implemented yet');
      // }

@@ -11,9 +11,9 @@
 
 	  ********************************************************** --->
 
-<cfcomponent output="false" accessors="true">
+<cfcomponent output="false" accessors="true" implements="IDAOConnector">
 	<!---  implements="IDAOConnector" --->
-	<cfproperty name="dao" type="dao"/>
+	<cfproperty name="dao" type="dao" />
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
 		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
@@ -471,49 +471,42 @@
 
 	</cffunction>
 
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="cols" required="true" type="string">
-
-		<cfset var i = 0 />
-		<cfset var columns = "" />
-		<cfset var colname = "" />
-
-		<cfsavecontent variable="columns">
-			<cfoutput>
-				<cfloop list="#arguments.cols#" index="colname">
-					<cfset i = i + 1>#getSafeIdentifierStartChar()##trim(colname)##getSafeIdentifierEndChar()#<cfif i lt listLen(cols)>,</cfif>
-				</cfloop>
-			</cfoutput>
-		</cfsavecontent>
-
-		<cfreturn columns />
-
-	</cffunction>
-
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="col" required="true" type="string">
-
-		<cfset var ret = "" />
-
-		<cfset ret = "#getSafeIdentifierStartChar()##trim(arguments.col)##getSafeIdentifierEndChar()#" >
-
-		<cfreturn ret />
-
-	</cffunction>
-
-	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
-		<cfreturn '`' />
-	</cffunction>
-
-	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
-		<cfreturn '`' />
-	</cffunction>
-
 	<cfscript>
+		/**
+		* I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific.
+		**/
+		public string function getSafeColumnNames( required string cols )  output = false {
+			var columns = [];
+			for( var colName in listToArray( cols ) ){
+				arrayAppend( columns, "#getSafeIdentifierStartChar()##trim(colName)##getSafeIdentifierEndChar()#" );
+			}
+
+			return arrayToList( columns );
+		}
+
+		/**
+		* I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific.
+		* */
+		public string function getSafeColumnName( required string col ) output = false{
+			return "#getSafeIdentifierStartChar()##trim(arguments.col)##getSafeIdentifierEndChar()#";
+		}
+		/**
+		* I return the opening escape character for a column name.  This is MySQL Specific.
+		* */
+		public string function getSafeIdentifierStartChar() output = false{
+			return '`';
+		}
+		/**
+		* I return the closing escape character for a column name.  This is MySQL Specific.
+		* */
+		public string function getSafeIdentifierEndChar() output = false{
+			return '`';
+		}
+
 		/**
 	    * I create a table based on the passed in tabledef object's properties.
 	    **/
-		public tabledef function makeTable( required tabledef tabledef ){
+		public tabledef function makeTable( required tabledef tabledef ) output = false{
 
 			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
@@ -587,7 +580,7 @@
 		/**
 	    * I drop a table based on the passed in table name.
 	    **/
-		public tabledef function dropTable( required string table ){
+		public tabledef function dropTable( required string table ) output = false{
 			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
 		}
 	</cfscript>
