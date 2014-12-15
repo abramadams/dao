@@ -120,6 +120,20 @@ users = dao.read("
 // NOTE: for list parameters you can also pass in an array:
 // ... lastNameList : [ 'deere', 'doe' ]....
 
+#DAO Query Return Types
+With the DAO read function you can return data as a _Query_ object, a _Array of Structs_ or a JSON string.
+See example below:
+```javascript
+users = dao.read( sql = "
+		SELECT first_name, last_name 
+		FROM users
+		WHERE last_name IN( :lastNameList )
+		AND first_name like :firstName
+	",
+	params = { lastNameList : 'deere,doe', firstName : 'jo%' }, 
+	returnType = "JSON" 
+);
+// Other options are "Array" or "Query".  If not specified "Query" will be used.
 ```
 # Entity Queries
 New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
