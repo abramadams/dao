@@ -32,93 +32,93 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 
 # DAO Examples:
 ```javascript
-	// create instance of DAO - must feed it a datasource name
-	dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
+// create instance of DAO - must feed it a datasource name
+dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
 
-	// Insert data (could have easily been a form scope or "rc" struct)
-	DATA = {
-			"_id" = lcase(createUUID()),
-			"first_name" = "Joe" ,
-			"last_name" = "Shmo",
-			"email" = "jshmo@blahblah.com",
-			"created_datetime" = now()
-		};
+// Insert data (could have easily been a form scope or "rc" struct)
+DATA = {
+		"_id" = lcase(createUUID()),
+		"first_name" = "Joe" ,
+		"last_name" = "Shmo",
+		"email" = "jshmo@blahblah.com",
+		"created_datetime" = now()
+	};
 
-	newID = dao.insert( table = "users", data = DATA );
-	// newID would contain the record's auto-incremented PK value
+newID = dao.insert( table = "users", data = DATA );
+// newID would contain the record's auto-incremented PK value
 
-	// DAO has a method queryParam() that wraps your values in
-	// appropriate cfqueryparam tags.  The method takes 4 args:
-	// value - required
-	// cfsqltype - optional, will be guessed based on value.  Uses
-	// common data type names, no need for the cf_sql_type... crap.
-	// list - true/false; will pass to cfqueryparam list attribute
-	// null - true/false; will pass to the cfqueryparam null attribute
+// DAO has a method queryParam() that wraps your values in
+// appropriate cfqueryparam tags.  The method takes 4 args:
+// value - required
+// cfsqltype - optional, will be guessed based on value.  Uses
+// common data type names, no need for the cf_sql_type... crap.
+// list - true/false; will pass to cfqueryparam list attribute
+// null - true/false; will pass to the cfqueryparam null attribute
 
-	// Insert data (using mysql specific replace into syntax )
-	newID2 = dao.execute("
-		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
-		VALUES ( 1
-				,#dao.queryParam(lcase(createUUID()),'varchar')#
-				,#dao.queryParam('john')#
-				,#dao.queryParam('deere')#
-				,#dao.queryParam('jdeere@tractor.com')#
-				,#dao.queryParam(now(), 'timestamp')#
-			   )
-	");
-	// newID2 would also contain the record's new PK value
-	// This is true for insert and replace statements only.
+// Insert data (using mysql specific replace into syntax )
+newID2 = dao.execute("
+	REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
+	VALUES ( 1
+			,#dao.queryParam(lcase(createUUID()),'varchar')#
+			,#dao.queryParam('john')#
+			,#dao.queryParam('deere')#
+			,#dao.queryParam('jdeere@tractor.com')#
+			,#dao.queryParam(now(), 'timestamp')#
+		   )
+");
+// newID2 would also contain the record's new PK value
+// This is true for insert and replace statements only.
 
-	// You can also use $queryParam()$, which will be evaluated at runtime (as aposed to compile time)
-	// This is helpful if your SQL is persisted in storage and later read and executed.
+// You can also use $queryParam()$, which will be evaluated at runtime (as aposed to compile time)
+// This is helpful if your SQL is persisted in storage and later read and executed.
 
-	// Another param option is to pass in named params.  Named params take the signature of:
-	//   :paramName{type="datatype",null=true/false,list=true/false} 
-	// And you pass in a struct containing the named parameters and values.  You do not need
-	// to provide any of the optional properties, dao can guess these for you.  This means you could
-	// simply do: :paramName and not supply the {...} parts.
-	// Below is how the previous
-	// example would look using named params (using various forms of the named param syntax):
-	newID2 = dao.execute("
-		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
-		VALUES ( 1
-				,:uuid
-				,:firstName{type='varchar'}
-				,:lastName{}
-				,:email{null=false}
-				,:createDate{type='timestamp'}
-		)",
-		{ 
-			uuid = lcase( createUUID() ), 
-			firstName = 'john', 
-			lastName = 'deere', 
-			email = 'jdeere@tractor.com', 
-			createDate = now() }
-	);
-	// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...
-	// Not shown above, but you can also use the list parameter to indicate a list for IN() type statements.
+// Another param option is to pass in named params.  Named params take the signature of:
+//   :paramName{type="datatype",null=true/false,list=true/false} 
+// And you pass in a struct containing the named parameters and values.  You do not need
+// to provide any of the optional properties, dao can guess these for you.  This means you could
+// simply do: :paramName and not supply the {...} parts.
+// Below is how the previous
+// example would look using named params (using various forms of the named param syntax):
+newID2 = dao.execute("
+	REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
+	VALUES ( 1
+			,:uuid
+			,:firstName{type='varchar'}
+			,:lastName{}
+			,:email{null=false}
+			,:createDate{type='timestamp'}
+	)",
+	{ 
+		uuid = lcase( createUUID() ), 
+		firstName = 'john', 
+		lastName = 'deere', 
+		email = 'jdeere@tractor.com', 
+		createDate = now() }
+);
+// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...
+// Not shown above, but you can also use the list parameter to indicate a list for IN() type statements.
 
-	// Return all records in a table
-	users = dao.read( "users" );
+// Return all records in a table
+users = dao.read( "users" );
 
-	// Return all records using SQL - and cache it
-	users = dao.read(
-		sql = "SELECT first_name, last_name FROM users",
-		cachedWithin = createTimeSpan(0,0,2,0)
-	);
+// Return all records using SQL - and cache it
+users = dao.read(
+	sql = "SELECT first_name, last_name FROM users",
+	cachedWithin = createTimeSpan(0,0,2,0)
+);
 
-	// Using named parameters
-	users = dao.read("
-		SELECT first_name, last_name 
-		FROM users
-		WHERE last_name IN( :lastNameList )
-		AND first_name like :firstName
-	",
-	{ lastNameList : 'deere,doe', firstName : 'jo%' } );
-	// This will return all users with the last name of either 'deere' or 'doe' and 
-	// where their first name starts with JO.
-	// NOTE: for list parameters you can also pass in an array:
-	// ... lastNameList : [ 'deere', 'doe' ]....
+// Using named parameters
+users = dao.read("
+	SELECT first_name, last_name 
+	FROM users
+	WHERE last_name IN( :lastNameList )
+	AND first_name like :firstName
+",
+{ lastNameList : 'deere,doe', firstName : 'jo%' } );
+// This will return all users with the last name of either 'deere' or 'doe' and 
+// where their first name starts with JO.
+// NOTE: for list parameters you can also pass in an array:
+// ... lastNameList : [ 'deere', 'doe' ]....
 
 ```
 # Entity Queries
@@ -166,54 +166,54 @@ dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playi
 the following examples:
 
 ```javascript
-	// create instance of dao ( could be injected via your favorite DI library )
-	dao = new dao( dsn = "myDatasource" );
+// create instance of dao ( could be injected via your favorite DI library )
+dao = new dao( dsn = "myDatasource" );
 
-	// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"
-	user = new model.User( dao );
+// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"
+user = new model.User( dao );
 
-	// Create a new user named john.
-	user.setFirstName( 'john' );
-	user.setLastName( 'deere' );
-	user.setEmail('jdeere@tractor.com');
+// Create a new user named john.
+user.setFirstName( 'john' );
+user.setLastName( 'deere' );
+user.setEmail('jdeere@tractor.com');
 
-	// Save will insert the new record because it doesn't exist.
-	// If we had loaded the entity with a user record, it would perform an update.
-	user.save();
+// Save will insert the new record because it doesn't exist.
+// If we had loaded the entity with a user record, it would perform an update.
+user.save();
 
-	// So the entity has been persisted to the database.  If we wanted
-	// to at this point, we could use the user.getID() method to get the
-	// value of the newly created PK.  Or we could do another update
-	user.setFirstName('Johnny');
-	user.save(); // Now the entity has been "updated" and persisted to the databse.
+// So the entity has been persisted to the database.  If we wanted
+// to at this point, we could use the user.getID() method to get the
+// value of the newly created PK.  Or we could do another update
+user.setFirstName('Johnny');
+user.save(); // Now the entity has been "updated" and persisted to the databse.
 
-	// Now, to load data into an entity it's as simple as:
-	user = new model.User( dao );
-	user.load(1);  // assuming our record's ID == 1
+// Now, to load data into an entity it's as simple as:
+user = new model.User( dao );
+user.load(1);  // assuming our record's ID == 1
 
-	// We can also do crazy stuff like:
-	user.loadByFirstNameAndLastName('Johnny', 'deere');
-	// Every property/field in the entity can be included in this dynamic load function
-	// just prefix the function name as "loadBy" and delimit the field name criteria by "And"
-	user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
+// We can also do crazy stuff like:
+user.loadByFirstNameAndLastName('Johnny', 'deere');
+// Every property/field in the entity can be included in this dynamic load function
+// just prefix the function name as "loadBy" and delimit the field name criteria by "And"
+user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
 
-	// A model entity can also be used to load collections, not just a single member
-	user = new model.User( dao );
-	users = user.loadAll(); // <--- returns array of intitialized entity objects - one for each record
+// A model entity can also be used to load collections, not just a single member
+user = new model.User( dao );
+users = user.loadAll(); // <--- returns array of intitialized entity objects - one for each record
 
-	// you can also filter using the dynamic load function
-	users = user.loadAllByFirstName('Johnny');
+// you can also filter using the dynamic load function
+users = user.loadAllByFirstName('Johnny');
 
-	// there is also a list function that will return a query object
-	users = user.list( where = "FirstName = 'Johnny' ");
+// there is also a list function that will return a query object
+users = user.list( where = "FirstName = 'Johnny' ");
 
-	// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!
-	user.toStruct();
-	user.toJSON(); // <--- know that this is not the ACF to JSON crap, it's real serialized JSON.
+// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!
+user.toStruct();
+user.toJSON(); // <--- know that this is not the ACF to JSON crap, it's real serialized JSON.
 
-	// Collection return types
-	users = user.listAsArray( where = "FirstName = 'Johnny' ");
-	users = user.listAsJSON( where = "FirstName = 'Johnny' ");
+// Collection return types
+users = user.listAsArray( where = "FirstName = 'Johnny' ");
+users = user.listAsJSON( where = "FirstName = 'Johnny' ");
 
 ```
 That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
