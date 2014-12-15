@@ -119,9 +119,10 @@ users = dao.read("
 // where their first name starts with JO.
 // NOTE: for list parameters you can also pass in an array:
 // ... lastNameList : [ 'deere', 'doe' ]....
-```
+````
+
 # DAO Query Return Types
-With the DAO read function you can return data as a _Query_ object, a _Array of Structs_ or a JSON string.
+With the DAO `read()` function you can return data as a __Query__ object, a __Array of Structs__ or a __JSON__ string.
 See example below:
 ```javascript
 users = dao.read( sql = "
