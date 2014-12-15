@@ -72,6 +72,32 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 	// You can also use $queryParam()$, which will be evaluated at runtime (as aposed to compile time)
 	// This is helpful if your SQL is persisted in storage and later read and executed.
 
+	// Another param option is to pass in named params.  Named params take the signature of:
+	//   :paramName{type="datatype",null=true/false,list=true/false} 
+	// And you pass in a struct containing the named parameters and values.  You do not need
+	// to provide any of the optional properties, dao can guess these for you.  This means you could
+	// simply do: :paramName and not supply the {...} parts.
+	// Below is how the previous
+	// example would look using named params (using various forms of the named param syntax):
+	newID2 = dao.execute("
+		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
+		VALUES ( 1
+				,:uuid
+				,:firstName{type='varchar'}
+				,:lastName{}
+				,:email{null=false}
+				,:createDate{type='timestamp'}
+		)",
+		{ 
+			uuid = lcase( createUUID() ), 
+			firstName = 'john', 
+			lastName = 'deere', 
+			email = 'jdeere@tractor.com', 
+			createDate = now() }
+	);
+	// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...
+	// Not shown above, but you can also use the list parameter to indicate a list for IN() type statements.
+
 	// Return all records in a table
 	users = dao.read( "users" );
 
@@ -80,6 +106,19 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 		sql = "SELECT first_name, last_name FROM users",
 		cachedWithin = createTimeSpan(0,0,2,0)
 	);
+
+	// Using named parameters
+	users = dao.read("
+		SELECT first_name, last_name 
+		FROM users
+		WHERE last_name IN( :lastNameList )
+		AND first_name like :firstName
+	",
+	{ lastNameList : 'deere,doe', firstName : 'jo%' } );
+	// This will return all users with the last name of either 'deere' or 'doe' and 
+	// where their first name starts with JO.
+	// NOTE: for list parameters you can also pass in an array:
+	// ... lastNameList : [ 'deere', 'doe' ]....
 
 ```
 # Entity Queries

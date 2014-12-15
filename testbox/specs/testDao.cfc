@@ -10,6 +10,11 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	$assert.isTrue( isInstanceOf( test, "com.database.dao" ) );
      }
+     function readByTableName() test{
+          var records = request.dao.read("users");
+
+          $assert.typeOf( "query", records );
+     }
      function readWithNamedParams() test{
           var records = request.dao.read("
                SELECT *
@@ -32,6 +37,15 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                SELECT *
                FROM eventLog
                WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ eventLogIds="1,20" } );
+
+          $assert.typeOf( "query", records );
+          $assert.isTrue( records.ID == 1 );
+     }
+     function readWithNamedParamsArrayAsList() test{
+          var records = request.dao.read("
+               SELECT *
+               FROM eventLog
+               WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ eventLogIds=[1,20] } );
 
           $assert.typeOf( "query", records );
           $assert.isTrue( records.ID == 1 );
@@ -92,6 +106,15 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #request.dao.queryParam(now())#");
           $assert.typeOf( "query", records );
           $assert.isTrue( records.recordCount GT 0 );
+     }
+     function readAsArray() hint="I read from the database and return an array of structs representing the query object. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read( sql = "SELECT * FROM eventLog WHERE ID IN(1,20,3,5,6,7)", returnType = 'array');
+          $assert.typeOf( "array", records );
+     }
+     function readAsJSON() hint="I read from the database and return a JSON string representing the query object. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
+          var records = request.dao.read( sql = "SELECT * FROM eventLog WHERE ID IN(1,20,3,5,6,7)", returnType = 'json');
+          $assert.typeOf( "string", records );
+          $assert.typeOf( "array", deserializeJSON(records) );
      }
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');

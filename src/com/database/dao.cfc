@@ -213,7 +213,7 @@
 			// Insert has been performed.  If a callback was provided, fire it off.
 			if( isCustomFunction( onFinish ) ){
 				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = newRecord } );
-				onFinish( argumentCollection = callbackArgs );
+				onFinish( callbackArgs );
 			}
 
 			return newRecord;
@@ -306,7 +306,7 @@
 			if( isCustomFunction( onFinish ) ){
 				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ] } );
 				try{
-					onFinish( argumentCollection = callbackArgs );
+					onFinish( callbackArgs );
 				}catch(any e){
 					writeDump([callbackArgs,e]);abort;
 				}
@@ -340,7 +340,7 @@
 		**/
 		public boolean function delete( required string table, required string recordID, string IDField = "", any onFinish = "", any callbackArgs = {}  ){
 			var ret = true;
-	 		try{
+	 		// try{
 				transaction{
 
 					if( arguments.RecordID is "*" ){
@@ -349,14 +349,14 @@
 						ret = this.conn.delete( tablename = arguments.table, recordid = arguments.recordid, idField = arguments.idfield );
 					}
 				}
-			} catch( any e ){
-				ret = false;
-			}
+			// } catch( any e ){
+			// 	ret = false;
+			// }
 
 
 			if( isCustomFunction( onFinish ) ){
 				structAppend( arguments.callbackArgs, { "table" = arguments.table, "id" = arguments.recordID } );
-				onFinish( argumentCollection = callbackArgs );
+				onFinish( callbackArgs );
 			}
 
 			return ret;
@@ -784,6 +784,10 @@
 
 					tmpString = reReplaceNoCase(tmpString,'&quot;',"'",'all');
 					var eval_string = evaluate(tmpString);
+					// if eval_string is an array, convert it to a list.
+					if( isArray( eval_string ) ){
+						eval_string = arrayToList( eval_string );
+					}
 					returnString = tmpStartString & eval_string & tmpEndString;
 					return parseNamedParamValues( returnString, params );
 				}else{
@@ -826,9 +830,11 @@
 			//		{ firstName = 'Jim%', email = session.user.email isAdmin = session.user.isAdmin, userIds = "1,2,4,77" }
 			// );
 
-
+			// pull out the : in date object values that can break the named param regex
+			str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 			str = reReplaceNoCase( str, ':+(\w[^\{]*?)(?=\s|\)|,)',':\1{}\2','all');
 			str = reReplaceNoCase( str, ':+(\w*?)\{(.*?)\}','$queryParam(%%%="##arguments.params.\1##",\2)$','all');
+
 			str = reReplace(str,',\)',')','all');
 			if( findNoCase( '##arguments.params', str) ){
 				str = parseNamedParamValues( str, params );
@@ -837,6 +843,12 @@
 				str = reReplaceNoCase( str, '(,+[\s]*,)', ',', 'all' );
 				str = reReplace( str, "=+(\s*)'(.*?)'", '="\2"', 'all' );
 			}
+
+			// put the : back into date values
+			str = reReplace( str, chr(765), ":", "all" );
+			// get rid of empty curlies
+			str = reReplace( str, "{}", "", "all" );
+
 			// First we check to see if the string has anything to parse
 			var startPos = findNoCase('$queryparam(',arguments.str,1);
 			var endPos = "";
@@ -927,6 +939,10 @@
 					tmpString = deSerializeJSON( tmpString );
 					if( structKeyExists( tmpString, 'type' ) ){
 						tmpString.cfsqltype = tmpString.type;
+					}
+					// If the value is an array, and list == true we'll convert the array to a list.
+					if( structKeyExists( tmpString, 'list' ) && tmpString.list && isArray( tmpString.value ) ){
+						tmpString.value = arrayToList( tmpString.value );
 					}
 					// finally we can evaluate the queryParam struct.  This will scrub the values (i.e. proper cfsql types, prevent sql injection, etc...).
 					evalString = queryParamStruct(
@@ -1110,7 +1126,31 @@
 
 		}
 
-
+		/**
+		* I return the query as an array of structs.  Not super efficient with large recordsets,
+		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
+		**/
+		public function queryToArray( required query qry ){
+			var queryArray = [];
+			for( var i = 1; i lte qry.recordCount; i++ ){
+			    var cols = {};
+			    // using getMetaData instead of columnList to preserve case.
+			    // also, notice the hack to convert to a list then back to array. This is because getMetaData doesn't return real arrays (as far as CF is concerned)
+			    var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+			    for( var col in colList ){
+			        structAppend(cols, {'#col#' = qry[col][i] } );
+			    }
+			    arrayAppend( queryArray, cols );
+			}
+			return queryArray;
+		}
+		/**
+		* I return the query as an JSON array of structs.  Not super efficient with large recordsets,
+		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
+		**/
+		public function queryToJSON( required query qry ){
+			return serializeJSON( queryToArray( qry ) );
+		}
 	</cfscript>
 	<!--- @TODO: convert to using new Query() --->
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
@@ -1125,6 +1165,7 @@
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
 		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
+		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
 
 
 		<cfset var tmpSQL = "" />
@@ -1146,91 +1187,92 @@
 			<cfif len( trim( arguments.sql ) ) || len( trim( arguments.table ) )>
 				<cftimer label="Query: #arguments.name#" type="debug">
 				<cfif !structKeyExists( arguments.QoQ, 'query' ) >
-						<cfif listlen(arguments.sql, ' ') GT 1>
-							<cfif len(trim(arguments.cachedwithin))>
+					<cfif listlen(arguments.sql, ' ') GT 1>
+						<cfif len(trim(arguments.cachedwithin))>
+								<!---
+									We need to parse the sql
+									statement to find $queryParam()$ calls.  We do this by
+									passing the sql to parseQueryParams, which replaces the
+									$queryParam()$ function call with a pseudo cfqueryparam that
+									we can digest here to build the query.  The returned pseudo
+									cfqueryparam tag is structured as follows:
+
+									<cfqueryparam
+												cfsqltype="sql data type"  <--- this is converted
+																				to cfsqltype using
+																				getCFSQLType
+												value="actual value" />
+									EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
+									This can also be done prior to sending the SQL statement to this
+									function by calling the queryParam() function directly.
+									EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
+									This direct method is recommended.
+								 --->
+								<!--- First thing to do is parse the queryparams from the sql statement (if any exist) --->
+								<!--- <cfset tmpSQL = parseQueryParams(arguments.sql)/> --->
+
+
+								<!--- Now we build the query --->
+								<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
 									<!---
-										We need to parse the sql
-										statement to find $queryParam()$ calls.  We do this by
-										passing the sql to parseQueryParams, which replaces the
-										$queryParam()$ function call with a pseudo cfqueryparam that
-										we can digest here to build the query.  The returned pseudo
-										cfqueryparam tag is structured as follows:
+										Parse out the queryParam calls inside the where statement
+										This has to be done this way because you cannot use
+										cfqueryparam tags outside of a cfquery.
+										@TODO: refactor to use the query.cfc
+									--->
+									<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
+									<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+										<cfset SqlPart = tmpSQL.statements[idx].before />
+										#preserveSingleQuotes( SqlPart )#
+										<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+											<cfqueryparam
+												cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
+												value="#tmpSQL.statements[idx].value#"
+												list="#tmpSQL.statements[idx].isList#">
+										</cfif>
+									</cfloop>
+									<!--- /Parse out the queryParam calls inside the where statement --->
+								</cfquery>
 
-										<cfqueryparam
-													cfsqltype="sql data type"  <--- this is converted
-																					to cfsqltype using
-																					getCFSQLType
-													value="actual value" />
-										EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
-										This can also be done prior to sending the SQL statement to this
-										function by calling the queryParam() function directly.
-										EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
-										This direct method is recommended.
-									 --->
-									<!--- First thing to do is parse the queryparams from the sql statement (if any exist) --->
-									<!--- <cfset tmpSQL = parseQueryParams(arguments.sql)/> --->
-
-
-									<!--- Now we build the query --->
-									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
-										<!---
-											Parse out the queryParam calls inside the where statement
-											This has to be done this way because you cannot use
-											cfqueryparam tags outside of a cfquery.
-											@TODO: refactor to use the query.cfc
-										--->
-										<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
-										<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-											<cfset SqlPart = tmpSQL.statements[idx].before />
-											#preserveSingleQuotes( SqlPart )#
-											<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-												<cfqueryparam
-													cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
-													value="#tmpSQL.statements[idx].value#"
-													list="#tmpSQL.statements[idx].isList#">
-											</cfif>
-										</cfloop>
-										<!--- /Parse out the queryParam calls inside the where statement --->
-									</cfquery>
-
-							<cfelse>
-
-									<!--- Now we build the query --->
-									<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
-										<!---
-											Parse out the queryParam calls inside the where statement
-											This has to be done this way because you cannot use
-											cfqueryparam tags outside of a cfquery.
-											@TODO: refactor to use the query.cfc
-										--->
-										<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
-										<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-											<cfset SqlPart = tmpSQL.statements[idx].before />
-											#preserveSingleQuotes( SqlPart )#
-											<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-												<cfqueryparam
-													cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
-													value="#tmpSQL.statements[idx].value#"
-													list="#tmpSQL.statements[idx].isList#">
-											</cfif>
-										</cfloop>
-										<!--- /Parse out the queryParam calls inside the where statement --->
-									</cfquery>
-
-							</cfif>
 						<cfelse>
-							<!--- abstract --->
-							<cfset LOCAL[arguments.name] = this.conn.select(
-																table = arguments.table,
-																columns = arguments.columns,
-																name = arguments.name,
-																where = arguments.where,
-																orderby = arguments.orderby,
-																limit = arguments.limit,
-																offset = arguments.offset,
-																cachedwithin = arguments.cachedwithin
-															)/>
+
+								<!--- Now we build the query --->
+								<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
+									<!---
+										Parse out the queryParam calls inside the where statement
+										This has to be done this way because you cannot use
+										cfqueryparam tags outside of a cfquery.
+										@TODO: refactor to use the query.cfc
+									--->
+									<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
+									<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+										<cfset SqlPart = tmpSQL.statements[idx].before />
+										#preserveSingleQuotes( SqlPart )#
+										<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+											<cfqueryparam
+												cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
+												value="#tmpSQL.statements[idx].value#"
+												list="#tmpSQL.statements[idx].isList#">
+										</cfif>
+									</cfloop>
+									<!--- /Parse out the queryParam calls inside the where statement --->
+								</cfquery>
+
 						</cfif>
+					<cfelse>
+						<!--- Query by table --->
+						<!--- abstract --->
+						<cfset LOCAL[arguments.name] = this.conn.select(
+															table = arguments.table,
+															columns = arguments.columns,
+															name = arguments.name,
+															where = arguments.where,
+															orderby = arguments.orderby,
+															limit = arguments.limit,
+															offset = arguments.offset,
+															cachedwithin = arguments.cachedwithin
+														)/>
+					</cfif>
 
 				<cfelse>
 					<cfset setVariable( arguments.qoq.name, arguments.qoq.query)>
@@ -1247,9 +1289,15 @@
 		<cfif !structKeyExists( LOCAL, arguments.name )>
 			<cfthrow errorcode="882" type="DAO.Read.InvalidQueryType" detail="Invalid Query Type for ""DAO.read()""" message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements.">
 		</cfif>
-
-		<cfreturn LOCAL[arguments.name]  />
+		<cfif arguments.returnType eq 'array'>
+			<cfreturn queryToArray( LOCAL[arguments.name] )  />
+		<cfelseif arguments.returnType eq 'json'>
+			<cfreturn queryToJSON( LOCAL[arguments.name] )  />
+		<cfelse>
+			<cfreturn LOCAL[arguments.name]  />
+		</cfif>
 	</cffunction>
+
 
 	<!--- @TODO: convert to using new Query() --->
 	<cffunction name="execute" hint="I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert." returntype="any" output="false">
@@ -1393,8 +1441,15 @@
 					<cfrethrow>
 				</cfif>
 			</cfcatch>
+			<!--- zeroDateTimeBehavior=convertToNull --->
 			<cfcatch type="any">
-				<cfthrow errorcode="802" type="DAO.Execute.UnexpectedError" detail="Unexpected Error" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
+				<cfif cfcatch.message contains "0000-00-00 00:00:00 is an invalid date or time string">
+					<cfthrow type="DAO.Execute.ZeroDateTimeException"
+						message="There was an error updating the database.  In order to save '0000-00-00 00:00:00' as a date/time you must enable this behavior in your JDBC connection string by adding: ""zeroDateTimeBehavior=convertToNull"".  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF."
+						detail="In order to save '0000-00-00 00:00:00' as a date you must add ""zeroDateTimeBehavior=convertToNull"" to your JDBC connection string.  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF. Attempted Query: #renderSQLforView(sql)# :: #cfcatch.message#">
+				<cfelse>
+					<cfthrow errorcode="802" type="DAO.Execute.UnexpectedError" detail="Unexpected Error: #renderSQLforView(sql)#"  message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
+				</cfif>
 				<cfset ret = 0/>
 			</cfcatch>
 		</cftry>
@@ -1403,6 +1458,13 @@
 
 	</cffunction>
 
+	<cffunction name="renderSQLforView" hint="I retur the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages.">
+		<cfargument name="sql" type="string" required="true">
+		<cfset sql = reReplace( sql, chr(999), "}", "all")/>
+		<cfset sql = reReplace( sql, chr(998), "{", "all")/>
+		<cfset sql = reReplace( sql, chr(777), "'", "all")/>
+		<cfreturn sql />
+	</cffunction>
 
 	<cffunction name="readFromQuery" hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false">
 		<cfargument name="sql" required="true" type="string" hint="Full SQL statement.">

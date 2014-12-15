@@ -16,6 +16,10 @@
 		dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
 	*/
 
+	array = dao.read(sql="eventLog",returnType="array", orderby = 'EVENTDATE desc', limit = 10);
+	writeDump(array);
+	json = dao.read(sql="eventLog",returnType="json", orderby = 'EVENTDATE desc', limit = 10);
+	writeDump(json);
 	// Generate the event log table used to track data interaction
 	if ( dao.getDBtype  == "mssql" ){
 		// MSSQL specific
@@ -117,7 +121,7 @@
 	// Delete specific record
 	dao.delete(table = 'users', recordID = newID, onFinish = afterDelete);
 	// Delete all records
-	dao.delete(table = 'users', recordID = '*', onFinish = afterDelete);
+	dao.delete(table = 'TodoItem', recordID = '*', onFinish = afterDelete);
 
 	// Callback functions for insert/update/delete
 	public function afterUpdate( data ){
@@ -141,6 +145,7 @@
 			" );
 	}
 	public function afterDelete( data ){
+		// writeDump(arguments.data);abort;
 		this.execute( "
 				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
