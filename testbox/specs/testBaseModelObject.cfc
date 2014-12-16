@@ -1,4 +1,4 @@
-component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
+component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      // executes before all tests
      function beforeTests(){
@@ -15,7 +15,9 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.load(208);
-
+          if( testEntity.getID() != 208 ){
+               // writeDump(testEntity);abort;
+          }
      	$assert.isTrue( testEntity.getID() GT 0 );
      }
 
@@ -42,8 +44,10 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	// call getRecord on instantiated object without ID
      	testEntity.load( 208 );
      	qry = testEntity.getRecord();
+
      	// should return a single record
 		$assert.typeOf( "query", qry );
+
      	$assert.isTrue( qry.recordCount eq 1 );
      }
 
@@ -74,18 +78,20 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
      function loadChangeAndSaveEntity() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          // var testEntity = new model.EventLog( dao = request.dao );
+     	var testEntity = new com.database.BaseModelObject( table = "eventLog", dao = request.dao );
 
-     	testEntity.load( 208 );
-     	// loaded record ID 208
-     	$assert.isTrue( testEntity.getID() == 208 );
-     	// proove that "event" == delete
-     	$assert.isTrue( testEntity.getEvent() eq 'delete' );
-     	// change event to 'test'
-     	testEntity.setEvent('test');
-     	// save changes
-     	testEntity.save();
-     	// now entity's getEvent should return 'test'
+          testEntity.load( 208 );
+
+          $assert.isTrue( testEntity.getID() == 208 );
+          // proove that "event" == delete
+          $assert.isTrue( testEntity.getEvent() eq 'delete' );
+          // change event to 'test'
+          testEntity.setEvent('test');
+          // save changes
+          testEntity.save();
+
+          // now entity's getEvent should return 'test'
 		$assert.isTrue( testEntity.getEvent() eq 'test' && testEntity.getID() == 208 );
 
      	testEntity.setEvent('delete');
@@ -95,17 +101,41 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSave() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          var testEntity = new model.EventLog( dao = request.dao );
 
-     	// loaded record ID 208
+          // loaded blank entity
+          $assert.isTrue( testEntity.isNew() );
+          // change event to 'test'
+          testEntity.setEvent('test insert');
+          testEntity.setEventDate(now());
+          // save changes
+          testEntity.save();
+          // now entity's getEvent should return 'test'
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+     }
+
+     function loadBlankEntityChangeAndSaveThenChangeAndSaveAgain() test {
+     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true, debugMode = false );
+
+     	// loaded blank entity
      	$assert.isTrue( testEntity.isNew() );
      	// change event to 'test'
      	testEntity.setEvent('test insert');
      	testEntity.setEventDate(now());
      	// save changes
+          testEntity.save();
+          // now entity's getEvent should return 'test'
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+          // change event to 'test'
+          testEntity.setEvent('not a test insert');
+          testEntity.setEventDate(now());
+          // save changes
      	testEntity.save();
-     	// now entity's getEvent should return 'test'
-		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+
+          // now entity's getEvent should return 'test'
+		$assert.isTrue( testEntity.getEvent() eq 'not a test insert' && testEntity.getID() gt 0 );
 
      }
 
@@ -136,7 +166,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	// change event to 'test'
      	testEntity.loadFirstByEvent( 'test insert' );
-
+          // writeDump( testEntity );abort;
      	// now entity's getEvent should return 'test'
 		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
 		// isNew should be false now
@@ -315,7 +345,7 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      	var testStruct = { event = 'delete', id = 208 };
 
      	testEntity.populate( testStruct );
-
+          // writeDump( testEntity );abort;
      	$assert.isTrue( testEntity.getEvent() eq 'delete' && !testEntity.isNew() );
      }
 
@@ -473,7 +503,9 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
 
      	// now list should contain an array of records (structs)
 		$assert.typeOf( "query", list );
-
+          // if( !list.recordcount ){
+          //      writeDump([testEntity, list]);abort;
+          // }
 		$assert.isTrue( list.recordCount );
 
      }
@@ -501,7 +533,26 @@ component displayName="My test suite" extends="testbox.system.testing.BaseSpec"{
      }
 
 
+     function testDynamicHasRelatedEntities() test{
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets", autowire = true );
 
+          testEntity.load( 93 );
+          testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
+          // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );
+          // // $assert.isTrue( testEntity.hasUser() );
+          // writeDump( testEntity );abort;
+          $assert.isFalse( testEntity.User.getID() == "" );
+
+
+     }
+
+
+     function testInjectProperty() test{
+           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+
+           testEntity.setFakeProperty( 'test' );
+           $assert.isTrue( testEntity.getFakeProperty() == 'test' );
+     }
 
      // executes after all tests
      function afterTests(){

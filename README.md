@@ -32,56 +32,133 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 
 # DAO Examples:
 ```javascript
-	// create instance of DAO - must feed it a datasource name
-	dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
+// create instance of DAO - must feed it a datasource name
+dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
 
-	// Insert data (could have easily been a form struct)
-	DATA = {
-			"_id" = lcase(createUUID()),
-			"first_name" = "Joe" ,
-			"last_name" = "Shmo",
-			"email" = "jshmo@blahblah.com",
-			"created_datetime" = now()
-		};
+// Insert data (could have easily been a form scope or "rc" struct)
+DATA = {
+		"_id" = lcase(createUUID()),
+		"first_name" = "Joe" ,
+		"last_name" = "Shmo",
+		"email" = "jshmo@blahblah.com",
+		"created_datetime" = now()
+	};
 
-	newID = dao.insert( table = "users", data = DATA );
-	// newID would contain the record's auto-incremented PK value
+newID = dao.insert( table = "users", data = DATA );
+// newID would contain the record's auto-incremented PK value
 
-	// DAO has a method queryParam() that wraps your values in
-	// appropriate cfqueryparam tags.  The method takes 4 args:
-	// value - required
-	// cfsqltype - optional, will be guessed based on value.  Uses
-	// common data type names, no need for the cf_sql_type... crap.
-	// list - true/false; will pass to cfqueryparam list attribute
-	// null - true/false; will pass to the cfqueryparam null attribute
+// DAO has a method queryParam() that wraps your values in
+// appropriate cfqueryparam tags.  The method takes 4 args:
+// value - required
+// cfsqltype - optional, will be guessed based on value.  Uses
+// common data type names, no need for the cf_sql_type... crap.
+// list - true/false; will pass to cfqueryparam list attribute
+// null - true/false; will pass to the cfqueryparam null attribute
 
-	// Insert data (using mysql specific replace into syntax )
-	newID2 = dao.execute("
-		REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
-		VALUES ( 1
-				,#dao.queryParam(lcase(createUUID()),'varchar')#
-				,#dao.queryParam('john')#
-				,#dao.queryParam('deere')#
-				,#dao.queryParam('jdeere@tractor.com')#
-				,#dao.queryParam(now(), 'timestamp')#
-			   )
-	");
-	// newID2 would also contain the record's new PK value
-	//This is true for insert and replace statements only.
+// Insert data (using mysql specific replace into syntax )
+newID2 = dao.execute("
+	REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
+	VALUES ( 1
+			,#dao.queryParam(lcase(createUUID()),'varchar')#
+			,#dao.queryParam('john')#
+			,#dao.queryParam('deere')#
+			,#dao.queryParam('jdeere@tractor.com')#
+			,#dao.queryParam(now(), 'timestamp')#
+		   )
+");
+// newID2 would also contain the record's new PK value
+// This is true for insert and replace statements only.
 
-	// Return all records in a table
-	users = dao.read( "users" );
+// You can also use $queryParam()$, which will be evaluated at runtime (as aposed to compile time)
+// This is helpful if your SQL is persisted in storage and later read and executed.
 
-	// Return all records using SQL - and cache it
-	users = dao.read(
-		sql = "SELECT first_name, last_name FROM users",
-		cachedWithin = createTimeSpan(0,0,2,0)
-	);
+// Another param option is to pass in named params.  Named params take the signature of:
+//   :paramName{type="datatype",null=true/false,list=true/false} 
+// And you pass in a struct containing the named parameters and values.  You do not need
+// to provide any of the optional properties, dao can guess these for you.  This means you could
+// simply do: :paramName and not supply the {...} parts.
+// Below is how the previous
+// example would look using named params (using various forms of the named param syntax):
+newID2 = dao.execute("
+	REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)
+	VALUES ( 1
+			,:uuid
+			,:firstName{type='varchar'}
+			,:lastName{}
+			,:email{null=false}
+			,:createDate{type='timestamp'}
+	)",
+	{ 
+		uuid = lcase( createUUID() ), 
+		firstName = 'john', 
+		lastName = 'deere', 
+		email = 'jdeere@tractor.com', 
+		createDate = now() }
+);
+// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...
+// Not shown above, but you can also use the list parameter to indicate a list for IN() type statements.
 
+// Return all records in a table
+users = dao.read( "users" );
+
+// Return all records using SQL - and cache it
+users = dao.read(
+	sql = "SELECT first_name, last_name FROM users",
+	cachedWithin = createTimeSpan(0,0,2,0)
+);
+
+// Using named parameters
+users = dao.read("
+	SELECT first_name, last_name 
+	FROM users
+	WHERE last_name IN( :lastNameList )
+	AND first_name like :firstName
+",
+{ lastNameList : 'deere,doe', firstName : 'jo%' } );
+// This will return all users with the last name of either 'deere' or 'doe' and 
+// where their first name starts with JO.
+// NOTE: for list parameters you can also pass in an array:
+// ... lastNameList : [ 'deere', 'doe' ]....
+````
+
+# DAO Query Return Types
+With the DAO `read()` function you can return data as a __Query__ object, a __Array of Structs__ or a __JSON__ string.
+See example below:
+```javascript
+users = dao.read( sql = "
+		SELECT first_name, last_name 
+		FROM users
+		WHERE last_name IN( :lastNameList )
+		AND first_name like :firstName
+	",
+	params = { lastNameList : 'deere,doe', firstName : 'jo%' }, 
+	returnType = "JSON" 
+);
+// This would return a string similar to:
+// [{"first_name" : "john", "last_name" : "deere" }, {"first_name" : "joe", "last_name" : "deere" }]
+//
+// Other options are "Array" or "Query".  If not specified "Query" will be used.
 ```
+# Query of Queries
+With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
+```javascript
+users = dao.read("users");
+johns = dao.read( sql = "
+		SELECT first_name, last_name 
+		FROM userQuery
+		WHERE lower(first_name) = :firstName
+	",
+	params = { firstName : 'john' }, 
+	returnType = "Array",
+	QoQ = { userQuery : users}
+);
+```
+
 # Entity Queries
 New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
-to build criteria in an OO and platform agnostic way.  Here's an example of how to use this new feature:
+to build criteria in an OO and platform agnostic way.  This will also be the only query language available
+when communicating with a non-RDBMS data store (i.e. couchbase, mongoDB, etc...)
+Here's an example of how to use this new feature:
 ```javascript
 // build the query criteria
 var query = request.dao.from( "eventLog" )
@@ -113,6 +190,15 @@ AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) )
 ORDER BY eventDate desc
 ```
 
+You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).  
+To do so, simply call the .returnAs() method in the chain, like so:
+```javascript
+var query = dao.from( "eventLog" )
+				.where( "eventDate", "<", now() )
+				.returnAs('array')
+				.run();
+```
+
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
 
@@ -122,54 +208,54 @@ dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playi
 the following examples:
 
 ```javascript
-	// create instance of dao ( could be injected via your favorite DI library )
-	dao = new dao( dsn = "myDatasource" );
+// create instance of dao ( could be injected via your favorite DI library )
+dao = new dao( dsn = "myDatasource" );
 
-	// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"
-	user = new model.User( dao );
+// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"
+user = new model.User( dao );
 
-	// Create a new user named john.
-	user.setFirstName( 'john' );
-	user.setLastName( 'deere' );
-	user.setEmail('jdeere@tractor.com');
+// Create a new user named john.
+user.setFirstName( 'john' );
+user.setLastName( 'deere' );
+user.setEmail('jdeere@tractor.com');
 
-	// Save will insert the new record because it doesn't exist.
-	// If we had loaded the entity with a user record, it would perform an update.
-	user.save();
+// Save will insert the new record because it doesn't exist.
+// If we had loaded the entity with a user record, it would perform an update.
+user.save();
 
-	// So the entity has been persisted to the database.  If we wanted
-	// to at this point, we could use the user.getID() method to get the
-	// value of the newly created PK.  Or we could do another update
-	user.setFirstName('Johnny');
-	user.save(); // Now the entity has been "updated" and persisted to the databse.
+// So the entity has been persisted to the database.  If we wanted
+// to at this point, we could use the user.getID() method to get the
+// value of the newly created PK.  Or we could do another update
+user.setFirstName('Johnny');
+user.save(); // Now the entity has been "updated" and persisted to the databse.
 
-	// Now, to load data into an entity it's as simple as:
-	user = new model.User( dao );
-	user.load(1);  // assuming our record's ID == 1
+// Now, to load data into an entity it's as simple as:
+user = new model.User( dao );
+user.load(1);  // assuming our record's ID == 1
 
-	// We can also do crazy stuff like:
-	user.loadByFirstNameAndLastName('Johnny', 'deere');
-	// Every property/field in the entity can be included in this dynamic load function
-	// just prefix the function name as "loadBy" and delimit the field name criteria by "And"
-	user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
+// We can also do crazy stuff like:
+user.loadByFirstNameAndLastName('Johnny', 'deere');
+// Every property/field in the entity can be included in this dynamic load function
+// just prefix the function name as "loadBy" and delimit the field name criteria by "And"
+user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
 
-	// A model entity can also be used to load collections, not just a single member
-	user = new model.User( dao );
-	users = user.loadAll(); // <--- returns array of intitialized entity objects - one for each record
+// A model entity can also be used to load collections, not just a single member
+user = new model.User( dao );
+users = user.loadAll(); // <--- returns array of intitialized entity objects - one for each record
 
-	// you can also filter using the dynamic load function
-	users = user.loadAllByFirstName('Johnny');
+// you can also filter using the dynamic load function
+users = user.loadAllByFirstName('Johnny');
 
-	// there is also a list function that will return a query object
-	users = user.list( where = "FirstName = 'Johnny' ");
+// there is also a list function that will return a query object
+users = user.list( where = "FirstName = 'Johnny' ");
 
-	// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!
-	user.toStruct();
-	user.toJSON(); // <--- know that this is not the ACF to JSON crap, it's real serialized JSON.
+// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!
+user.toStruct();
+user.toJSON(); // <--- know that this is not the ACF to JSON crap, it's real serialized JSON.
 
-	// Collection return types
-	users = user.listAsArray( where = "FirstName = 'Johnny' ");
-	users = user.listAsJSON( where = "FirstName = 'Johnny' ");
+// Collection return types
+users = user.listAsArray( where = "FirstName = 'Johnny' ");
+users = user.listAsJSON( where = "FirstName = 'Johnny' ");
 
 ```
 That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
@@ -216,7 +302,7 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
 
 ## Dynamic Entities
-Sometimes it's a pain in the arse to create entity CFCs that just point to a single table.  You must create properties for each field in the table.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
+Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
 ```javascript
 /* EventLog.cfc */
 component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
@@ -251,23 +337,155 @@ component persistent="true" table="eventLog" extends="com.database.BaseModelObje
 	property name="description" type="string";
 }
 ```
-And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need relationships, formulas, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
+And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need many-to-many relationships, formulas, custom validation, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)
 
 ### Dynamic Entity - A step further
-I believe it's best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
+In some cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
 ```javascript
 eventLog = new com.database.BaseModelObject( dao = dao, table = 'eventLog' );
 ```
-That would have returned an entity instance with all the properties from the eventLog table.  I'm not saying this is a best practice, but it is possible.  It hasn't been tested in the wild, so YMMV - but it passes our internal manual tests.
+That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends BaseModelObject : See more below about dynamic relationships ).
 
 ## Relationships
-Since this Pet.cfc defines a one-to-one relationship with the user, this will automatically load the correct "User" object into the Pet object
+In the example above, Pet.cfc defines a one-to-one relationship with the user.  This will automatically load the correct "User" object into the Pet object
 when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User
 is also evaluated and saved (if any changes were detected ).
 
 One can also identify one-to-many relationships. This will also auto-load and "cascade" save unless told otherwise via the "cascade" attribute. This type of
 relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
+
+## Dyanmic Relationships
+Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  See:
+### MANY-TO-ONE Relationship
+```javascript
+var order = new com.database.BaseModelObject( dao = dao, table = 'orders');
+order.load(123); // load order with ID of 123
+writeDump( order.getCustomers().getName() );
+// ^ If the customers table has a field named "name" this writeDump will
+// output the customer name associated with order 123
+```
+### ONE-TO-MANY Relationship
+Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ).  Using the same ```order``` object created above, we could do this:
+```javascript
+writeDump( order.getOrder_Items() );
+```
+That would dump an array of "order_item" entity objects, one for each order_items record associated with order 123.  Note that we didn't need to create a single CFC file, or define any relationships, or create any methods.  Sometimes, however, you don't want the objects.  You just need the data in a struct format.
+```javascript
+writeDump( order.getOrder_ItemsAsArray() );
+```
+That will dump an array of struct representation of the order_items associated with order 123.  Awesome, I know.  However, when writing an API, you sometimes need just JSON:
+```javascript
+writeDump( order.getOrder_ItemsAsJSON() );
+```
+There you have it.  A JSON representation of your data.  Ok, now say you just want to retrieve order 123 and return it, and all of it's related data as a struct.  This is a little trickier since the dynamic relationships need to know something about your related data.  We achieved that above by using the table name and return types in the method call ( get `Order_Items` as `JSON` ).  If you just want to load the data and return it with all child data, you need to define what you want back:
+```javascript
+order.hasMany( 'order_items' );
+order.toStruct();// or order.toJSON();
+```
+The `hasMany` method can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
+```javascript
+order.hasMany( table = 'order_items', property = 'orderItems' );
+order.getOrderItems().toStruct();
+```
+In addition, the `hasMany` method can take a `where` argument that is used to filter the child entities.  For instance, if you have a column in your order_items table called `status`, in which the value 1 means it's active and 99 means it's deleted you could define your hasMany relationship like:
+```javascript
+order.hasMany( table = 'order_items', property = 'orderItems', where = 'status != 99' );
+order.getOrderItems().toStruct();
+```
+This would only return "active" order_items.
+
+The `hasMany` method is great for defining one-to-many relationships that can't be/aren't defined by naming conventions, but there's also a way to define many-to-one relationships in this manner; the `belongsTo` method.
+```javascript
+order.belongsTo( table = 'customers', property = 'company', fkField = 'customerID' );
+writeDump( order.getCompany() );
+```
+This may not be as useful as the `hasMany` method, as these many-to-one relationships can easily be defined using dynamicMappings (discussed below), but it can bind these relationships after the entity has been loaded, where dynamicMappings occur during load.
+
+##Dynamic Mappings/Aliases
+Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional `dynamicMappings` argument to the BaseModelObject's init method.  The dynamicMappings argument expects a struct containing `key` and `value` pairs of mappings wher the `key` is the desired property name for one-to-many or column name for many-to-one relationships and the `value` is the actual table name (or a struct, explained later).
+
+So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.
+```javascript
+dynamicMappings = { "orderItems" = "order_items" };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getOrderItems() );
+```
+That would dump an array of entities representing the `order_items` records that are related to the order #123
+
+The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named `<table>_ID`.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a `customers` table which has a `default_payment_terms` field that is a FK to a table called `payment_terms`, here's how we could handle that with simple dynamicMappings:
+```javascript
+dynamicMappings = { "default_payment_terms" = "payment_terms" };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getDefault_Payment_Terms() );
+```
+There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the `value` part of the mapping.  The struct consists of two keys: `table` and `property`.  So, if we wanted the `defualt_payment_terms` to be `defaultPaymentTerms` all we'd have to do is:
+```javascript
+dynamicMappings = { "default_payment_terms" = { table = "payment_terms", property = "defaultPaymentTerms" } };
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getDefaultPaymentTerms() );
+```
+This will dump the exact same as the previous example.  This is only necessary on many-to-one relationships.
+
+__NOTE:__ It is also important to note that the dynamicMappings are passed into any object instantiated during the load() method.  So if you have a dynamicMapping on the order entity, when you load it and it crawls through auto-wiring the order_items, customers, etc... it will apply the same mappings throughout.  So as the example above, the property `defaultPaymentTerms` would be used anytime a property/column named `default_payment_terms` was encoutnerd.
+Here's an example of a more real-world dynamicMapping:
+```javascript
+dynamicMappings = {
+	"company" = "customers",
+	"users_ID" = { "table" = "users", property = "User" },
+	"orderItems" = "order_items",
+	"default_payment_terms" = "payment_terms",
+	"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
+	"primary_contact" =  { "table" = "contacts", "property" = "primaryContact" }
+};
+order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
+order.load( 123 );
+writeDump( order.getCompany().getUser() );
+```
+###Dynamic Relationship Best Practices
+Although you can definitely define your relationships on the fly using naming conventions, the dynamicMappings property, and hasMany/belongsTo methods it may not always be the best practice.  Take for example the code snippet above where we are setting all of those dynamic mappings.  It's likely that everywhere you need the `order` entity you'll probably want those mappings to exist (and be consistent).  To accomplish this you'll want a hybrid aproach using a facade CFC.  Here's a sample of how that could look:
+
+__Order Entity Facade: model/Order.cfc__
+```javascript
+/**
+* I define relationships and preset defaults for the orders entity
+**/
+component accessors="true" output="false" table="orders" extends="com.database.BaseModelObject" {
+
+	public any function load(){
+		// For convenience, we'll just pump in the dao here (pretend it lives in the application scope)
+		setDAO( application.dao );
+
+		// Define alias mappings.  This needs to happen before the entity is loaded, because the
+		// load method needs this mapping to build the entity relationships.
+		setDynamicMappings({
+			"company" = "customers",
+			"users_ID" = { "table" = "users", property = "User" },
+			"orderItems" = "order_items",
+			"default_payment_terms" = "payment_terms",
+			"default_locations_ID" = { "table" = "locations", "property" = "defaultLocation" },
+			"primary_contact" =  { "table" = "contacts", "property" = "primaryContact"
+		});
+
+		// Now load the entity, passing any args that we were given
+		super.load( argumentCollection = arguments );
+
+		// Now that the entity is loaded, we can identify any many-to-one relationships with the hasMany function
+		this.hasMany( table = "order_items", fkcolumn = "orders_ID", property = "orderItems", where = "status != 99" );
+
+		return this;
+	}
+}
+```
+With the above, I can simply instantiate the Order entity like so:
+```javascript
+order = new model.Order();
+writeDump( order.getCompany().getUser() );
+writeDump( order.getOrderItems() );
+```
 
 ## lazy loading
 If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related

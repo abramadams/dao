@@ -15,7 +15,21 @@
 	 i.e.:
 		dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
 	*/
+ 	users = dao.read("users");
+	johns = dao.read( sql = "
+	        SELECT first_name, last_name
+	        FROM userQuery
+	        WHERE lower(first_name) like :firstName
+	   ",
+	   params = { firstName = 'john%' },
+	   QoQ = { userQuery = users}
+	);
 
+    writeDump([users,johns]);
+	array = dao.read(sql="eventLog",returnType="array", orderby = 'EVENTDATE desc', limit = 10);
+	writeDump(array);
+	json = dao.read(sql="eventLog",returnType="json", orderby = 'EVENTDATE desc', limit = 10);
+	writeDump(json);
 	// Generate the event log table used to track data interaction
 	if ( dao.getDBtype  == "mssql" ){
 		// MSSQL specific
@@ -87,7 +101,7 @@
 
 	// read data from query
 	writeOutput("<h2>query of query</h2>");
-	results4 = dao.read(sql = 'SELECT * FROM results', QoQ = { name = "results", query = results1 });
+	results4 = dao.read(sql = 'SELECT * FROM results', QoQ = { results = results1 });
 	writeDump(results4);
 
 	//update data
@@ -117,7 +131,7 @@
 	// Delete specific record
 	dao.delete(table = 'users', recordID = newID, onFinish = afterDelete);
 	// Delete all records
-	dao.delete(table = 'users', recordID = '*', onFinish = afterDelete);
+	dao.delete(table = 'TodoItem', recordID = '*', onFinish = afterDelete);
 
 	// Callback functions for insert/update/delete
 	public function afterUpdate( data ){
@@ -141,6 +155,7 @@
 			" );
 	}
 	public function afterDelete( data ){
+		// writeDump(arguments.data);abort;
 		this.execute( "
 				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (

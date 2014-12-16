@@ -1,4 +1,4 @@
-component displayName="I test the EntityQuery CFC" extends="testbox.system.testing.BaseSpec"{
+component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseSpec"{
 
 	// executes before all tests
 	function beforeTests(){
@@ -28,8 +28,8 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 		var query = request.dao.from( "eventLog" ).where( "ID", ">=", 5 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
-		$assert.typeOf( "array", query.getCriteria().where );
-        $assert.includes( query.getCriteria().where[1], "WHERE `ID` >=" );
+		$assert.typeOf( "array", query.getCriteria().clause );
+        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` >=" );
 	}
 
 	function andWhere() test{
@@ -39,10 +39,10 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 					.andWhere( "event", "=", "delete")
 					.orWhere( "event", "=", "insert");
 		$assert.typeOf( "struct", query.getCriteria() );
-        $assert.typeOf( "array", query.getCriteria().where );
+        $assert.typeOf( "array", query.getCriteria().clause );
 
-        $assert.includes( query.getCriteria().where[1], "WHERE `ID` <=" );
-        $assert.includes( query.getCriteria().where[2], "AND `ID` >=" );
+        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` <=" );
+        $assert.includes( query.getCriteria().clause[2], "AND `ID` >=" );
 	}
 
 	function orderBy() test{
@@ -113,7 +113,6 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 					.endGroup()
 					.orderBy("eventDate desc");
 		$assert.typeOf( "struct", query.getCriteria() );
-
 		var results = query.run();
 
 
@@ -124,6 +123,64 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.testi
 
 
 	}
+
+	function returnAsQuery() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('query')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "query", results );
+
+	}
+	function returnAsArray() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('array')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "array", results );
+
+	}
+
+	function returnAsJSON() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('json')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "string", results );
+        $assert.typeOf( "array", deSerializeJSON(results) );
+
+	}
+
 	// executes after all tests
 	function afterTests(){
 

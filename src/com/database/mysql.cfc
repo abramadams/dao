@@ -2,6 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
+		@version 0.0.63
+	   	@updated 12/15/2014
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -9,8 +11,9 @@
 
 	  ********************************************************** --->
 
-<cfcomponent output="false" accessors="true">
-	<cfproperty name="dao" type="dao"/>
+<cfcomponent output="false" accessors="true" implements="IDAOConnector">
+	<!---  implements="IDAOConnector" --->
+	<cfproperty name="dao" type="dao" />
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
 		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
@@ -61,19 +64,19 @@
 		<cfset var pk = getPrimaryKey(arguments.tablename) />
 		<cfset var del = "" />
 
-		<cftry>
+		<!--- <cftry> --->
 			<cfquery name="del" datasource="#variables.dsn#">
 				DELETE from #arguments.tablename#
 				<cfif not len(trim(arguments.IDField))>
-				WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getCFSQLType(pk.type)#" value="#arguments.recordID#">
+				WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getDAO().getCFSQLType(pk.type)#" value="#arguments.recordID#">
 				<cfelse>
-				WHERE #getSafeColumnName(arguments.idField)# = <cfqueryparam cfsqltype="#getCFSQLType(pk.type)#" value="#arguments.recordID#">
+				WHERE #getSafeColumnName(arguments.idField)# = <cfqueryparam cfsqltype="#getDAO().getCFSQLType(pk.type)#" value="#arguments.recordID#">
 				</cfif>
 			</cfquery>
-			<cfcatch type="any">
+			<!--- <cfcatch type="any">
 				<cfset ret = false>
 			</cfcatch>
-		</cftry>
+		</cftry> --->
 		<cfreturn ret />
 	</cffunction>
 
@@ -83,14 +86,14 @@
 		<cfset var ret = true />
 		<cfset var rel = "" />
 
-		<cftry>
+		<!--- <cftry> --->
 			<cfquery name="del" datasource="#variables.dsn#">
 				DELETE from #arguments.tablename#
 			</cfquery>
-			<cfcatch type="any">
+			<!--- <cfcatch type="any">
 				<cfset ret = false>
 			</cfcatch>
-		</cftry>
+		</cftry> --->
 		<cfreturn ret />
 	</cffunction>
 
@@ -146,7 +149,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.sql )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -175,7 +179,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -206,7 +211,8 @@
 							--->
 							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								#tmpSQL.statements[idx].before#
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 									<cfqueryparam
 										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
@@ -220,7 +226,7 @@
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
 						</cfif>
-						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+						<cfif len( trim( arguments.limit ) ) && isNumeric( arguments.limit )>
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
@@ -228,11 +234,18 @@
 			</cfif>
 
 			<cfcatch type="any">
-				<cfdump var="#arguments#" label="Arguments passed to select()">
+<!--- 				<cfdump var="#arguments#" label="Arguments passed to select()">
+				<cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement">
+				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
 				<cfsetting showdebugoutput="false">
-				<cfabort>
+				<cfabort> --->
+				<cfif cfcatch.detail contains "Unknown column">
+					<cfthrow type="DAO.Read.MySQL.UnknownColumn" detail="#cfcatch.detail#" message="#cfcatch.message# #len(trim(arguments.columns)) ? '- Available columns are: #arguments.columns#' : ''#">
+				<cfelse>
+					<cfthrow type="DAO.Read.MySQL.SelectException" detail="#cfcatch.detail#" message="#cfcatch.message#">
+				</cfif>
 			</cfcatch>
 		</cftry>
 		<cfreturn get />
@@ -268,15 +281,15 @@
 						VALUES (
 						<cfloop list="#columns#" index="col">
 							<cfset isnull = "false">
-							<cfset curRow = curRow +1>
-							<cfset current[curRow] = structNew()>
-							<cfset current[curRow].colIndex = curRow>
-							<cfset current[curRow].column = col>
-							<cfset current[curRow].data = qry[col][currentRow]>
-							<cfset current[curRow].cfsqltype = arguments.tabledef.getCFSQLType(col)>
+							<cfset curRow = curRow +1/>
+							<cfset current[curRow] = {}/>
+							<cfset current[curRow].colIndex = curRow/>
+							<cfset current[curRow].column = col/>
+							<cfset current[curRow].data = qry[col][currentRow]/>
+							<cfset current[curRow].cfsqltype = arguments.tabledef.getCFSQLType(col)/>
 
 							<!--- push the cfsqltype into a var scope variable that get's reset at the end of this loop --->
-							<cfset cfsqltype =  current[curRow].cfsqltype>
+							<cfset cfsqltype =  current[curRow].cfsqltype/>
 							<cfif current[curRow].cfsqltype is "cf_sql_date" or isDate(current[curRow].data) >
 								<cfset current[curRow].cfsqltype = "cf_sql_timestamp">
 							</cfif>
@@ -290,6 +303,9 @@
 							</cfif>
 							<cfif not arguments.tabledef.isColumnNullable(col)>
 								<cfset isnull = "false">
+								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) && current[curRow].data eq '0000-00-00 00:00:00' >
+									<cfset current[curRow].data = createTime(0,0,0)/>
+								</cfif>
 							</cfif>
 							<cfif curRow GT 1>,</cfif>
 							<cfif not len(trim(current[curRow].data))>
@@ -349,8 +365,8 @@
 									<cfset performUpdate = true/>
 									<cfset isnull = "false">
 									<cfset curRow = curRow +1>
-									<cfif curRow GT 1>, </cfif>
-									#getSafeColumnName(col)# =
+
+
 									<cfset value = qry[col][currentRow]/>
 									<cfset cfsqltype = arguments.tabledef.getCFSQLType(col)>
 
@@ -363,12 +379,16 @@
 											<cfset isnull = "false">
 										</cfif>
 										<cfif cfsqltype is "cf_sql_timestamp">
-											<cfset cfsqltype = "cf_sql_varchar">
+											<cfset isNull = true/>
 										</cfif>
 									</cfif>
-
+									<cfif ( cfsqltype contains "date" || cfsqltype contains "time" ) && value eq '0000-00-00 00:00:00' >
+										<cfset isNull = true/>
+									</cfif>
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
-									#getDao().queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
+									<cfif !isNull>
+										<cfif curRow GT 1>, </cfif>#getSafeColumnName(col)# = #getDao().queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
+									</cfif>
 									<cfset value = "">
 									<cfset cfsqltype = "">
 								</cfif>
@@ -385,7 +405,7 @@
 			</cfoutput>
 			<cfcatch type="any">
 
-				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
+				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error #cfcatch.detail#" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
 
@@ -437,7 +457,7 @@
 			</cfcatch>
 		</cftry>
 		<cfset ret.field = get.field>
-		<cfset ret.type = getCFSQLType(get.type)>
+		<cfset ret.type = getDAO().getCFSQLType(get.type)>
 
 		<cfreturn ret />
 
@@ -457,56 +477,51 @@
 		<cfoutput query="get">
 			<cfset arrayAppend(ret, structNew())/>
 			<cfset ret[arrayLen(ret)].field = get.field>
-			<cfset ret[arrayLen(ret)].type = getCFSQLType(get.type)>
+			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType(get.type)>
 		</cfoutput>
 
 		<cfreturn ret />
 
 	</cffunction>
 
-	<cffunction name="getSafeColumnNames" access="public" returntype="string" hint="I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="cols" required="true" type="string">
-
-		<cfset var i = 0 />
-		<cfset var columns = "" />
-		<cfset var colname = "" />
-
-		<cfsavecontent variable="columns">
-			<cfoutput>
-				<cfloop list="#arguments.cols#" index="colname">
-					<cfset i = i + 1>#getSafeIdentifierStartChar()##trim(colname)##getSafeIdentifierEndChar()#<cfif i lt listLen(cols)>,</cfif>
-				</cfloop>
-			</cfoutput>
-		</cfsavecontent>
-
-		<cfreturn columns />
-
-	</cffunction>
-
-	<cffunction name="getSafeColumnName" access="public" returntype="string" hint="I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific." output="false">
-		<cfargument name="col" required="true" type="string">
-
-		<cfset var ret = "" />
-
-		<cfset ret = "#getSafeIdentifierStartChar()##trim(arguments.col)##getSafeIdentifierEndChar()#" >
-
-		<cfreturn ret />
-
-	</cffunction>
-
-	<cffunction name="getSafeIdentifierStartChar" access="public" returntype="string" hint="I return the opening escape character for a column name.  This is MySQL Specific." output="false">
-		<cfreturn '`' />
-	</cffunction>
-
-	<cffunction name="getSafeIdentifierEndChar" access="public" returntype="string" hint="I return the closing escape character for a column name.  This is MySQL Specific." output="false">
-		<cfreturn '`' />
-	</cffunction>
-
 	<cfscript>
+		/**
+		* I take a list of columns and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific.
+		**/
+		public string function getSafeColumnNames( required string cols )  output = false {
+			var columns = [];
+			for( var colName in listToArray( cols ) ){
+				var col = "#getSafeIdentifierStartChar()##trim(colName)##getSafeIdentifierEndChar()#";
+				col = reReplace( col, "\.", "#getSafeIdentifierStartChar()#.#getSafeIdentifierEndChar()#", "all" );
+				arrayAppend( columns, col );
+			}
+
+			return arrayToList( columns );
+		}
+
+		/**
+		* I take a single column name and return it as a safe columns list with each column wrapped within ``.  This is MySQL Specific.
+		* */
+		public string function getSafeColumnName( required string col ) output = false{
+			return "#getSafeIdentifierStartChar()##trim(arguments.col)##getSafeIdentifierEndChar()#";
+		}
+		/**
+		* I return the opening escape character for a column name.  This is MySQL Specific.
+		* */
+		public string function getSafeIdentifierStartChar() output = false{
+			return '`';
+		}
+		/**
+		* I return the closing escape character for a column name.  This is MySQL Specific.
+		* */
+		public string function getSafeIdentifierEndChar() output = false{
+			return '`';
+		}
+
 		/**
 	    * I create a table based on the passed in tabledef object's properties.
 	    **/
-		package tabledef function makeTable( required tabledef tabledef ){
+		public tabledef function makeTable( required tabledef tabledef ) output = false{
 
 			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
@@ -577,5 +592,11 @@
 
 		}
 
+		/**
+	    * I drop a table based on the passed in table name.
+	    **/
+		public tabledef function dropTable( required string table ) output = false{
+			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
+		}
 	</cfscript>
 </cfcomponent>
