@@ -1177,6 +1177,7 @@
 		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
+		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
 
 
 		<cfset var tmpSQL = "" />
@@ -1197,7 +1198,7 @@
 		<!--- <cftry> --->
 			<cfif len( trim( arguments.sql ) ) || len( trim( arguments.table ) )>
 				<cftimer label="Query: #arguments.name#" type="debug">
-				<cfif !structKeyExists( arguments.QoQ, 'query' ) >
+				<cfif !structCount( arguments.QoQ ) >
 					<cfif listlen(arguments.sql, ' ') GT 1>
 						<cfif len(trim(arguments.cachedwithin))>
 								<!---
@@ -1286,9 +1287,21 @@
 					</cfif>
 
 				<cfelse>
-					<cfset setVariable( arguments.qoq.name, arguments.qoq.query)>
+					<!--- <cfset setVariable( arguments.qoq.name, arguments.qoq.query)> --->
 					<cfquery name="LOCAL.#arguments.name#" dbtype="query">
-						#PreserveSingleQuotes( sql )#
+						<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
+						<cfset structAppend( variables, arguments.QoQ )/>
+						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+							<cfset SqlPart = tmpSQL.statements[idx].before />
+							#preserveSingleQuotes( SqlPart )#
+							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+								<cfqueryparam
+									cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
+									value="#tmpSQL.statements[idx].value#"
+									list="#tmpSQL.statements[idx].isList#">
+							</cfif>
+						</cfloop>
+						<!--- #PreserveSingleQuotes( tmpSQL )#--->
 					</cfquery>
 				</cfif>
 				</cftimer>

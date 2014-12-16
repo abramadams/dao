@@ -116,6 +116,48 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.typeOf( "string", records );
           $assert.typeOf( "array", deserializeJSON(records) );
      }
+     function readQueryOfQueryAsQuery() hint="I test the query of query syntax" returntype="any" output="false" test{
+          var users = request.dao.read("users");
+          var johns = request.dao.read( sql = "
+                    SELECT first_name, last_name
+                    FROM userQuery
+                    WHERE lower(first_name) = :firstName
+               ",
+               params = { firstName = 'john' },
+               QoQ = { userQuery = users}
+          );
+          $assert.typeOf( "query", johns );
+
+     }
+     function readQueryOfQueryAsArray() hint="I test the query of query syntax" returntype="any" output="false" test{
+          var users = request.dao.read("users");
+          var johns = request.dao.read( sql = "
+                    SELECT first_name, last_name
+                    FROM userQuery
+                    WHERE lower(first_name) = :firstName
+               ",
+               params = { firstName = 'john' },
+               returnType = "Array",
+               QoQ = { userQuery = users}
+          );
+          $assert.typeOf( "array", johns );
+
+     }
+     function readQueryOfQueryAsJSON() hint="I test the query of query syntax" returntype="any" output="false" test{
+          var users = request.dao.read("users");
+          var johns = request.dao.read( sql = "
+                    SELECT first_name, last_name
+                    FROM userQuery
+                    WHERE lower(first_name) = :firstName
+               ",
+               params = { firstName = 'john' },
+               returnType = "JSON",
+               QoQ = { userQuery = users}
+          );
+          $assert.typeOf( "string", johns );
+          $assert.typeOf( "array", deserializeJSON(johns) );
+
+     }
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
