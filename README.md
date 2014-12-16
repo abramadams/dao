@@ -139,6 +139,21 @@ users = dao.read( sql = "
 //
 // Other options are "Array" or "Query".  If not specified "Query" will be used.
 ```
+# Query of Queries
+With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
+```javascript
+users = dao.read("users");
+johns = dao.read( sql = "
+		SELECT first_name, last_name 
+		FROM userQuery
+		WHERE lower(first_name) = :firstName
+	",
+	params = { firstName : 'john' }, 
+	returnType = "Array",
+	QoQ = { userQuery : users}
+);
+```
+
 # Entity Queries
 New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries via dao.cfc.  This allows you
 to build criteria in an OO and platform agnostic way.  This will also be the only query language available
@@ -178,10 +193,10 @@ ORDER BY eventDate desc
 You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).  
 To do so, simply call the .returnAs() method in the chain, like so:
 ```javascript
-var query = request.dao.from( "eventLog" )
-					.where( "eventDate", "<", now() )
-					.returnAs('array')
-					.run();
+var query = dao.from( "eventLog" )
+				.where( "eventDate", "<", now() )
+				.returnAs('array')
+				.run();
 ```
 
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
