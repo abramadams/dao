@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.61
-	   	@updated 11/12/2014
+	  	@version 0.0.63
+	   	@updated 12/15/2014
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1072,13 +1072,24 @@
 			return this;
 		}
 
+		public function returnAs( string returnType = "Query" ){
+
+			_criteria.returnType = arguments.returnType;
+			arrayAppend(_criteria.callStack, { returnType = { returnType = returnType } } );
+
+			return this;
+		}
+
 		public function run(){
 			return read( table = _criteria.from,
 						 columns = _criteria.columns,
 						 where = arrayToList( _criteria.joins ) & " " & arrayToList( _criteria.clause, ' ' ),
 						 limit = _criteria.limit,
-						 orderBy = _criteria.orderBy );
+						 orderBy = _criteria.orderBy,
+						 returnType = _criteria.returnType );
 		}
+
+
 
 		public function getCriteria(){
 			return _criteria;
@@ -1104,7 +1115,7 @@
 			return this;
 		}
 		private function _resetCriteria(){
-			_criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [] };
+			_criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [], returnType = "Query" };
 		}
 
 		/**

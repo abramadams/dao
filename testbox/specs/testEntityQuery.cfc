@@ -123,6 +123,64 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 
 	}
+
+	function returnAsQuery() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('query')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "query", results );
+
+	}
+	function returnAsArray() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('array')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "array", results );
+
+	}
+
+	function returnAsJSON() test{
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("and")
+						.andWhere( "ID", ">=", 1)
+						.beginGroup("or")
+							.andWhere( "event", "=", "delete")
+							.orWhere( "event", "=", "insert")
+						.endGroup()
+					.endGroup()
+					.returnAs('json')
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+
+        $assert.typeOf( "string", results );
+        $assert.typeOf( "array", deSerializeJSON(results) );
+
+	}
+
 	// executes after all tests
 	function afterTests(){
 

@@ -175,6 +175,15 @@ AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) )
 ORDER BY eventDate desc
 ```
 
+You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).  
+To do so, simply call the .returnAs() method in the chain, like so:
+```javascript
+var query = request.dao.from( "eventLog" )
+					.where( "eventDate", "<", now() )
+					.returnAs('array')
+					.run();
+```
+
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
 
