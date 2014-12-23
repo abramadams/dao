@@ -554,6 +554,40 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
            $assert.isTrue( testEntity.getFakeProperty() == 'test' );
      }
 
+
+     function testNewWithData() test{
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+
+          testEntity.load( 93 );
+          $assert.isTrue( testEntity.getId() == 93 );
+
+          var data = testEntity.toStruct();
+          data.modifiedDate = now();
+          data.createdDate = now();
+
+          var testEntity2 = testEntity.new( data );
+          // writeDump( [data, testEntity2 ] );abort;
+          $assert.isTrue( testEntity2.isNew() );
+          testEntity2.save();
+          $assert.isTrue( testEntity2.getId() != 93 );
+          $assert.isFalse( testEntity2.isNew() );
+
+     }
+     function testNewWithoutData() test{
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+
+          testEntity.load( 93 );
+          $assert.isTrue( testEntity.getId() == 93 );
+
+          var testEntity2 = testEntity.new();
+
+          $assert.isTrue( testEntity2.isNew() );
+          testEntity2.save();
+          $assert.isTrue( testEntity2.getId() != 93 );
+          $assert.isFalse( testEntity2.isNew() );
+
+     }
+
      // executes after all tests
      function afterTests(){
 

@@ -1,5 +1,4 @@
 /**
-*
 *	Copyright (c) 2013-2014, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
@@ -461,53 +460,6 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* I set the current instance of the model object as a "new" record.  This will cause an insert instead
-	* of an update when the save() method is called, retaining the original data, but generating a new record
-	* with new primary key/generated ID values.  Use this when creating several records of the same entity
-	* type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
-	**/
-	public function copy(){
-		variables._isNew = true;
-		variables[ getIDField() ] = '';
-	}
-	/**
-	* I create a new empty instance of the entity
-	**/
-	public function newInstance( string table = getTable(), dao dao = getDao(), string IDField = getIDField() ){
-		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			return createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
-		}else{
-			try{
-				return createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init( dao = dao );
-			}catch( any e ){
-				return createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
-				// return createObject( "component", variables.meta.fullName ).init( dao = dao );
-			}
-		}
-	}
-	/**
-	* Shortcut to create a new instantiated instance of the entity - essentially a safe deep-copy.
-	**/
-	public function clone(){
-		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao() ).load( this.getID() );
-		}else{
-			return createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() ).load( this.getID() );
-		}
-	}
-	/**
-	* I reset the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
-	**/
-	public function reset(){
-		// Could just load(0), but properties dynamically added will persist in the variables scope
-		// and the variables.properties is readonly.
-		for ( var prop in variables.meta.properties ){
-			this[ prop.name ] = variables[ prop.name ] = '';
-		}
-		return this;
-	}
-
-	/**
 	* I return true if any of the original data has changed.  This is a read-only property because the
 	* entity obejct properties' setters set this flag when data actually changes.
 	**/
@@ -800,7 +752,7 @@ component accessors="true" output="false" {
 
 						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
 						// does not appear to be thread safe and ends up causing concurrency issues.
-						var tmpNewEntity = newInstance(); //createObject("component", variables.meta.fullName ).init( dao = this.getDao() );
+						var tmpNewEntity = new(); //createObject("component", variables.meta.fullName ).init( dao = this.getDao() );
 						tmpNewEntity.load( ID = qn , lazy = tmpLazy, parent = getParentTable() );
 
 					}
@@ -852,6 +804,80 @@ component accessors="true" output="false" {
 		throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
 
 	}
+
+
+	/**
+	* Sets the current instance of the model object as a "new" record.  This will cause an insert instead
+	* of an update when the save() method is called, retaining the original data, but generating a new record
+	* with new primary key/generated ID values.  Use this when creating several records of the same entity
+	* type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
+	**/
+	public function copy(){
+		variables._isNew = true;
+		variables[ getIDField() ] = '';
+	}
+	/**
+	* Creates a new empty instance of the entity.  If properties are passed in the new instance will
+	* be loaded with these properties.
+	**/
+	public function new( struct properties = {}, string table = getTable(), dao dao = getDao(), string IDField = getIDField() ){
+
+		var newEntity = this;
+		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
+			newEntity = createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
+		}else{
+			try{
+				newEntity = createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init( dao = dao );
+			}catch( any e ){
+				newEntity = createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
+				// return createObject( "component", variables.meta.fullName ).init( dao = dao );
+			}
+		}
+		// If properties are passed in (name/value pairs of entity fields), load it as a new object populated with the property data.
+		if( structCount( properties ) ){
+			// First delete the id field from the properties struct.  If the desire is to load record if it exists, use load() directly.
+			structDelete( properties, getIDField() );
+			// writeDump([serializeJSON(properties),arguments,newEntity.load( id = properties ), load( id = properties )]);abort;
+			newEntity.load( id = properties );
+		}
+		return newEntity;
+	}
+	/**
+	* Resets the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
+	**/
+	public function reset(){
+		// Could just load(0), but properties dynamically added will persist in the variables scope
+		// and the variables.properties is readonly.
+		for ( var prop in variables.meta.properties ){
+			this[ prop.name ] = variables[ prop.name ] = '';
+		}
+		return this;
+	}
+
+	/**
+	* A conveniece method for loading an object with pre-existing data.
+	* I take a struct that contains keys that match properties on the given
+	* entity and return an instance of the entity with the passed in values
+	* "loaded" into the entity.  If the properties argument contains a key
+	* with the same name as the entity's "IDField" then I will attempt to
+	* load the record from the database.  If no matching record is found, or
+	* the properties did not contain the IDField I will return an instance
+	* of the entity, loaded with the key/values specified by the properties arg.
+	**/
+	public any function populate( required any properties, boolean lazy = false ){
+		// Note: The ID passed into load() can either be the PK field value of the record
+		// you wish to load, or a struct containg the key/values you want to load.
+		return load( ID = properties, lazy = lazy );
+	}
+
+	/**
+	* A convenience method to force the lazy loading of the entity.  I make code
+	* more self-documenting.
+	**/
+	public any function lazyLoad( required any ID ){
+		return load( ID = ID, lazy = true );
+	}
+
 	/**
 	* Loads data into the model object. If lazy == true the child objects will be lazily loaded.
 	* Lazy loading allows us to inject "getter" methods that will instantiate the related data
@@ -943,9 +969,9 @@ component accessors="true" output="false" {
 				if ( listFindNoCase( structKeyList( arguments.ID ), prop.name )/*  && prop.name != getIDField()  */){
 					// We'll need to check some data types first though.
 					if ( prop.type == 'date' && findNoCase( 'Z', arguments.ID[ prop.name ] ) ){
-						variables[ prop.name ] = convertHttpDate( arguments.ID[ prop.name ] );
+						variables[ prop.name ] = this[ prop.name ] = convertHttpDate( arguments.ID[ prop.name ] );
 					}else{
-						variables[ prop.name ] = arguments.ID[ prop.name ];
+						variables[ prop.name ] = this[ prop.name ] = arguments.ID[ prop.name ];
 					}
 					this.set_isDirty( true ); // <-- may not be, but we can't tell so better safe than sorry
 				}
@@ -1191,7 +1217,7 @@ component accessors="true" output="false" {
 		try{
 			// try to load the table into a new object.  If the table doesn't
 			// exist we'll just return void;
-			var newObj = newInstance( table = mapping.table, dao = this.getDao() );
+			var newObj = new( table = mapping.table, dao = this.getDao() );
 		}catch( any e ){
 			throw( message = "Table #propertyName# does not exist", type="BMO", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
 			// writeDump([arguments,e,this]);abort;
@@ -1305,7 +1331,7 @@ component accessors="true" output="false" {
 			var newObj = fkValue;
 			fkValue = newObj.getID();
 		}else{
-			var newObj = newInstance( table = mapping.table, dao = this.getDao(), idField = mapping.idField );
+			var newObj = new( table = mapping.table, dao = this.getDao(), idField = mapping.idField );
 		}
 
 		if( !isObject( newObj ) ){
@@ -1429,29 +1455,6 @@ component accessors="true" output="false" {
 	* END: DYNAMIC ENTITY RELATIONSHIPS
 	************************************************************************/
 
-	/**
-	* I am a conveniece method for loading an object with pre-existing data.
-	* I take a struct that contains keys that match properties on the given
-	* entity and return an instance of the entity with the passed in values
-	* "loaded" into the entity.  If the properties argument contains a key
-	* with the same name as the entity's "IDField" then I will attempt to
-	* load the record from the database.  If no matching record is found, or
-	* the properties did not contain the IDField I will return an instance
-	* of the entity, loaded with the key/values specified by the properties arg.
-	**/
-	public any function populate( required any properties, boolean lazy = false ){
-		// Note: The ID passed into load() can either be the PK field value of the record
-		// you wish to load, or a struct containg the key/values you want to load.
-		return load( ID = properties, lazy = lazy );
-	}
-
-	/**
-	* I am a convenience method to force the lazy loading of the entity.  I make code
-	* more self-documenting.
-	**/
-	public any function lazyLoad( required any ID ){
-		return load( ID = ID, lazy = true );
-	}
 
 	public query function getRecord( any ID ){
 		var LOCAL = {};
@@ -2183,7 +2186,7 @@ component accessors="true" output="false" {
 
 	/* Utilities */
 	/**
-	* tries to camelCase based on nameing conventions. For instance if the field name is "isdone" it will convert to "isDone".
+	* tries to camelCase based on naming conventions. For instance if the field name is "isdone" it will convert to "isDone".
 	**/
 	private function camelCase( required string str ){
 		str = lcase( str );
