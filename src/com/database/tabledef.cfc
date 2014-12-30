@@ -386,9 +386,10 @@
 	* @hint Returns the name or number for a given Java JDBC data type
 	**/
 	private string function jdbcType( required string typeId ){
-		var sqltype = createobject("java","java.sql.Types");
+		var sqltype = createObject( "java", "java.sql.Types" );
 		var types = {};
-
+		// forces java.sql.Types into a CF friendly struct ( required by Railo 4.2 to allow for-in loop )
+		sqltype = deserializeJSON( serializeJSON( sqltype ) );
 		for( var x in sqltype ){
 			types[ x ] = sqltype[ x ];
 			types[ sqltype[ x ] ] = x;
@@ -432,14 +433,28 @@
 			var LOCAL = {};
 
 			// get the columns for the table for any schema
-			d = new dbinfo( datasource = this.getDsn() );
-			try{
-				columns = d.columns( table = getTableName() );
-			}catch( any e ){
-				return false;
+			// auto-detect the database type.
+			if (isDefined('server') && structKeyExists(server,'railo')){
+				// railo does things a bit different with dbinfo.
+				var d = "";
+				try{
+					dbinfo datasource=this.getDsn() name="d" type="columns" table=this.getTableName();
+					columns = d;
+					dbinfo datasource=this.getDsn() name="indexqryfull" type="index" table=this.getTableName();
+				}catch( any e ){
+					return false;
+				}
+			}else{
+				var d = new dbinfo( datasource = this.getDsn() );
+
+				try{
+					columns = d.columns( table = this.getTableName() );
+				}catch( any e ){
+					return false;
+				}
+				// get a full indexes query for the table
+				indexqryfull = d.index( table = this.getTableName() );
 			}
-			// get a full indexes query for the table
-			indexqryfull = d.index( table = getTableName() );
 		</cfscript>
 
 		<cfquery name="primaryKeylist" dbtype="query">

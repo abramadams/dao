@@ -513,3 +513,9 @@ instantiate as: dao = new dao( dbType = 'otherrdbs' );
 # More examples
 Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
 
+# Railo Notes
+In order to use the DAO caching options with Railo you'll need to enable a default cache in the Railo Administrator.  Otherwise you'll end up with an error like: `there is no default object cache defined, you need to define this default cache in the Railo Administrator`
+Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under Services > Cache and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
+```javascript
+this.cache.object = "your_cache_name_here";
+```

@@ -99,8 +99,16 @@
 			variables.writeTransactionLog = arguments.writeTransactionLog;
 
 			// auto-detect the database type.
-			var d = new dbinfo( datasource = arguments.dsn );
-			variables.dbversion = d.version();
+			if (isDefined('server') && structKeyExists(server,'railo')){
+				// railo does things a bit different with dbinfo.
+				var d = "";
+				dbinfo datasource=arguments.dsn name="d" type="version";
+				variables.dbversion = d;
+			}else{
+				// This is Adobe CF's way to dbinfo
+				var d = new dbinfo( datasource = arguments.dsn );
+				variables.dbversion = d.version();
+			}
 
 			if ( !len( trim( arguments.dbtype ) ) ){
 				arguments.dbtype = getConnecterType();
@@ -1147,7 +1155,22 @@
 			    var cols = {};
 			    // using getMetaData instead of columnList to preserve case.
 			    // also, notice the hack to convert to a list then back to array. This is because getMetaData doesn't return real arrays (as far as CF is concerned)
-			    var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+			    if (isDefined('server') && structKeyExists(server,'railo')){
+			    	// var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+			    	var sqlString = qry.getSQL().getSQLString();
+			    	var tableName = reReplaceNoCase( sqlString, '.*?\sFROM\s(.*?)[\s|;].*', '\1', 'all' );
+
+			    	// writeDump([tableName,getMetaData(qry),qry.getSQL().getSQLString(),qry.getSQL()]);abort;
+			    	var test = new tabledef( tablename = tableName, dsn = getDSN() );
+			    	// Check for the tabledef object for this table, if it doesn't already exist, create it
+					if( !structKeyExists( variables.tabledefs, tableName) ){
+						variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
+					}
+
+			    	var colList = listToArray( structKeyList(test.gettablemeta().columns) );
+			    }else{
+			    	var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+			    }
 			    for( var col in colList ){
 			        structAppend(cols, {'#col#' = qry[col][i] } );
 			    }

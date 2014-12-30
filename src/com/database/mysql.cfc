@@ -394,7 +394,7 @@
 								</cfif>
 							</cfloop>
 
-						WHERE #getSafeColumnName(pk)# = '#qry[pk][currentRow]#'
+						WHERE #getSafeColumnName(pk)# = #getDao().queryParam(qry[pk][currentRow])#
 						<cfset ret = qry[pk][currentRow] />
 					</cfsavecontent>
 
@@ -404,7 +404,7 @@
 				<!---</cftransaction>--->
 			</cfoutput>
 			<cfcatch type="any">
-
+			<cfdump var="#cfcatch#" abort>
 				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error #cfcatch.detail#" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
