@@ -3,6 +3,25 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // executes before all tests
      function beforeTests(){
 		request.dao = new com.database.dao( dsn = "dao" );
+          request.dao.execute("REPLACE INTO eventLog(
+                                        `ID`,
+                                        `userID`,
+                                        `event`,
+                                        `description`,
+                                        `eventDate`)
+                              VALUES ('208', NULL, 'delete', 'deleted 243', '2014-01-29 01:26:51')");
+          request.dao.execute("REPLACE INTO pets(
+                                        `ID`,
+                                        `_id`,
+                                        `userID`,
+                                        `first_name`,
+                                        `last_name`,
+                                        `created_datetime`,
+                                        `modified_datetime`)
+                              VALUES ('93', '7d5a4d53-0a80-6eaf-db2acdaf5ed86568', '1', 'dog', NULL, NULL, '2014-04-07 22:07:51')");
+
+          // '1', '7d5a2669-cf9d-8338-eeb29f4e67c1b0af', 'James', 'Bond', NULL, NULL, '2014-04-07 22:07:50'
+
      }
 
      function createNewEntityInstance() test{
@@ -537,10 +556,10 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets", autowire = true );
 
           testEntity.load( 93 );
-          testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
+          testEntity.belongsTo( table = "users", pkColumn = "id", fkcolumn = "userID", property = "user" );
           // writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );
           // // $assert.isTrue( testEntity.hasUser() );
-          // writeDump( testEntity );abort;
+          // writeDump( testEntity.User.getID() );abort;
           $assert.isFalse( testEntity.User.getID() == "" );
 
 
@@ -559,6 +578,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
 
           testEntity.load( 93 );
+          // writeDump( [ testEntity ] );abort;
           $assert.isTrue( testEntity.getId() == 93 );
 
           var data = testEntity.toStruct();

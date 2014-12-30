@@ -515,7 +515,9 @@ Check out the daotest.cfm and entitytest.cfm files for a basic examples of the v
 
 # Railo Notes
 In order to use the DAO caching options with Railo you'll need to enable a default cache in the Railo Administrator.  Otherwise you'll end up with an error like: `there is no default object cache defined, you need to define this default cache in the Railo Administrator`
-Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under Services > Cache and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
+Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under `Services > Cache` and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
 ```javascript
 this.cache.object = "your_cache_name_here";
 ```
+
+Also, the "Preserve single quotes" setting must be checked in the Railo admin.  DAO specifically passes the SQL strings through ```preserveSingleQuotes()```, but this doesn't seem to work unless you have that setting checked under `Services > Datasources`.

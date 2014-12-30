@@ -1390,6 +1390,7 @@
 						<!---
 							This will return the position and length of the cfsqltype
 							We use this to extract the values for the actual cfqueryparam
+
 						--->
 						<cfset LOCAL.tempCFSQLType = reFindNoCase('cfsqltype\=#chr(777)#(.*?)#chr(777)#',LOCAL.idx,1,true)>
 						<!--- A little regex to extract the value from the queryparam string  --->
@@ -1429,12 +1430,12 @@
 
 						</cfif>
 						<!--- Now anything after the closing > should be  --->
-					 	<cfif len(listLast(preserveSingleQuotes(LOCAL.idx),chr(999)))> #listLast(preserveSingleQuotes(LOCAL.idx),chr(999))#</cfif>
+					 	<cfif len(listLast(preserveSingleQuotes(LOCAL.idx),chr(999)))> #listLast(preserveSingleQuotes(LOCAL.idx),chr(999))# </cfif>
 					</cfloop>
 				</cfquery>
 
 				<!--- Grab the last inserted ID if it was an insert --->
-				<cfif refindNoCase('INSERT(.*?)INTO (.*?)\(',LOCAL.tmpSQL)>
+				<cfif refindNoCase('(INSERT|REPLACE)(.*?)INTO (.*?)\(',LOCAL.tmpSQL)>
 
 					<cfif structkeyExists(LOCAL.result,'GENERATED_KEY')><!--- MySQL --->
 

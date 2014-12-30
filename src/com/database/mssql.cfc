@@ -385,7 +385,7 @@
 								</cfif>
 							</cfloop>
 
-						WHERE #getSafeColumnName(pk)# = #qry[pk][currentRow]#
+						WHERE #getSafeColumnName(pk)# = #getDao().queryParam(qry[pk][currentRow])#
 					</cfsavecontent>
 					<cfset ret = qry[pk][currentRow] />
 
