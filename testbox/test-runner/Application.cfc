@@ -18,6 +18,10 @@ component{
 	// request start
 	public boolean function onRequestStart( String targetPage ){
 		request.dao = new com.database.dao( dsn = "dao" );
+		// @TODO: Make database setup for each supported database engine
+
+		// MySQL
+		local.start = getTickCount();
  		request.dao.execute("DROP TABLE IF EXISTS `eventLog`");
 		request.dao.execute("
 		   CREATE TABLE `eventLog` (
@@ -99,6 +103,8 @@ component{
 		       `email`)
 		   VALUES ('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '170d1f48-b141-80a8-2a9a9e252d69d2cd', 'jbond@spymail.com')"
 		);
+		local.end = getTickCount();
+		writeLog('DB Setup took: ' & (local.end - local.start)/100 & " seconds..." );
 		return true;
 	}
 }

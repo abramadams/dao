@@ -234,13 +234,13 @@
 			</cfif>
 
 			<cfcatch type="any">
-<!--- 				<cfdump var="#arguments#" label="Arguments passed to select()">
+				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement">
 				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
 				<cfsetting showdebugoutput="false">
-				<cfabort> --->
+				<cfabort>
 				<cfif cfcatch.detail contains "Unknown column">
 					<cfthrow type="DAO.Read.MySQL.UnknownColumn" detail="#cfcatch.detail#" message="#cfcatch.message# #len(trim(arguments.columns)) ? '- Available columns are: #arguments.columns#' : ''#">
 				<cfelse>

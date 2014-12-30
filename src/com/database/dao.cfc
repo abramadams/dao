@@ -100,11 +100,10 @@
 
 			// auto-detect the database type.
 			if (isDefined('server') && structKeyExists(server,'railo')){
-				// railo does things a bit different with dbinfo.
-				var d = "";
-				// Wrapping in execute call so ACF doesn't choke on it.
-				execute( 'dbinfo datasource="#arguments.dsn#" name="d" type="version"' );
-				variables.dbversion = d;
+				// Railo does things a bit different with dbinfo.
+				// We pull in railo's version of dbinfo call so ACF doesn't choke on it.
+				var railoHacks = new railoHacks( arguments.dsn );
+				variables.dbversion = railoHacks.getDBVersion();
 			}else{
 				// This is Adobe CF's way to dbinfo
 				var d = new dbinfo( datasource = arguments.dsn );
@@ -804,6 +803,14 @@
 				}
 			} catch( "coldfusion.runtime.UndefinedVariableException" e ){
 				throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
+			} catch( any e ){
+				// For Railo's sake....
+				if( reFindNoCase( "key \[.*?\] doesn't exist", e.message ) ){
+					e.name = rEReplaceNoCase( e.message, "key \[(.*?)\] doesn't exist", '\1', 'all' );
+					throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
+				}else{
+					rethrow;
+				}
 			}
 		}
 		/**

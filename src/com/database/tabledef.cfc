@@ -415,8 +415,6 @@
 			var columns = "";
 			var indexqryfull = "";
 			var indexqry = "";
-			var comparestrprimary = "";
-			var comparestrnonprimary = "";
 			var primarykeys = "";
 			var primarykeynamelist = "";
 			var nonprimarykeys = "";
@@ -437,9 +435,11 @@
 			if (isDefined('server') && structKeyExists(server,'railo')){
 				// railo does things a bit different with dbinfo.
 				try{
-					// Wrapping in execute call so ACF doesn't choke on it.
-					execute( 'dbinfo datasource="#this.getDsn()#" name="columns" type="columns" table="#this.getTableName()#"' );
-					execute( 'dbinfo datasource="#this.getDsn()#" name="indexqryfull" type="index" table="#this.getTableName()#"' );
+					// Railo does things a bit different with dbinfo.
+					// We pull in railo's version of dbinfo call so ACF doesn't choke on it.
+					var railoHacks = new railoHacks( this.getDsn() );
+					var columns = railoHacks.getColumns( table = this.getTableName() );
+					var indexqryfull = railoHacks.getColumns( table = this.getTableName() );
 				}catch( any e ){
 					return false;
 				}
@@ -470,16 +470,6 @@
 
 
 		<cfset indexqry = LOCAL['indexqry_' & this.instance.name]/>
-
-		<!--- some JDBC drivers return different values for the non_unique column.
-		Both of these should cover the different types I have come across --->
-		<cfif isnumeric(indexqry.non_unique)>
-			<cfset comparestrprimary = "'0'">
-			<cfset comparestrnonprimary = "'-1'">
-		<cfelse>
-			<cfset comparestrprimary = "'false'">
-			<cfset comparestrnonprimary = "'true'">
-		</cfif>
 
 		<cfset primarykeys = primaryKeylist/>
 

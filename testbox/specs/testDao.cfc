@@ -61,6 +61,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           }catch("DAO.parseQueryParams.MissingNamedParameter" e ){
                $assert.isTrue(true);
           }catch( any e ){
+               writeDump(e);abort;
                $assert.isTrue(false);
           }
      }
