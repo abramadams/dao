@@ -436,11 +436,10 @@
 			// auto-detect the database type.
 			if (isDefined('server') && structKeyExists(server,'railo')){
 				// railo does things a bit different with dbinfo.
-				var d = "";
 				try{
-					dbinfo datasource=this.getDsn() name="d" type="columns" table=this.getTableName();
-					columns = d;
-					dbinfo datasource=this.getDsn() name="indexqryfull" type="index" table=this.getTableName();
+					// Wrapping in execute call so ACF doesn't choke on it.
+					execute( 'dbinfo datasource="#this.getDsn()#" name="columns" type="columns" table="#this.getTableName()#"' );
+					execute( 'dbinfo datasource="#this.getDsn()#" name="indexqryfull" type="index" table="#this.getTableName()#"' );
 				}catch( any e ){
 					return false;
 				}

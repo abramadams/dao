@@ -646,6 +646,7 @@ component accessors="true" output="false" {
 		// record returned per the "By" criteria
 		if( left( arguments.missingMethodName, 9 ) is "loadFirst" ){
 			limit = 1;
+			abortlater = true;
 			// arguments.missingMethodName = "load" & mid( arguments.missingMethodName, 10, len( arguments.missingMethodName ) );
 			arguments.missingMethodName = reReplaceNoCase( arguments.missingMethodName, "loadFirst", "load", "one" );
 		}

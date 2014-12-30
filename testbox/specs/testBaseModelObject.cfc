@@ -3,24 +3,6 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // executes before all tests
      function beforeTests(){
 		request.dao = new com.database.dao( dsn = "dao" );
-          request.dao.execute("REPLACE INTO eventLog(
-                                        `ID`,
-                                        `userID`,
-                                        `event`,
-                                        `description`,
-                                        `eventDate`)
-                              VALUES ('208', NULL, 'delete', 'deleted 243', '2014-01-29 01:26:51')");
-          request.dao.execute("REPLACE INTO pets(
-                                        `ID`,
-                                        `_id`,
-                                        `userID`,
-                                        `first_name`,
-                                        `last_name`,
-                                        `created_datetime`,
-                                        `modified_datetime`)
-                              VALUES ('93', '7d5a4d53-0a80-6eaf-db2acdaf5ed86568', '1', 'dog', NULL, NULL, '2014-04-07 22:07:51')");
-
-          // '1', '7d5a2669-cf9d-8338-eeb29f4e67c1b0af', 'James', 'Bond', NULL, NULL, '2014-04-07 22:07:50'
 
      }
 
@@ -217,7 +199,6 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	// change event to 'test'
      	testEntity.loadFirstByEvent( 'test insert' );
-
      	// now entity's getEvent should return 'test'
 		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
 		// isNew should be false now
@@ -247,7 +228,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      	// change event to 'test'
      	var list = testEntity.list( where = "where `event` = 'test insert'" );
 
-     	// now list should contain an array of records (structs)
+     	// now list should contain a query object containing records
 		$assert.typeOf( "query", list );
 
 		$assert.isTrue( list.recordCount );

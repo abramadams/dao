@@ -102,7 +102,8 @@
 			if (isDefined('server') && structKeyExists(server,'railo')){
 				// railo does things a bit different with dbinfo.
 				var d = "";
-				dbinfo datasource=arguments.dsn name="d" type="version";
+				// Wrapping in execute call so ACF doesn't choke on it.
+				execute( 'dbinfo datasource="#arguments.dsn#" name="d" type="version"' );
 				variables.dbversion = d;
 			}else{
 				// This is Adobe CF's way to dbinfo
