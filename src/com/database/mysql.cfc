@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.63
-	   	@updated 12/15/2014
+		@version 0.0.64
+	   	@updated 12/30/2014
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -234,13 +234,13 @@
 			</cfif>
 
 			<cfcatch type="any">
-				<cfdump var="#arguments#" label="Arguments passed to select()">
+<!--- 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement">
 				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
 				<cfsetting showdebugoutput="false">
-				<cfabort>
+				<cfabort> --->
 				<cfif cfcatch.detail contains "Unknown column">
 					<cfthrow type="DAO.Read.MySQL.UnknownColumn" detail="#cfcatch.detail#" message="#cfcatch.message# #len(trim(arguments.columns)) ? '- Available columns are: #arguments.columns#' : ''#">
 				<cfelse>
