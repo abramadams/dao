@@ -216,7 +216,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	// now list should contain an array of records (structs)
 		$assert.typeOf( "array", list );
-
+          $assert.isTrue( arrayLen( list ) >= 1 );
 		$assert.typeOf( "struct", list[1] );
 		$assert.isTrue( structKeyExists( list[1], 'event' ) );
 

@@ -15,11 +15,8 @@
 *
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
-*	Requires CF10, Railo 4.x due to use of anonymous functions for lazy loading.
-*	Can be altered to run on CF9 by commenting out the anonymous function code
-*   aroud line ~521 with the heading: ****** ACF9 Dies when the below code exists *******
-* 	and and uncomment the code above it using the setterFunc() call.
-*   @version 0.0.82
+*	Tested on CF10/11, Railo 4.x, but should work on CF9+
+*   @version 0.0.83
 *   @dependencies { "dao" : ">=0.0.64" }
 *   @updated 12/30/2014
 *   @author Abram Adams
@@ -1104,31 +1101,6 @@ component accessors="true" output="false" {
 					}else{
 
 						setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
-						/****** ACF9 Dies when the below code exists ******
-						// // First, set the property (child column in parent entity) to an array with a single index containing the empty child entity (to be loaded later)
-						// this[col.name] = ( structKeyExists( col, 'type' ) && col.type is 'array' ) ? [ duplicate( tmp ) ] : duplicate( tmp );
-						// // Add a helper property to the parent object.  This will store the data necessary for the "getter" function to instantiate
-						// // the object when called.
-						// this["____lazy#hash(lcase(col.name))#"] = {
-						// 		"id" : this.getID(),
-						// 		"loadFuncName" : "LoadAllBy#col.fkcolumn#",
-						// 		"childWhere" : childWhere
-						// 	};
-						// // Now, override the getter for the property.  Instead of returning the value of the property, it will load the child data and return that.
-						// this["get" & col.name] = function( boolean lazy = true ) {
-						// 	// The function name will help us to reference the "helper" struct attached to the parent instance earlier
-						// 	var name = GetFunctionCalledName();
-						// 		name = mid( name, 4, len( name ) );
-						// 	var args = this["____lazy#hash(lcase(name))#"];
-						// 	var tmp = this[name][ 1 ];
-
-						// 	// Now load the child object into the entity property
-						// 	this[name] = evaluate('tmp.#(lazy)?'lazy':''##args['loadFuncName']#( args.id, args.childWhere )');
-						// 	// So that the getter doesn't re-load the child entity each time it is called, we'll just replace the
-						// 	// getter funcction with a more sensible "return value" function. Much faster this way.
-						// 	this[GetFunctionCalledName()] = function(){ return this[name];};
-						// 	return this[name];
-						// };
 
 					}
 
@@ -1141,33 +1113,6 @@ component accessors="true" output="false" {
 					}else{
 
 						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
-						// /****** ACF9 Dies when the below code exists *******/
-						// // First, set the property (child column in parent entity) as the empty child entity (to be loaded later)
-						// this[col.name] = duplicate( tmp );
-						// // Add a helper property to the parent object.  This will store the data necessary for the "getter" function to instantiate
-						// // the object when called.
-						// this["____lazy#hash(lcase(col.name))#"] = {
-						// 		"id" : variables[col.fkcolumn],
-						// 		"loadFuncName" : "Load",
-						// 		"childWhere" : childWhere
-						// 	};
-						// // Now, override the getter for the property.  Instead of returning the value of the property, it will load the child data and return that.
-						// this["get" & col.name] = function( boolean lazy = true ) {
-						// 	// The function name will help us to reference the "helper" struct attached to the parent instance earlier
-						// 	var name = GetFunctionCalledName();
-						// 		name = mid( name, 4, len( name ) );
-						// 	var args = this["____lazy#hash(lcase(name))#"];
-						// 	var tmp = this[name];
-
-						// 	// Now load the child object into the entity property
-						// 	// since we are calling a static method, we don't need to use evaluate as we do in the one-to-many routine
-						// 	this[name] = tmp.load( args.id, lazy );
-						// 	// So that the getter doesn't re-load the child entity each time it is called, we'll just replace the
-						// 	// getter funcction with a more sensible "return value" function. Much faster this way.
-						// 	this[GetFunctionCalledName()] = function(){ return this[name];};
-						// 	return this[name];
-						// };
-
 
 					}
 				}
