@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.83
+*   @version 0.0.84
 *   @dependencies { "dao" : ">=0.0.64" }
 *   @updated 12/30/2014
 *   @author Abram Adams
@@ -1550,7 +1550,7 @@ component accessors="true" output="false" {
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
-			var keysToExclude = "dynamicMappings,__fromCache,__cacheEntities,parenttable,autowire,cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
+			var keysToExclude = "__debugMode,dynamicMappings,__fromCache,__cacheEntities,parenttable,autowire,cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
 			var props = duplicate( variables.meta.properties );
 
 			// Iterate through each property and generate a struct representation
