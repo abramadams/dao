@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.85
+*   @version 0.0.86
 *   @dependencies { "dao" : ">=0.0.64" }
 *   @updated 1/2/2015
 *   @author Abram Adams
@@ -532,12 +532,15 @@ component accessors="true" output="false" {
 					var mapping = _getMapping( getterInstructions );
 					var propertyName = propertyName == mapping.table ? mapping.property : propertyName;
 					// newTableName = structKeyExists( getDynamicMappings(), getterInstructions ) ? getDynamicMappings()[ getterInstructions ] : newTableName;
+					// Using defined naming convention to create a potential fk column name to check for.
+					var potentialFkColumn = getPotentialFKColumnName( mapping.table );
 					// MANY-TO-ONE
-					if( structKeyExists( mapping, 'key') && ( structKeyExists( variables, mapping.table & "_ID" ) || structKeyExists( variables, mapping.key ) ) ){
+					if( structKeyExists( mapping, 'key') && ( structKeyExists( variables, potentialFkColumn ) || structKeyExists( variables, mapping.key ) ) ){
+					// if( structKeyExists( mapping, 'key') && ( structKeyExists( variables, mapping.table & "_ID" ) || structKeyExists( variables, mapping.key ) ) ){
 						// NOTE: If mapping.key didn't exist that means the "getterInstructions" did not resolve to a table or a foriegn key to a parent table that we could decipher.
 						// Loading Many to One relationship for getterInstructions
 						// logIt('CALLING _getManyToOne() for #mapping.table# (#propertyName#) #returnType# (dynamically called via #arguments.missingMethodName# on #this.getTable()# for #this.getID()# [ #mapping.table# : #mapping.property# : #mapping.key#])');
-						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( mapping.table ), property = propertyName, fkColumn = mapping.key != mapping.table ? mapping.key : mapping.table & "_ID", returnType = returnType );
+						variables[ propertyName ] = this[ propertyName ] = _getManyToOne( table = lcase( mapping.table ), property = propertyName, fkColumn = mapping.key != mapping.table ? mapping.key : potentialFkColumn, returnType = returnType );
 						// logIt('loaded child #variables[propertyName].getID()# from #mapping.table# into property #propertyName#');
 
 					}else{
@@ -621,7 +624,9 @@ component accessors="true" output="false" {
 			return this;
 		}else if( left( arguments.missingMethodName, 9 ) is "belongsTo" ){
 			var newTableName = mid( arguments.missingMethodName, findNoCase( "belongsTo", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
-			variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = newTableName & "_ID", returnType = returnType );
+			// Using defined naming convention to create a potential fk column name to check for.
+			var potentialFkColumn = getPotentialFKColumnName(  newTableName );
+			variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = potentialFkColumn, returnType = returnType );
 
 			return this;
 		}else if( left( arguments.missingMethodName, 3 ) is "has" ){
@@ -1156,11 +1161,15 @@ component accessors="true" output="false" {
 	public function registerChildEntity( struct definition ){
 		arrayAppend( variables._children, definition );
 	}
+
+	public function getPotentialFKColumnName( required string table ){
+		return reReplaceNoCase( getDynamicMappingFKConvention(), '{table}', table, 'all' );
+	}
 	/**
 	* Loads One-To-Many relationships into the current entity
 	* Example: On an Order entity you have multiple OrderItems
 	**/
-	private any function _getOneToMany( required string table, any pkValue = getID(), string property = arguments.table, string fkColumn = getTable() & "_ID", string returnType = "object", string where = "", boolean returnFirst = false ){
+	private any function _getOneToMany( required string table, any pkValue = getID(), string property = arguments.table, string fkColumn = getPotentialFKColumnName( getTable() ), string returnType = "object", string where = "", boolean returnFirst = false ){
 
 		var mapping = _getMapping( table );
 		var propertyName = property == table ? mapping.property : property;
@@ -1325,7 +1334,7 @@ component accessors="true" output="false" {
 		return newObj;
 	}
 
-	public any function belongsTo( required string table, string fkColumn = arguments.table & "_ID", string property = arguments.table, string pkColumn = getIDField(), string returnType = "object", string where = "" ){
+	public any function belongsTo( required string table, string fkColumn = getPotentialFKColumnName( arguments.table ), string property = arguments.table, string pkColumn = getIDField(), string returnType = "object", string where = "" ){
 		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( arguments.table ), fkColumn = arguments.fkColumn, property = arguments.property, pkColumn = arguments.pkColumn, returnType = arguments.returnType, where = arguments.where );
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache

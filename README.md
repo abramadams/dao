@@ -355,8 +355,8 @@ One can also identify one-to-many relationships. This will also auto-load and "c
 relationship creates an Array of whatever object it is related to, and adds the `add<Entity Name>()` method to the instance so you can add instances to the array.  Notice in
 our Pets.cfc example we define a one-to-many relationship of "offspring" which maps to "model.Offspring".
 
-## Dyanmic Relationships
-Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  See:
+## Dynamic Relationships
+Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  This can also be configured to use a custom naming convention by passing in the `dynamicMappingFKConvention` property during init, or setting it afterwards.  See:
 ### MANY-TO-ONE Relationship
 ```javascript
 var order = new com.database.BaseModelObject( dao = dao, table = 'orders');
@@ -364,9 +364,15 @@ order.load(123); // load order with ID of 123
 writeDump( order.getCustomers().getName() );
 // ^ If the customers table has a field named "name" this writeDump will
 // output the customer name associated with order 123
+
+// If the naming convention is tableId instead of table_ID you can specify this as:
+order.setDynamicMappingFKConvention('{table}Id');
+// The keyword {table} will be replaced at runtime to reflect the actual table name.
+// This could also be set during init as"
+var order = new com.database.BaseModelObject( dao = dao, table = 'orders', dynamicMappingFKConvention = '{table}Id');
 ```
 ### ONE-TO-MANY Relationship
-Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ).  Using the same ```order``` object created above, we could do this:
+Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ( adheres to the `dynamicMappingFKConvention` property described above ) ).  Using the same ```order``` object created above, we could do this:
 ```javascript
 writeDump( order.getOrder_Items() );
 ```
