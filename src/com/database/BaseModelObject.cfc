@@ -1,5 +1,5 @@
 /**
-*	Copyright (c) 2013-2014, Abram Adams
+*	Copyright (c) 2013-2015, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.84
+*   @version 0.0.85
 *   @dependencies { "dao" : ">=0.0.64" }
-*   @updated 12/30/2014
+*   @updated 1/2/2015
 *   @author Abram Adams
 **/
 
@@ -40,6 +40,7 @@ component accessors="true" output="false" {
 	/* Relationship properties*/
 	property name="autoWire" type="boolean" persistent="false" hint="If false, I prevent the load() method from auto wiring relationships.  Relationships can be bolted on after load, so this can be used for performance purposes.";
 	property name="dynamicMappings" type="struct" persistent="false" hint="Defines alias to table name mappings.  So if you want the entity property to be OrderItems, but the table is order_items you would pass in { 'OrderItems' = 'order_items' } ";
+	property name="dynamicMappingFKConvention" type="string" persistent="false" hint="Defines naming convention used to guess foriegn key names.  Use {table} as a placeholder for the table name.  For example if the table was Order_Itms: {table}_Id would match order_items_Id";
 	property name="__fromCache" type="boolean" persistent="false";
 	property name="__cacheEntities" type="boolean" persistent="false";
 	property name="cachedWithin" type="any" persistent="false";
@@ -64,6 +65,7 @@ component accessors="true" output="false" {
 								boolean dropcreate = false,
 								boolean createTableIfNotExist = false,
 								struct dynamicMappings = {},
+								string dynamicMappingFKConvention = "{table}_ID",
 								boolean autoWire = true,
 								boolean cacheEntities = false, /* 2014-11-12 still experimental */
 								boolean debugMode = false,
@@ -115,6 +117,7 @@ component accessors="true" output="false" {
 		setParentTable( arguments.parentTable );
 		setcachedWithin( arguments.cachedWithin );
 		setDynamicMappings( arguments.dynamicMappings );
+		setDynamicMappingFKConvention( arguments.dynamicMappingFKConvention );
 
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
@@ -125,6 +128,7 @@ component accessors="true" output="false" {
 			makeTable();
 		}else{
 			try{
+				logIt('Loading any mappings for #this.getTable()#');
 				var mapping = _getMapping( getTable() );
 				// load the table definition based on the given table.
 				variables.tabledef = new tabledef( tableName = mapping.table, dsn = getDao().getDSN() );
@@ -1262,8 +1266,9 @@ component accessors="true" output="false" {
 		// Reverse lookup for an alias name in the dynamicMappings.  This is used in case the load() method
 		// is auto-wiring relationships and doesn't know that a column has a mapping.
 		if( propertyName == arguments.table && arrayLen( structFindValue( getDynamicMappings(), mapping.table ) ) ){
-			if( structFindValue( getDynamicMappings(), mapping.table )[1].key != "table" ){
-				propertyName = structFindValue( getDynamicMappings(), mapping.table )[1].key;
+			var findKey = structFindValue( getDynamicMappings(), mapping.table )[1].key;
+			if( findKey != "table" ){
+				propertyName = getDynamicMappings()[ mapping.table ][ findKey ];
 			}
 		}
 
@@ -1375,13 +1380,39 @@ component accessors="true" output="false" {
 				// passed in table was actually a table, now map it.
 				mapping = { "table" = table, "property" = table, "key" = tableDef.getPrimaryKeyColumn(), "IDField" = tableDef.getPrimaryKeyColumn(), "tableDef" = tableDef };
 				logIt('added generic mapping for table #table#');
+				addDynamicMappings( table, mapping );
+
+				// we can be smart an look for more dynamic mappings based on naming convention
+				if( len( trim( getDynamicMappingFKConvention() ) ) ){
+					logIt('Dynamic Mapping FK naming convention defined for #table#.  Looking for matches.');
+					var regex = reReplaceNoCase( getDynamicMappingFKConvention(), '(.*?){table}(.*)', '^\1(\w*?)\2$', 'all' );
+					for( var field in listToArray( tableDef.getColumns() ) ){
+						// If we found a field name with tihs signature, let's add the mapping
+						if( arrayLen( reMatch( regex, field ) ) ){
+							logIt('Found Dynamic Mapping FK naming convention match "#field#" for entity #table#.');
+							var parentTable = reReplaceNoCase( field, regex, '\1', 'all' );
+							var parentTableDef = new tabledef( tableName = parentTable, dsn = getDao().getDsn() );
+							parentTable = parentTableDef.getTableName();
+							// only add the mapping if it is to a real table
+							logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
+							if( parentTableDef.getIsTable() ){
+								var parentMapping = { "table" = parentTable, "property" = parentTable, "key" = parentTableDef.getPrimaryKeyColumn(), "IDField" = parentTableDef.getPrimaryKeyColumn(), "tableDef" = parentTableDef };
+								addDynamicMappings( field, parentMapping );
+								addDynamicMappings( parentTable, parentMapping );
+							}
+						}
+
+					}
+				}
+
 			}else{
 				// Not a table, so we'll see if the "table" argument matches any keys in the dynamic mappings. This is used to find a mapping for a foriegn key to a given table.
-				logIt('iterating each in #serializeJSON( getDynamicMappings())#');
+				logIt('iterating each in "#structKeyList( getDynamicMappings())#"');
 				// iterate mappings and look-up properties to find the key
 				for( var map in getDynamicMappings() ){
 
-					logIt("mappings for #table#: " & serializeJSON( getDynamicMappings()[ map ] ));
+					logIt("find mappings found for #table#");
+					// logIt("mappings for #table#: " & serializeJSON( getDynamicMappings()[ map ] ));
 					if( isStruct( getDynamicMappings()[ map ] )
 						&& structKeyExists( getDynamicMappings()[ map ], 'property' )
 						&& getDynamicMappings()[ map ].property == table ){
@@ -1395,6 +1426,12 @@ component accessors="true" output="false" {
 
 		return mapping;
 		// return isStruct( mapping ) ? mapping.table : mapping;
+	}
+
+	public function addDynamicMappings( required string name, required struct mapping ){
+		var existinMapping = this.getDynamicMappings();
+		existingMapping[ name ] = mapping;
+		setDynamicMappings( existingMapping );
 	}
 
 	/************************************************************************
@@ -1550,7 +1587,7 @@ component accessors="true" output="false" {
 			var arg = "";
 			var LOCAL = {};
 			var returnStruct = {};
-			var keysToExclude = "__debugMode,dynamicMappings,__fromCache,__cacheEntities,parenttable,autowire,cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
+			var keysToExclude = "__debugMode,dynamicMappings,dynamicMappingFKConvention,__fromCache,__cacheEntities,parenttable,autowire,cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
 			var props = duplicate( variables.meta.properties );
 
 			// Iterate through each property and generate a struct representation
@@ -1561,7 +1598,6 @@ component accessors="true" output="false" {
 					continue;
 				}
 				arg = preserveCase ? prop.name : lcase( arg );
-
 				// If the property name is different than the table name ( i.e. relationship created using get<object>() method or
 				// relationship identified in the dynamicMappings ), chances are we hve the meta property
 				// twice - once with the table name and once with the alias.  This will remove the table name
@@ -1579,7 +1615,6 @@ component accessors="true" output="false" {
 					if( !findNoCase( '$$_', arg )
 						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
 						&& !listFindNoCase( keysToExclude, arg ) ){
-
 						// Now, append the property to the struct we will be returning
 						if( structKeyExists( variables, arg ) ){
 							returnStruct[ arg ] = variables[ arg ];

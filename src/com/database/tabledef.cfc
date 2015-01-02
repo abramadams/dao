@@ -2,8 +2,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.62
-	   	@updated 12/4/2014
+	  	@version 0.0.63
+	   	@updated 1/2/2015
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
@@ -406,14 +406,11 @@
 		return types[ arguments.typeId ];
 	}
 
-
 	</cfscript>
 
 <!--- PRIVATE FUNCTIONS --->
 	<cffunction name="loadTableMetaData" output="false" access="public" returntype="boolean" hint="I load the metadata for the table.">
 		<cfscript>
-			var columns = "";
-			var indexqryfull = "";
 			var indexqry = "";
 			var primarykeys = "";
 			var primarykeynamelist = "";
@@ -434,25 +431,29 @@
 			// auto-detect the database type.
 			if (isDefined('server') && structKeyExists(server,'railo')){
 				// railo does things a bit different with dbinfo.
-				try{
-					// Railo does things a bit different with dbinfo.
-					// We pull in railo's version of dbinfo call so ACF doesn't choke on it.
-					var railoHacks = new railoHacks( this.getDsn() );
-					var columns = railoHacks.getColumns( table = this.getTableName() );
-					var indexqryfull = railoHacks.getColumns( table = this.getTableName() );
-				}catch( any e ){
+				var railoHacks = new railoHacks( this.getDsn() );
+				// See if the table exists, if not return false;
+				var tables = railoHacks.getTables( pattern = lcase(this.getTableName()) );
+				if( !tables.recordCount ){
 					return false;
 				}
+				// In case the table name is case sensitive we'll make sure we set it to what dbinfo says it is
+				setTableName( tables.table_name );
+				// We pull in railo's version of dbinfo call so ACF doesn't choke on it.
+				var columns = railoHacks.getColumns( table = this.getTableName() );
+				var indexqryfull = railoHacks.getColumns( table = this.getTableName() );
+
 			}else{
 				var d = new dbinfo( datasource = this.getDsn() );
-
-				try{
-					columns = d.columns( table = this.getTableName() );
-				}catch( any e ){
+				var tables = d.tables( pattern = this.getTableName() );
+				if( !tables.recordCount ){
 					return false;
 				}
+				// In case the table name is case sensitive we'll make sure we set it to what dbinfo says it is
+				setTableName( tables.table_name );
+				var columns = d.columns( table = this.getTableName() );
 				// get a full indexes query for the table
-				indexqryfull = d.index( table = this.getTableName() );
+				var indexqryfull = d.index( table = this.getTableName() );
 			}
 		</cfscript>
 
