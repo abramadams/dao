@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.86
+*   @version 0.0.87
 *   @dependencies { "dao" : ">=0.0.64" }
 *   @updated 1/2/2015
 *   @author Abram Adams
@@ -416,14 +416,17 @@ component accessors="true" output="false" {
 				}
 			}
 
-			// logIt('set called via setFunc as #getFunctionCalledName()# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
-			// Get the original setter function that we set aside in the init routine.
-			var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
 			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
 			this[propName] = variables[propName] = v;
-			// tmpFunc is now the original setter so let's fire it.  The calling page
-			// will not know this happened.
-			tmpFunc( v );
+
+			if( structKeyExists( variables, "$$__" & getFunctionCalledName() ) ){
+				logIt('set called via setFunc as #getFunctionCalledName()# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
+				// Get the original setter function that we set aside in the init routine.
+				var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
+				// tmpFunc is now the original setter so let's fire it.  The calling page
+				// will not know this happened.
+				tmpFunc( v );
+			}
 		}
 
 	}
@@ -699,7 +702,7 @@ component accessors="true" output="false" {
 						// LOCAL.tmpFunc(arguments.missingMethodArguments[ i ]);
 						evaluate("this.set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
 					} catch ( any err ){
-						writeDump([ arguments,err, this ]);
+						// writeDump([ arguments,err, this ]);
 						throw("Error Loading data into #this.getTable()# object.");
 					}
 				}
@@ -776,7 +779,7 @@ component accessors="true" output="false" {
 				if( returnType is "json" ){
 					return "[" & arrayToList( recordArray ) & "]";
 				}
-				if( arraylen( recordArray ) == 1 ){
+				if( arraylen( recordArray ) == 1 && returnType != "array" ){
 					recordArray = recordArray[ 1 ];
 				}
 				return recordArray;
@@ -831,12 +834,36 @@ component accessors="true" output="false" {
 
 		var newEntity = this;
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-			newEntity = createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
+				newEntity = new BaseModelObject(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = getAutoWire() );
 		}else{
 			try{
-				newEntity = createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init( dao = dao );
+				newEntity = createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = getAutoWire() );
 			}catch( any e ){
-				newEntity = createObject( "component", "BaseModelObject" ).init( dao = dao, table = table, dynamicMappings = getDynamicMappings(), cacheEntities = get__cacheEntities(), cachedWithin = getcachedWithin(), IDField = IDField, autoWire = getAutoWire() );
+				newEntity = new BaseModelObject(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = getAutoWire() );
 				// return createObject( "component", variables.meta.fullName ).init( dao = dao );
 			}
 		}
@@ -1029,9 +1056,9 @@ component accessors="true" output="false" {
 			// Dynamically load one to many relationships by convention.  This will check to see if the current property
 			// ends with _ID, and does not have a cfc associated with it. If both of those statements are true we'll try
 			// to load the child table via BaseModelObject.
+			var regex = reReplaceNoCase( getDynamicMappingFKConvention(), '(.*?){table}(.*)', '^\1(\w*?)\2$', 'all' );
 			if( ( !structKeyExists( col, 'cfc' )
-				&& ( ( listLen( col.name, '_') GT 1
-					&& listLast( col.name, '_' ) == 'ID' )
+				&& ( arrayLen( reMatch( regex, col.name ) ) // If we found a field name with tihs signature, let's add the mapping
 				|| structKeyExists( getDynamicMappings(), col.name )
 				|| ( structKeyExists( col, 'column' )
 					&& structKeyExists( getDynamicMappings(), col.column ) ) ) )
@@ -1045,7 +1072,7 @@ component accessors="true" output="false" {
 					var table = var property = structKeyExists( getDynamicMappings(), col.name ) ? mapping.table : listDeleteAt( col.name, listLen( col.name, '_' ), '_' );
 					// If this is a field that ends with _ID, and col.name didn't
 					// exist we will fall back on the col.column property.
-					if( listLast( col.name, '_' ) != 'ID'
+					if( !arrayLen( reMatch( regex, col.name ) )
 						&& !structKeyExists( getDynamicMappings(), col.name )
 						&& structKeyExists( col, 'column' )
 						&& structKeyExists( getDynamicMappings(), col.column ) ){
@@ -1080,7 +1107,7 @@ component accessors="true" output="false" {
 
 			// Load all child objects
 			if( structKeyExists( col, 'cfc' ) ){
-				var tmp = createObject( "component", col.cfc ).init( dao = this.getDao(), dropcreate = this.getDropCreate(), dynamicMappings = getDynamicMappings() );
+				var tmp = createObject( "component", col.cfc ).init( dao = this.getDao(), dropcreate = this.getDropCreate(), dynamicMappings = getDynamicMappings(), dynamicMappingFKConvention = getDynamicMappingFKConvention(), autoWire = getAutoWire() );
 				// Skip if setter doesn't exist (happens on dynamic child properties)
 				if( !structKeyExists( this, "set" & col.name ) ){
 					if( structKeyExists( this, "add" & col.name ) ){
@@ -1176,7 +1203,9 @@ component accessors="true" output="false" {
 		try{
 			// try to load the table into a new object.  If the table doesn't
 			// exist we'll just return void;
+			writeLog( 'newObj being initalized for #mapping.table#... ' );
 			var newObj = new( table = mapping.table, dao = this.getDao() );
+
 		}catch( any e ){
 			throw( message = "Table #propertyName# does not exist", type="BMO", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
 			// writeDump([arguments,e,this]);abort;
@@ -1215,7 +1244,8 @@ component accessors="true" output="false" {
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 
-		// logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
+		logIt("newobject table: #newObj.getTable()#");
+		logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
 			return this[ propertyName ];
@@ -1227,7 +1257,6 @@ component accessors="true" output="false" {
 				this[ propertyName ] = variables[ propertyName ] = [];
 				return [];
 			}
-			logIt("newobject table: #newObj.getTable()#");
 			logIt('newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
 			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
 			if( isArray( this[ propertyName ] ) ){
@@ -1405,6 +1434,7 @@ component accessors="true" output="false" {
 							// only add the mapping if it is to a real table
 							logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
 							if( parentTableDef.getIsTable() ){
+								logIt('#parentTable# with a pk col: #parentTableDef.getPrimaryKeyColumn()#');
 								var parentMapping = { "table" = parentTable, "property" = parentTable, "key" = parentTableDef.getPrimaryKeyColumn(), "IDField" = parentTableDef.getPrimaryKeyColumn(), "tableDef" = parentTableDef };
 								addDynamicMappings( field, parentMapping );
 								addDynamicMappings( parentTable, parentMapping );
@@ -1420,7 +1450,7 @@ component accessors="true" output="false" {
 				// iterate mappings and look-up properties to find the key
 				for( var map in getDynamicMappings() ){
 
-					logIt("find mappings found for #table#");
+					logIt("find mappings for #table#");
 					// logIt("mappings for #table#: " & serializeJSON( getDynamicMappings()[ map ] ));
 					if( isStruct( getDynamicMappings()[ map ] )
 						&& structKeyExists( getDynamicMappings()[ map ], 'property' )
@@ -1428,7 +1458,7 @@ component accessors="true" output="false" {
 						logIt('table that was passed in was found as a property in a dynamic mapping.  Using that to create new mapping');
 						return { "table" = getDynamicMappings()[ map ].table, "property" = getDynamicMappings()[ map ].property, "key" = map, "IDField" = tableDef.getPrimaryKeyColumn(), "tableDef" = tableDef };
 
-					}
+					}else{ logIt("could not find mappings for #table#");}
 				}
 			}
 		}
@@ -1569,7 +1599,7 @@ component accessors="true" output="false" {
 
         }
 
-        // At this point, we have an array of structure objects tha
+        // At this point, we have an array of structure objects that
         // represent the rows in the query over the indexes that we
         // wanted to convert. If we did not want to convert a specific
         // record, return the array. If we wanted to convert a single
