@@ -13,6 +13,7 @@ component{
 	this.mappings[ "/com" ] = expandPath( '/src/com' );
 	this.mappings[ "/testbox" ] = expandPath( '/testbox' );
 
+	this.datasource = "dao";
 	// any orm definitions go here.
 
 	// request start

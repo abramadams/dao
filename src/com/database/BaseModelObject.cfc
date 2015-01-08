@@ -1650,9 +1650,6 @@ component accessors="true" output="false" {
 				// property so that the alias name will be used instead
 				if( structKeyExists( prop, 'table' ) && structKeyExists( returnStruct, prop.table ) ){
 					structDelete( returnStruct, prop.table );
-				// }else if( structKeyExists( returnStruct, prop.name ) ){
-				// 	structDelete( returnStruct, prop.name );
-				// 	// continue;
 				}
 				LOCAL.functionName = "get" & arg;
 				try{

@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.64
-	   	@updated 12/30/2014
+	  	@version 0.0.65
+	   	@updated 1/8/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -84,7 +84,7 @@
 
 		/**
 		* I initialize DAO
-		* @dsn Data Source Name
+		* @dsn Data Source Name - If not supplied will use the default datasource specified in Application.cfc
 		* @dbtype Database Type
 		* @user Data Source User Name
 		* @password Data Source Password
@@ -92,8 +92,16 @@
 		* @transactionLogFile Location to write the transaction log
 		* @useCFQueryParams Determines if execute queries will use cfqueryparam
 		**/
-		public DAO function init( required string dsn, string dbtype = "", string user = "", string password ="", boolean writeTransactionLog = false, string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql", boolean useCFQueryParams = true, boolean autoParameterize = false ){
-
+		public DAO function init( string dsn = "", string dbtype = "", string user = "", string password ="", boolean writeTransactionLog = false, string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql", boolean useCFQueryParams = true, boolean autoParameterize = false ){
+			// If DSN wasn't supplied, see if there is a default dsn.
+			if( !len( trim( dsn ) ) ){
+				var = appMetaData = getApplicationMetadata();
+				if( structKeyExists( appMetaData, "datasource" ) ){
+					arguments.dsn = isSimpleValue( appMetaData.datasource ) ? appMetaData.datasource : appMetaData.datasource.name;
+				}else{
+					throw( type = "DAO.MissingDSN", message = "Could not determine which DSN to use.", detail = "You must either pass in a valid DSN (Datasource Name) or set a default datasource in Application.cfc" );
+				}
+			}
 			//This is the datasource name for the system
 			variables.dsn = arguments.dsn;
 			variables.writeTransactionLog = arguments.writeTransactionLog;

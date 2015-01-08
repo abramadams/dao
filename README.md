@@ -33,7 +33,10 @@ Copy the "database" folder `(/src/com/database)` into your project (or into the 
 # DAO Examples:
 ```javascript
 // create instance of DAO - must feed it a datasource name
-dao = new com.database.dao( dsn = "dao" ); // note: dbtype is optional and defaults to MySQL
+dao = new com.database.dao( dsn = "myDatasource" ); // note: dbtype is optional and defaults to MySQL
+// Also note that if a default datasource was specified in Application.cfc you do not need to pass it in.
+// If a default datasource was defined:
+dao = new com.database.dao();
 
 // Insert data (could have easily been a form scope or "rc" struct)
 DATA = {

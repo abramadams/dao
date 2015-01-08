@@ -5,6 +5,14 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		request.dao = new com.database.dao( dsn = "dao" );
      }
 
+     function createNewDAOInstanceUsingDefaultDatasource() test{
+          var test = new com.database.dao();
+
+          $assert.isTrue( isInstanceOf( test, "com.database.dao" ) );
+          var records = request.dao.read("users");
+          $assert.typeOf( "query", records );
+     }
+
      function createNewDAOInstance() test{
      	var test = new com.database.dao( dsn = "dao" );
 
