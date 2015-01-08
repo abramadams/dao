@@ -96,7 +96,7 @@
 			// If DSN wasn't supplied, see if there is a default dsn.
 			if( !len( trim( dsn ) ) ){
 				var = appMetaData = getApplicationMetadata();
-				if( structKeyExists( appMetaData, "datasource" ) ){
+				if( !isNull( appMetaData.datasource ) ){
 					arguments.dsn = isSimpleValue( appMetaData.datasource ) ? appMetaData.datasource : appMetaData.datasource.name;
 				}else{
 					throw( type = "DAO.MissingDSN", message = "Could not determine which DSN to use.", detail = "You must either pass in a valid DSN (Datasource Name) or set a default datasource in Application.cfc" );

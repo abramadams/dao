@@ -7,7 +7,13 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function createNewEntityInstance() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          var testEntity = new model.EventLog( dao = request.dao );
+
+          $assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
+     }
+
+     function createNewEntityInstanceWithoutProvidingDAO() test{
+     	var testEntity = new com.database.BaseModelObject();
 
      	$assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
      }

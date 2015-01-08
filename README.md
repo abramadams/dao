@@ -349,6 +349,12 @@ eventLog = new com.database.BaseModelObject( dao = dao, table = 'eventLog' );
 ```
 That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends BaseModelObject : See more below about dynamic relationships ).
 
+Now, if you are on CF10+ or Railo 4.x and you have a default datasource setup in Application.cfc (this.datasource) you can omit the dao argument:
+```javascript
+eventLog = new com.database.BaseModelObject( 'eventLog' );
+```
+However, doing so will create a new instance of DAO for each instance of BaseModelObject.  It is often more peformant to create a singleton instance and store it in a global scope, then pass that in.
+
 ## Relationships
 In the example above, Pet.cfc defines a one-to-one relationship with the user.  This will automatically load the correct "User" object into the Pet object
 when the Pet object is instantiated.  If none exists it will load an un-initialized instance of User.  When a save is performed on Pet, the User

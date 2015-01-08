@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.87
-*   @dependencies { "dao" : ">=0.0.64" }
-*   @updated 1/2/2015
+*   @version 0.0.88
+*   @dependencies { "dao" : ">=0.0.65" }
+*   @updated 1/8/2015
 *   @author Abram Adams
 **/
 
@@ -81,7 +81,19 @@ component accessors="true" output="false" {
 		if( isValid( "component", arguments.dao ) ){
 			variables.dao = arguments.dao;
 		} else {
-			throw("You must have a dao" & arguments.dao );
+			// If DAO wasn't supplied, see if there is a default dsn and if so, create an instance of DAO with it.
+			var = appMetaData = getApplicationMetadata();
+			if( !isNull( appMetaData.datasource ) ){
+				arguments.dsn = isSimpleValue( appMetaData.datasource ) ? appMetaData.datasource : appMetaData.datasource.name;
+				variables.dao = new dao();
+			}else{
+				throw(
+						type = "BMO.MissingDAO",
+						message = "You must pass in an instance of DAO or have a default Datasource set",
+						detail = "You must either pass in an instance of DAO or set a default datasource in Application.cfc.  CAUTION: Not passing in a DAO will result in a new instance of DAO to be instantiated for each BaseModelObject instance.  It is more efficient to create a globally scoped DAO and pass it in."
+					);
+			}
+
 		}
 
 		variables.dropcreate = arguments.dropcreate;
