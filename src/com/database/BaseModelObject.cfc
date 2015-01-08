@@ -526,6 +526,7 @@ component accessors="true" output="false" {
 					// Handle getters that may not have been assigned to dynamic properties
 					return variables[ getterInstructions ];
 				}
+
 				// If the "getter" doesn't contain a "by" clause, we'll look to see if the current entity
 				// has a FK matching the convention <name>_ID.  So if the method call was getUsers() and the
 				// current entity has a users_ID property we will try to load an entity based on a Users table
@@ -1018,7 +1019,6 @@ component accessors="true" output="false" {
 				}
 				return this;
 			}
-
 		}else{
 
 			if ( isQuery( arguments.ID ) ){
@@ -1335,7 +1335,7 @@ component accessors="true" output="false" {
 
 		// logIt('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
-		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = newObj;
+		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = this.properties[ propertyName ]= newObj;
 
 		// Append the relationship propertyName to the meta properties
 		arrayAppend( variables.meta.properties, {
@@ -1429,15 +1429,17 @@ component accessors="true" output="false" {
 						if( arrayLen( reMatch( regex, field ) ) ){
 							logIt('Found Dynamic Mapping FK naming convention match "#field#" for entity #table#.');
 							var parentTable = reReplaceNoCase( field, regex, '\1', 'all' );
-							var parentTableDef = new tabledef( tableName = parentTable, dsn = getDao().getDsn() );
-							parentTable = parentTableDef.getTableName();
-							// only add the mapping if it is to a real table
-							logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
-							if( parentTableDef.getIsTable() ){
-								logIt('#parentTable# with a pk col: #parentTableDef.getPrimaryKeyColumn()#');
-								var parentMapping = { "table" = parentTable, "property" = parentTable, "key" = parentTableDef.getPrimaryKeyColumn(), "IDField" = parentTableDef.getPrimaryKeyColumn(), "tableDef" = parentTableDef };
-								addDynamicMappings( field, parentMapping );
-								addDynamicMappings( parentTable, parentMapping );
+							if( len( trim( parentTable ) ) ){
+								var parentTableDef = new tabledef( tableName = parentTable, dsn = getDao().getDsn() );
+								parentTable = parentTableDef.getTableName();
+								// only add the mapping if it is to a real table
+								logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
+								if( parentTableDef.getIsTable() ){
+									logIt('#parentTable# with a pk col: #parentTableDef.getPrimaryKeyColumn()#');
+									var parentMapping = { "table" = parentTable, "property" = parentTable, "key" = parentTableDef.getPrimaryKeyColumn(), "IDField" = parentTableDef.getPrimaryKeyColumn(), "tableDef" = parentTableDef };
+									addDynamicMappings( field, parentMapping );
+									addDynamicMappings( parentTable, parentMapping );
+								}
 							}
 						}
 
@@ -1451,7 +1453,10 @@ component accessors="true" output="false" {
 				for( var map in getDynamicMappings() ){
 
 					logIt("find mappings for #table#");
-					// logIt("mappings for #table#: " & serializeJSON( getDynamicMappings()[ map ] ));
+					logIt("mappings for #map#");
+					if( table == "productclass"){
+						// writeDump([getDynamicMappings(), map, table ]);abort;/
+					}
 					if( isStruct( getDynamicMappings()[ map ] )
 						&& structKeyExists( getDynamicMappings()[ map ], 'property' )
 						&& getDynamicMappings()[ map ].property == table ){
@@ -1468,9 +1473,11 @@ component accessors="true" output="false" {
 	}
 
 	public function addDynamicMappings( required string name, required struct mapping ){
-		var existinMapping = this.getDynamicMappings();
-		existingMapping[ name ] = mapping;
-		setDynamicMappings( existingMapping );
+		var existingMapping = this.getDynamicMappings();
+		if( !structKeyExists( existingMapping, name ) ){
+			existingMapping[ name ] = mapping;
+			setDynamicMappings( existingMapping );
+		}
 	}
 
 	/************************************************************************
@@ -1648,8 +1655,7 @@ component accessors="true" output="false" {
 				// 	// continue;
 				}
 				LOCAL.functionName = "get" & arg;
-				try
-				{
+				try{
 					// We will bypass internal properties, as well as any "excludeKeys" we find.
 					if( !findNoCase( '$$_', arg )
 						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
@@ -1673,10 +1679,57 @@ component accessors="true" output="false" {
 										}
 									}else if( isObject( returnStruct[ arg ] ) ){
 										// returnStruct['__level'] = nestLevel;
-										returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+										var col = structFindValue( variables.meta, arg );
+										// Pull the actual column name from the metadata
+										var columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'column' ) ? col[ 1 ].owner.column : '';
+										if(columnName == ''){
+											columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'fkcolumn' ) ? col[ 1 ].owner.fkcolumn : '';
+										}
+										// At this point it is possible that the name of the property containing the child entity
+										// was used to set the FK value.  In this case, we'll use the child's table name to store that
+										// data.
+										param name="col[ 1 ].owner.table" default="#arg#";
+										// Set the FK field value to the actual value (instead of the instance of the child table object )
+										if( len( trim( columnName ) ) ){
+											returnStruct[ columnName ] = returnStruct[ arg ].getID();
+										}
+										// If the fk column name was the property's name we'll stuff the child data into the return struct
+										// under the key named after the table.  If that is also the name of the FK column, we'll suffix it with _data.
+										var tmpStruct = {};
+										if( columnName == arg ){
+											tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+											// prevent accidentally overwriting an existing key.
+											structAppend( returnStruct, tmpStruct, false );
+										}else{
+											// Column name and property were not the same.  We'll still want to stuff the child data into the struct
+											returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+										}
 									}
 								}else{
-									returnStruct[ arg ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+									// The argument "top" was passed in.  This reduces the levels deep we dive into our relationships.
+									// We'll translate Child entities into FK fields and then use a placeholder in place of the actual child entity.
+									var col = structFindValue( variables.meta, arg );
+									// Pull the actual column name from the metadata
+									var columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'column' ) ? col[ 1 ].owner.column : '';
+									if(columnName == ''){
+										columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'fkcolumn' ) ? col[ 1 ].owner.fkcolumn : '';
+									}
+									var tmpStruct = {};
+									if( len( trim( columnName ) ) ){
+										returnStruct[ columnName ] = returnStruct[ arg ].getID();
+									}
+									param name="col[ 1 ].owner.table" default="#arg#";
+									if( columnName == arg ){
+										tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+										// prevent accidentally overwriting an existing key.
+										structAppend( returnStruct, tmpStruct, false );
+									}else{
+										// Column name and property were not the same.  We'll still want to stuff the child data into the struct
+										tmpStruct[ arg ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+										// prevent accidentally overwriting an existing key.
+										structAppend( returnStruct, tmpStruct, false );
+									}
+
 								}
 							}else if( isNumeric( returnStruct[ arg ] )
 									&& listLast( returnStruct[ arg ], '.' ) GT 0 ){
@@ -1707,8 +1760,11 @@ component accessors="true" output="false" {
     * I return a JSON representation of the object in its current state.
     **/
 	public string function toJSON( array excludeKeys = [], numeric top = 0, boolean preserveCase = true ){
-
-		return serializeJSON( this.toStruct( excludeKeys = excludeKeys, top = top, preserveCase = preserveCase ) );;
+		try {
+			return serializeJSON( this.toStruct( excludeKeys = excludeKeys, top = top, preserveCase = preserveCase ) );
+		}catch( any e ){
+			writeDump( this.toStruct( excludeKeys = excludeKeys, top = top, preserveCase = preserveCase ));abort;
+		}
 	}
 
 	/**
@@ -1756,12 +1812,15 @@ component accessors="true" output="false" {
 			// that this record have an ID first.
 			_saveTheChildren();
 
-			var DATA = duplicate( this.toStruct() );
-
+			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
+			var DATA = duplicate( this.toStruct( top = 1 ) );
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
 				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;
+				if(columnName == ''){
+					columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'fkcolumn' ) ? columnName[ 1 ].owner.fkcolumn : '';
+				}
 				// we can only send simple values to be saved.  If the value is a struct/array that means it was a relationship entity and
 				// should already have been taken care of in the _saveTheChildren() method above.
 				DATA[ LOCAL.columnName ] = isSimpleValue( DATA[col] ) ? DATA[col] : '';
@@ -1827,12 +1886,20 @@ component accessors="true" output="false" {
 			// this entity instance.
 			_saveTheChildren();
 
-			var DATA = duplicate( this.toStruct() );
+			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
+			var DATA = duplicate( this.toStruct( top = 1 ) );
 			for ( var col in DATA ){
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
 				var columnName = structFindValue( variables.meta, col );
 				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;
-				DATA[ LOCAL.columnName ] = DATA[col];
+				if(columnName == ''){
+					columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'fkcolumn' ) ? columnName[ 1 ].owner.fkcolumn : '';
+				}
+				// the data could be a child struct for which we just wan the ID field.
+				// DATA[ LOCAL.columnName ] = !isStruct( DATA[col] ) ? DATA[col] : DATA[col][ getIDField() ];
+				if( !structKeyExists( DATA, LOCAL.columnName ) ){
+					DATA[ LOCAL.columnName ] = DATA[col];
+				}
 			}
 
 			callbackArgs.ID = DATA[getIDField()] = this.getID();
@@ -2078,18 +2145,18 @@ component accessors="true" output="false" {
 				}
 			}else if( structKeyExists( property, 'allowNulls' )
 				&& !property.allowNulls
-				&& ( !len( trim( value.toString() || isNull( value ) ) ) ) ){
+				&& ( !len( trim( value || isNull( value ) ) ) ) ){
 				// Whatever the type, if we don't allow nulls, we don't allow nulls....
 				error = "#property.name# does not allow nulls, yet the currenty value empty.";
 
 			}else{
 				// If we don't have a value, there's nothing to check.  Null checks were done earlier.
-				if( !len( trim( value.toString() ) ) ){
+				if( isNull( value ) || isSimpleValue( value ) && !len( trim( value ) ) ){
 					return "";
 				}
 				try{
 					if( !isValid( type, value ) ){
-						error = "The value provided for #property.name# ('#value.toString()#') is not a valid #type#";
+						error = "The value provided for #property.name# ('#value#') is not a valid #type#";
 					}
 				}catch( any e ){
 					writeDump( [arguments, e] );abort;

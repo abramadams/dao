@@ -433,7 +433,7 @@
 				// railo does things a bit different with dbinfo.
 				var railoHacks = new railoHacks( this.getDsn() );
 				// See if the table exists, if not return false;
-				var tables = railoHacks.getTables( pattern = lcase(this.getTableName()) );
+				var tables = railoHacks.getTables( pattern = this.getTableName() );
 				if( !tables.recordCount ){
 					return false;
 				}

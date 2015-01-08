@@ -234,13 +234,14 @@
 			</cfif>
 
 			<cfcatch type="any">
-<!--- 				<cfdump var="#arguments#" label="Arguments passed to select()">
-				<cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement">
+				<cfdump var="#arguments#" label="Arguments passed to select()">
+				<!--- <cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement"> --->
+				<cfdump var="#tmpSQL#" label="parsed SQL Statement">
 				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
 				<cfsetting showdebugoutput="false">
-				<cfabort> --->
+				<cfabort>
 				<cfif cfcatch.detail contains "Unknown column">
 					<cfthrow type="DAO.Read.MySQL.UnknownColumn" detail="#cfcatch.detail#" message="#cfcatch.message# #len(trim(arguments.columns)) ? '- Available columns are: #arguments.columns#' : ''#">
 				<cfelse>
@@ -404,7 +405,7 @@
 				<!---</cftransaction>--->
 			</cfoutput>
 			<cfcatch type="any">
-			<cfdump var="#cfcatch#" abort>
+				<cfdump var="#[arguments,qry,cfcatch]#" abort>
 				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error #cfcatch.detail#" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
@@ -493,6 +494,7 @@
 			for( var colName in listToArray( cols ) ){
 				var col = "#getSafeIdentifierStartChar()##trim(colName)##getSafeIdentifierEndChar()#";
 				col = reReplace( col, "\.", "#getSafeIdentifierStartChar()#.#getSafeIdentifierEndChar()#", "all" );
+				col = reReplace( col, "#getSafeIdentifierStartChar()#\*#getSafeIdentifierEndChar()#", "*", "all" );
 				arrayAppend( columns, col );
 			}
 

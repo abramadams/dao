@@ -117,7 +117,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSaveThenChangeAndSaveAgain() test {
-     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true, debugMode = false );
+     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true );
 
      	// loaded blank entity
      	$assert.isTrue( testEntity.isNew() );
@@ -332,11 +332,11 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitpopulateNewEntityWithStruct() test{
-     	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
+     	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog", debugMode = true );
      	var testStruct = { event = 'test', eventdate = now() };
 
      	testEntity.populate( testStruct );
-
+          // writeDump( [testentity,testEntity.getEvent()] );abort;
      	$assert.isTrue( testEntity.getEvent() eq 'test' );
      }
 
