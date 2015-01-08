@@ -1203,7 +1203,7 @@ component accessors="true" output="false" {
 		try{
 			// try to load the table into a new object.  If the table doesn't
 			// exist we'll just return void;
-			writeLog( 'newObj being initalized for #mapping.table#... ' );
+			logIt( 'newObj being initalized for #mapping.table#... ' );
 			var newObj = new( table = mapping.table, dao = this.getDao() );
 
 		}catch( any e ){
