@@ -317,6 +317,7 @@ BaseModelObject supports the same ORM entity events as Adobe ColdFusion does:
 * postDelete(): This method is called after the delete operation is complete.
 
 > Each event also receives the current entity as an argument.  This is important for injected event handlers as it allows you to get/set properties on the current entity within the handler.
+
 These can be defined within a CFC, or injected after the fact.  Examples:
 ```javascript
 	// Entity CFC
