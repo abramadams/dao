@@ -142,6 +142,75 @@ users = dao.read( sql = "
 //
 // Other options are "Array" or "Query".  If not specified "Query" will be used.
 ```
+# Query Params
+As described above, there are several ways to parameterize your values (for performance and security reasons you should always parameterize values passed into SQL).  Each method ultimately results in the same thing, but has a slightly different path.  Which method you choose will largely depend on vanity more than practicality.  The methods are:
+* Inline call to queryParam()
+```javascript
+user = dao.read("
+	SELECT * FROM users
+	WHERE userID = #dao.queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )#
+");
+```
+This method evaluates the parameters at compile time, so in the above example `myUserIdVariable` must already exist.
+* Inline placeholders - $queryParam()$
+```javascript
+user = dao.read("
+	SELECT * FROM users
+	WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$
+");
+```
+This method will evaluate the parameters at runtime.  This means that in the above, `myUserIdVariable` doesn't get evaluated until the query is run.  This allows parameterized SQL to be stored in a file, or database and executed later.  It also allows building parameterized SQL strings that refer to variables that don't exist in the current context, but is then passed into a method that will have those variables.  Contrived example:
+```javascript
+sql = "SELECT * FROM users 
+WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$";
+someFunction( sql );
+
+function someFunction( sql ){
+	myUserIdVariable = 1;
+	dao.read( sql );
+}
+```
+* Named parameters - :paramName{ options }
+```
+user = dao.read("
+	SELECT * FROM users
+	WHERE userID = :userId{ type = 'int' }
+",
+{ userId: myUserIdVariable }
+);
+```
+This method is sort of a hybrid of both the other methods.  It allows you to have stored SQL (read from file/db, pieced together during request, etc...) with named parameters.  The difference is that you will pass in the actual parameter values as an argument to `dao.read()` or `dao.execute()` so the parameters are evaluated at compile time then injected at runtime.  The named parameter as described before, can either be `:nameOfParam` by itself and the datatype will be guessed, or can be `:nameOfParam{ options }` to include the options.
+
+Each method takes the following options:
+* __value__ - the value of the parameter
+* __type__ - the data type of the parameter (can be adobe's cf_sql_{type} or equivilent shorthand ):
+	- cf_sql_double __or__ double
+	- cf_sql_bit __or__ bit
+	- cf_sql_bigint
+	- cf_sql_bit
+	- cf_sql_char
+	- cf_sql_blob
+	- cf_sql_clob
+	- cf_sql_date __or__ datetime,date
+	- cf_sql_decimal __or__ decimal
+	- cf_sql_double
+	- cf_sql_float
+	- cf_sql_idstamp
+	- cf_sql_integer __or__ int,integer,numeric,number,
+	- cf_sql_longvarchar
+	- cf_sql_money __or__ money
+	- cf_sql_money4
+	- cf_sql_numeric
+	- cf_sql_real
+	- cf_sql_refcurs__or__
+	- cf_sql_smallint
+	- cf_sql_time
+	- cf_sql_timestamp __or__ timestamp
+	- cf_sql_tinyint
+	- cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
+ * __list__ - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
+ * __null__ - True/False.  If true, the __value__ is considered null.
+
 # Query of Queries
 With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
 ```javascript

@@ -628,7 +628,7 @@
 		* @list Whether or not to param as a list (i.e. for passing a param'd list to IN() statements )
 		* @null Whether the value is null or not
 		**/
-		public function queryParam( required string value, string cfsqltype = "", boolean list = false, boolean null = false ){
+		public function queryParam( required string value, string type = "", string cfsqltype = type, boolean list = false, boolean null = false ){
 
 			var returnString = {};
 			var returnStruct = {};
