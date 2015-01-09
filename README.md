@@ -303,6 +303,37 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
   * get/setModifiedDate();
 * The modifiedDate will update with the evaluated value of "now()" each time the data is updated.
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
+## Entity Events
+BaseModelObject supports the same ORM entity events as Adobe ColdFusion does:
+
+* preLoad(): This method is called before the load operation or before the data is loaded from the database.
+* postLoad(): This method is called after the load operation is complete.
+* preInsert(): This method is called just before the object is inserted.  If anything is returned it will abort the insert.
+* postInsert(): This method is called after the insert operation is complete.
+* preUpdate(BaseModelObject oldData): This method is called just before the object is updated. A struct of old data is passed to this method to know the original state of the entity being updated.  If anything is returned it will abort the update.
+* postUpdate(): This method is called after the update operation is complete.
+* preDelete(): This method is called before the object is deleted.  If anything is returned it will abort the delete.
+* postDelete(): This method is called after the delete operation is complete.
+These can be defined within a CFC, or injected after the fact.  Examples:
+```javascript
+	// Entity CFC
+	component{
+		...
+		function preInsert( entity ){
+			//do something.
+			if(  entity.someKey == false ){
+				return false;
+			}
+		}
+	}
+	// alternative
+	user = new com.database.BaseModelObject( "user" );
+	user.preInsert = function( entity ){
+		if( entity.someKey == false ){
+			return false;
+		}
+	}
+```
 
 ## Dynamic Entities
 Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:

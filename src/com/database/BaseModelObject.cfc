@@ -54,6 +54,7 @@ component accessors="true" output="false" {
 	_isNew = true;
 	_isDirty = false;
 	_children = [];
+	_pristine = {};
 
 	public any function init( 	string table = "",
 								string parentTable = "",
@@ -940,7 +941,13 @@ component accessors="true" output="false" {
 	**/
 	public any function load( required any ID, boolean lazy = false, string parentTable = getParentTable() ){
 		var props = variables.meta.properties;
-
+		// Fire the preLoad the event handler
+		logIt( 'Executing preLoad event for #getTable()#' );
+		if( isNull( this.preLoad ) ){
+			preLoad( this );
+		}else{
+			this.preLoad( this );
+		}
 		// If the ID was a simple value, chances are we may have the object alreayd cached, let's try to load it.
 		// Typically we'd only use a short lived cache to help resolve circular dependancies and loading the same
 		// object multiple times in quick succession.  However, the cachedWithin property can be altered to extend
@@ -995,6 +1002,11 @@ component accessors="true" output="false" {
 				// not really sure why this happens.  So when it does happen, we'll just bypass the cache and load
 				// the object from scratch.  If this didn't happen, we'll return the cached object.
 				if( len( trim( this.getID() ) ) ){
+					// Save the pristine state of this entity instance
+					variables._pristine = duplicate( cachedObject );
+					// Fire the postLoad the event handler
+					logIt( 'Executing postLoad event for #getTable()#' );
+					postLoad();
 					return cachedObject;
 				}
 			}
@@ -1029,6 +1041,11 @@ component accessors="true" output="false" {
 				lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
 					cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 				}
+				// Save the pristine state of this entity instance
+				variables._pristine = duplicate( this );
+				// Fire the postLoad the event handler
+				logIt( 'Executing postLoad event for #getTable()#' );
+				postLoad();
 				return this;
 			}
 		}else{
@@ -1173,6 +1190,16 @@ component accessors="true" output="false" {
 				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
+		// Save the pristine state of this entity instance
+		variables._pristine = duplicate( this );
+		// Fire the postLoad the event handler
+		logIt( 'Executing postLoad event for #getTable()#' );
+		if( isNull( this.postLoad ) ){
+			postLoad( this );
+		}else{
+			this.postLoad( this );
+		}
+
 		return this;
 
 	}
@@ -1793,6 +1820,22 @@ component accessors="true" output="false" {
 		// Either insert or update the record
 		if ( isNew() ){
 
+			// Run preinsert function.  If it returns anything we'll
+			// abort the insert.
+			logIt( 'Executing preInsert event for #getTable()#' );
+			if( isNull( this.preInsert ) ){
+				if( !isNull( preInsert() ) ){
+					logIt( 'Aborting insert due to preInsert' );
+					return;
+				}
+			}else{
+				if( !isNull( this.preInsert( this ) ) ){
+					logIt( 'Aborting insert due to preInsert' );
+					return;
+				}
+			}
+
+
 			callbackArgs.isNew = true;
 			var col = {};
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
@@ -1869,10 +1912,32 @@ component accessors="true" output="false" {
             // persist the data with the new parent ID (this parent)
 			_saveTheChildren( tempID );
 
+			// Run postInsert function.
+			logIt( 'Executing postInsert event for #getTable()#' );
+			if( isNull( this.postInsert ) ){
+				postInsert( this );
+			}else{
+				this.postInsert( this );
+			}
 
 		}else if( isDirty() || arguments.force ){
 
 			callbackArgs.isNew = false;
+
+			// Run preUpdate function.  If it returns anything we'll
+			// abort the update.
+			logIt( 'Executing preUpdate event for #getTable()#' );
+			if( isNull( this.preUpdate ) ){
+				if( !isNull( preUpdate(  variables._pristine ) ) ){
+					logIt( 'Aborting update due to preInsert' );
+					return;
+				}
+			}else{
+				if( !isNull( this.preUpdate( variables._pristine, this  ) ) ){
+					logIt( 'Aborting update due to preInsert' );
+					return;
+				}
+			}
 
 			var props = deSerializeJSON( serializeJSON( variables.meta.properties ) );
 			/* Merges properties and extends.properties into a CF array */
@@ -1932,6 +1997,13 @@ component accessors="true" output="false" {
 		}
 
 		variables._isNew = false;
+		// Run postUpdate function.
+		logIt( 'Executing postUpdate event for #getTable()#' );
+		if( isNull( this.postUpdate ) ){
+			postUpdate( this );
+		}else{
+			this.postUpdate( this );
+		}
 
 		this.load(ID = tempID);
 
@@ -2021,6 +2093,20 @@ component accessors="true" output="false" {
     **/
 	public void function delete( boolean soft = false, any callback ){
 		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};
+		// Run preDelete function.  If it returns anything we'll
+		// abort the delete.
+		logIt( 'Executing preDelete event for #getTable()#' );
+		if( isNull( this.preDelete ) ){
+			if( !isNull( preDelete( this ) ) ){
+				logIt( 'Aborting delete due to preDelete' );
+				return;
+			}
+		}else{
+			if( !isNull( this.preDelete( this ) ) ){
+				logIt( 'Aborting delete due to preDelete' );
+				return;
+			}
+		}
 		// Remove deleted object from cache
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
 			cacheRemove( '#this.getTable()#-#this.getID()#' );
@@ -2078,6 +2164,15 @@ component accessors="true" output="false" {
 		}
 
 		//this.init( dao = getDao(), table = getTable() );
+
+		// Run postUpdate function.
+		logIt( 'Executing postDelete event for #getTable()#' );
+
+		if( isNull( this.postDelete ) ){
+			postDelete( this );
+		}else{
+			this.postDelete( this );
+		}
 		reset();
 		// Fire callback function (if provided). Could be used for AOP
 		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
@@ -2279,6 +2374,15 @@ component accessors="true" output="false" {
 
 	}
 
+	// Event functions meant to be overwridden
+	private function preLoad(){}
+	private function postLoad(){}
+	private function preInsert(){}
+	private function preUpdate(){}
+	private function preDelete(){}
+	private function postInsert(){}
+	private function postUpdate( struct oldData ){}
+	private function postDelete(){}
 
 	/* Utilities */
 	/**
@@ -2299,7 +2403,7 @@ component accessors="true" output="false" {
 	* Will write the value of str to the server's application.log if norm_debugMode == true.
 	**/
 	private void function logIt( str ){
-		if( get__DebugMode() ){
+		if( !isNull( get__DebugMode() ) && get__DebugMode() ){
 			writeLog( str );
 		}
 	}

@@ -595,6 +595,20 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      }
 
+
+     function testInjectedPreLoadEvent() test{
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
+          testEntity.preLoad = function( entity ){
+               entity.setId( 99999 );
+               writeLog('testInjectedPreLoadEvent has access to the entity''s getID():: #entity.getId()#');
+               $assert.isTrue( entity.getId() == 99999 );
+          };
+          // testEntity.preLoad = preLoad;
+          testEntity.load( 93 );
+          $assert.isTrue( testEntity.getId() == 93 );
+
+     }
+
      // executes after all tests
      function afterTests(){
 
