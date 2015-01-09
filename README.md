@@ -171,45 +171,46 @@ function someFunction( sql ){
 }
 ```
 * Named parameters - :paramName{ options }
-```
+```javascript
 user = dao.read("
 	SELECT * FROM users
 	WHERE userID = :userId{ type = 'int' }
 ",
 { userId: myUserIdVariable }
 );
+
 ```
 This method is sort of a hybrid of both the other methods.  It allows you to have stored SQL (read from file/db, pieced together during request, etc...) with named parameters.  The difference is that you will pass in the actual parameter values as an argument to `dao.read()` or `dao.execute()` so the parameters are evaluated at compile time then injected at runtime.  The named parameter as described before, can either be `:nameOfParam` by itself and the datatype will be guessed, or can be `:nameOfParam{ options }` to include the options.
 
 Each method takes the following options:
-* __value__ - the value of the parameter
-* __type__ - the data type of the parameter (can be adobe's cf_sql_{type} or equivilent shorthand ):
-	- cf_sql_double __or__ double
-	- cf_sql_bit __or__ bit
-	- cf_sql_bigint
-	- cf_sql_bit
-	- cf_sql_char
-	- cf_sql_blob
-	- cf_sql_clob
-	- cf_sql_date __or__ datetime,date
-	- cf_sql_decimal __or__ decimal
-	- cf_sql_double
-	- cf_sql_float
-	- cf_sql_idstamp
-	- cf_sql_integer __or__ int,integer,numeric,number,
-	- cf_sql_longvarchar
-	- cf_sql_money __or__ money
-	- cf_sql_money4
-	- cf_sql_numeric
-	- cf_sql_real
-	- cf_sql_refcurs__or__
-	- cf_sql_smallint
-	- cf_sql_time
-	- cf_sql_timestamp __or__ timestamp
-	- cf_sql_tinyint
-	- cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
- * __list__ - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
- * __null__ - True/False.  If true, the __value__ is considered null.
+* `value` - the value of the parameter
+* `type` - the data type of the parameter (can be adobe's cf_sql_{type} or equivilent shorthand ):
+ - cf_sql_double __or__ double
+ - cf_sql_bit __or__ bit
+ - cf_sql_bigint
+ - cf_sql_bit
+ - cf_sql_char
+ - cf_sql_blob
+ - cf_sql_clob
+ - cf_sql_date __or__ datetime,date
+ - cf_sql_decimal __or__ decimal
+ - cf_sql_double
+ - cf_sql_float
+ - cf_sql_idstamp
+ - cf_sql_integer __or__ int,integer,numeric,number,
+ - cf_sql_longvarchar
+ - cf_sql_money __or__ money
+ - cf_sql_money4
+ - cf_sql_numeric
+ - cf_sql_real
+ - cf_sql_refcurs__or__
+ - cf_sql_smallint
+ - cf_sql_time
+ - cf_sql_timestamp __or__ timestamp
+ - cf_sql_tinyint
+ - cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
+* `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
+* `null` - True/False.  If true, the __value__ is considered null.
 
 # Query of Queries
 With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
