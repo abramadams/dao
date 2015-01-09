@@ -303,17 +303,19 @@ varchar fields named `first_name` and `last_name` a datetime field named `create
   * get/setModifiedDate();
 * The modifiedDate will update with the evaluated value of "now()" each time the data is updated.
 * The dynamic load statements respect the name/column differences, so the loadByFirstName("?") will essentially translate to "first_name = ?"
+
 ## Entity Events
 BaseModelObject supports the same ORM entity events as Adobe ColdFusion does:
 
 * preLoad(): This method is called before the load operation or before the data is loaded from the database.
 * postLoad(): This method is called after the load operation is complete.
-* preInsert(): This method is called just before the object is inserted.  If anything is returned it will abort the insert.
+* preInsert(): This method is called just before the object is inserted.  __If anything is returned it will abort the insert__.
 * postInsert(): This method is called after the insert operation is complete.
-* preUpdate(BaseModelObject oldData): This method is called just before the object is updated. A struct of old data is passed to this method to know the original state of the entity being updated.  If anything is returned it will abort the update.
+* preUpdate(BaseModelObject oldData): This method is called just before the object is updated. A struct of old data is passed to this method to know the original state of the entity being updated.  __If anything is returned it will abort the update__.
 * postUpdate(): This method is called after the update operation is complete.
-* preDelete(): This method is called before the object is deleted.  If anything is returned it will abort the delete.
+* preDelete(): This method is called before the object is deleted.  __If anything is returned it will abort the delete__.
 * postDelete(): This method is called after the delete operation is complete.
+> Each event also receives the current entity as an argument.  This is important for injected event handlers as it allows you to get/set properties on the current entity within the handler.
 These can be defined within a CFC, or injected after the fact.  Examples:
 ```javascript
 	// Entity CFC
@@ -321,15 +323,15 @@ These can be defined within a CFC, or injected after the fact.  Examples:
 		...
 		function preInsert( entity ){
 			//do something.
-			if(  entity.someKey == false ){
+			if(  entity.getSomeKey() == false ){
 				return false;
 			}
 		}
 	}
-	// alternative
+	// Alternative: Inject Event Handler
 	user = new com.database.BaseModelObject( "user" );
 	user.preInsert = function( entity ){
-		if( entity.someKey == false ){
+		if( entity.getSomeKey() == false ){
 			return false;
 		}
 	}
