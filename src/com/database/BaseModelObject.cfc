@@ -1716,15 +1716,16 @@ component accessors="true" output="false" {
 									}else if( isObject( returnStruct[ arg ] ) ){
 										// returnStruct['__level'] = nestLevel;
 										var col = structFindValue( variables.meta, arg );
+										col = arrayLen( col ) ? col[ 1 ] : {};
 										// Pull the actual column name from the metadata
-										var columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'column' ) ? col[ 1 ].owner.column : '';
-										if(columnName == ''){
-											columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'fkcolumn' ) ? col[ 1 ].owner.fkcolumn : '';
+										var columnName = structKeyExists( col.owner, 'column' ) ? col.owner.column : '';
+										if(columnName == '' || columnName == arg ){
+											columnName = structKeyExists( col.owner, 'fkcolumn' ) ? col.owner.fkcolumn : '';
 										}
 										// At this point it is possible that the name of the property containing the child entity
 										// was used to set the FK value.  In this case, we'll use the child's table name to store that
 										// data.
-										param name="col[ 1 ].owner.table" default="#arg#";
+										param name="col.owner.table" default="#arg#";
 										// Set the FK field value to the actual value (instead of the instance of the child table object )
 										if( len( trim( columnName ) ) ){
 											returnStruct[ columnName ] = returnStruct[ arg ].getID();

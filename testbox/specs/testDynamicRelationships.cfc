@@ -34,11 +34,11 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
           product.load(2381);
 
           $assert.isTrue( product.getName() == 'ABRAM' );
+
           $assert.isTrue( product.getProduct_Classes().getName() == 'Holstein' );
 
           product.getProduct_Classes().setName( 'TEMP-TEST' );
           $assert.isTrue( product.getProduct_Classes().getName() == 'TEMP-TEST' );
-          // writeDump( product.toStruct( top = 1 ));abort;
           product.save();
 
           var prodClassNameTest = request.dao.read("select name from product_classes where ID = 1");

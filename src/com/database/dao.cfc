@@ -522,7 +522,7 @@
 			var double_types = "double,cf_sql_double";
 			var bit_types = "bit";
 			// Default return = varchar
-			var ret = "cf_sql_varchar";
+			var ret = findNoCase( "cf_sql_", type ) ? type : "cf_sql_#type#";
 
 			if( listFindNoCase( int_types, arguments.type ) ){
 				ret = "cf_sql_integer";
