@@ -9,7 +9,7 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 
 		return representationOf(
         //returns a breeze object containing all of the matching entities in our DB
-				todo.listAsBreezeData(
+				todo.listAsoData(
 						filter = arguments.$filter,
 						orderby = arguments.$orderby,
 						skip = arguments.$skip,
@@ -69,6 +69,6 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
     todoItem.setIsDone(false);
     todoItem.save();
 
-    return representationOf( todoItem.listAsBreezeData( ) ).withStatus(200);
+    return representationOf( todoItem.listAsoData( ) ).withStatus(200);
   }
 }

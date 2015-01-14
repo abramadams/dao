@@ -16,16 +16,16 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, but should work on CF9+
-*   @version 0.0.88
+*   @version 0.0.89
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 1/8/2015
+*   @updated 1/14/2015
 *   @author Abram Adams
 **/
 
 component accessors="true" output="false" {
 
-	property name="_norm_version" type="string";
-	property name="_norm_updated" type="string";
+	property name="_norm_version" type="string" persistent="false";
+	property name="_norm_updated" type="string" persistent="false";
 
 	/* properties */
 	property name="table" type="string" persistent="false";
@@ -44,7 +44,7 @@ component accessors="true" output="false" {
 	property name="__fromCache" type="boolean" persistent="false";
 	property name="__cacheEntities" type="boolean" persistent="false";
 	property name="cachedWithin" type="any" persistent="false";
-	property name="__debugMode" type="boolean";
+	property name="__debugMode" type="boolean" persistent="false";
 
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
@@ -294,8 +294,17 @@ component accessors="true" output="false" {
 	* I return the current object's metadata in a true CF struct
 	**/
 	private function _getMetaData(){
-		return deSerializeJSON( serializeJSON( getMetadata( this ) ) );
-
+		var metadata = deSerializeJSON( serializeJSON( getMetadata( this ) ) );
+		var privateKeys = [];
+		for( var prop in metadata.properties ){
+			// privateKeys will be used as a default excludeKeys argument for returning
+			// the entity as a struct or json.  We only need to return persistent properties in those cases.
+			if( !structKeyExists( prop, 'persistent' ) || prop.persistent == false ){
+				arrayAppend( privateKeys, prop.name );
+			}
+		}
+		metadata.privateKeys = privateKeys;
+		return metadata;
 	}
 
 	/**
@@ -2410,47 +2419,51 @@ component accessors="true" output="false" {
 	}
 
 /* *************************************************************************** */
-/* BreezeJS interface */
+/* oData interface ( i.e. for BreezeJS )	*/
 /* *************************************************************************** */
-	public function getBreezeMetaData( array excludeKeys = [] ){
-    	var breezeMetaData = {
+
+	/**
+	* Returns oData metadata ( for oData $metadata endpoint )
+	**/
+	public function getoDataMetaData( array excludeKeys = variables.meta.privateKeys ){
+    	var oDataMetaData = {
 		    "schema" = {
-		        "namespace" = "#getBreezeNameSpace()#",
+		        "namespace" = "#getoDataNameSpace()#",
 		        "alias" = "Self",
 		        "d4p1 =UseStrongSpatialTypes" = "false",
 		        "xmlns =d4p1" = "http://schemas.microsoft.com/ado/2009/02/edm/annotation",
 		        "xmlns" = "http://schemas.microsoft.com/ado/2009/11/edm",
 		        "cSpaceOSpaceMapping" = [
 		            [
-		                "#getBreezeNameSpace()#.#getBreezeEntityName()#",
-		                "#getBreezeNameSpace()#.#getBreezeEntityName()#"
+		                "#getoDataNameSpace()#.#getoDataEntityName()#",
+		                "#getoDataNameSpace()#.#getoDataEntityName()#"
 		            ]
 		        ],
 		        "entityType" = {
-		            "name" = getBreezeEntityName(),
+		            "name" = getoDataEntityName(),
 		            "key" = {
 		                "propertyRef" = {
 		                    "name" = lcase( getIDField() )
 		                }
 		            },
-		            "property" = generateBreezeProperties( excludeKeys =  excludeKeys )
+		            "property" = generateoDataProperties( excludeKeys =  excludeKeys )
 		        },
 		        "entityContainer" = {
 		            "name" = "#getDao().getDSN()#Context",
 		            "entitySet" = {
-		                "name" = "#getBreezeNameSpace()#",
-		                "entityType" = "Self.#getBreezeEntityName()#"
+		                "name" = "#getoDataNameSpace()#",
+		                "entityType" = "Self.#getoDataEntityName()#"
 		            }
 		        }
 		    }
 		};
 
-		return breezeMetaData;
+		return oDataMetaData;
 	}
 
-	public array function listAsBreezeData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = [] ){
+	public array function listAsoData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys ){
 		if( len(trim( filter ) ) ){
-			/* parse breezejs filter operators */
+			/* parse oDatajs filter operators */
 			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$)', ' != $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lte|<=|LessThanOrEqual)\s(.*?)(\)|$)', ' <= $queryParam(value=\2)$\3', 'all' );
@@ -2476,7 +2489,7 @@ component accessors="true" output="false" {
 		var data = [];
 		for( var i = 1; i LTE arrayLen( list ); i++ ){
 			row = list[ i ];
-			row["$type"] = "#getBreezeNameSpace()#.#getBreezeEntityName()#, DAOBreezeService";
+			row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
 			row["$id"] = row[ getIDField() ];
 			arrayAppend( data, row );
 			row = "";
@@ -2485,22 +2498,22 @@ component accessors="true" output="false" {
 
 	}
 
-	public array function toBreezeJSON( array excludeKey = [] ){
+	public array function tooDataJSON( array excludeKey = variables.meta.privateKeys ){
 		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
-		data["$type"] = "#getBreezeNameSpace()#.#getBreezeEntityName()#, DAOBreezeService";
+		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
 		data["$id"] = data[ getIDField() ];
 
 		return [data];
 	}
 
 	/**
-	*   I accept an array of breeze entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
+	*   I accept an array of oData entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
-	* 	KeyMappings: An array of objects that tell Breeze which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
+	* 	KeyMappings: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
 	* 	Errors (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
 	*
 	**/
-	public struct function breezeSave( required any entities ){
+	public struct function oDataSave( required any entities ){
 		var errors = [];
 		var keyMappings = [];
 
@@ -2510,13 +2523,13 @@ component accessors="true" output="false" {
 				this.delete();
 			}else{
 				try{
-					// for adds this will represent the temporary ID value given by BreezeJS (i.e. -1, -2, etc..)
+					// for adds this will represent the temporary ID value given by oDataJS (i.e. -1, -2, etc..)
 					var tempValue = entity[ this.getIDField() ];
 					transaction{
 						this.save();
 					}
-					// Now setup some return data for breeze client
-					entity[ '$type' ] = "#getBreezeNameSpace()#.#getBreezeEntityName()#";
+					// Now setup some return data for oData client
+					entity[ '$type' ] = "#getoDataNameSpace()#.#getoDataEntityName()#";
 					entity[ this.getIDField() ] = this.getID();
 					if ( structKeyExists( entity.entityAspect.originalValuesMap, entity.entityAspect.autoGeneratedKey.propertyName ) ){
 						arrayAppend( keyMappings, { "EntityTypeName" = entity['$type'], "TempValue" = entity.entityAspect.originalValuesMap[ entity.entityAspect.autoGeneratedKey.propertyName ], "RealValue" = this.getID() } );
@@ -2524,12 +2537,12 @@ component accessors="true" output="false" {
 						arrayAppend( keyMappings, { "EntityTypeName" = entity['$type'], "TempValue" = tempValue, "RealValue" = this.getID() } );
 					}
 				} catch( any e ){
-					// append any errors found to return data for breeze client;
+					// append any errors found to return data for oData client;
 					arrayAppend( errors, {"ErrorName" = e.error, "EntityTypeName" = entity.entityAspect.entityTypeName, "KeyValues" = [], "PropertyName" = "", "ErrorMessage" = e.detail } );
 				}
 			}
 
-			// remove the entityAspect key from the struct.  We don't need it in the returned data; in fact breeze will error if it exists..
+			// remove the entityAspect key from the struct.  We don't need it in the returned data; in fact oData will error if it exists..
 			structDelete( entity, 'entityAspect' );
 		}
 
@@ -2542,11 +2555,11 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	*  I return the namespace to be used by breeze to contain this entity.
+	*  I return the namespace to be used by oData to contain this entity.
 	*  To ensure uniqueness I use a reverse dir path plus the DSN (in dot notation).
 	*  Example: Com.Model.Dao
 	**/
-	private function getBreezeNameSpace(){
+	private function getoDataNameSpace(){
 		// windows uses backslash instead of forwards slash and this messes up regex
 		// so we escape them if they are present  (-sy)
 		var basePath = replace(getDirectoryFromPath(getbaseTemplatePath()),"\","\\","all");
@@ -2564,14 +2577,14 @@ component accessors="true" output="false" {
 	/**
 	* I return the name of the entity container, i.e. the table name. We'll use either the table name or a singularName if defined.
 	**/
-	private function getBreezeEntityName(){
+	private function getoDataEntityName(){
 		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
 	}
 
 	/**
-	* I return an array of structs containing all of the breeze friendly properties of the entity (table).
+	* I return an array of structs containing all of the oData friendly properties of the entity (table).
 	**/
-	private function generateBreezeProperties( array excludeKeys = [] ){
+	private function generateoDataProperties( array excludeKeys = variables.meta.privateKeys ){
 		var props = [];
 		//var prop = { "validators" = [] };
 		var prop = { };
@@ -2583,7 +2596,7 @@ component accessors="true" output="false" {
 			}
 			prop["name"] = col.name;
 
-			prop["type"] = getBreezeType( col.type );
+			prop["type"] = getoDataType( col.type );
 			//prop["defaultValue"] = structKeyExists( col, 'default' ) ? col.default : "";
 			prop["nullable"] = structKeyExists( col, 'notnull' ) ? !col.notnull : true;
 
@@ -2625,10 +2638,10 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* Given a CF or DB data type, I return the equivalent Breeze data type.
+	* Given a CF or DB data type, I return the equivalent oData data type.
 	**/
-	private function getBreezeType( required string type ){
-		var CfToBreezeTypes = {
+	private function getoDataType( required string type ){
+		var CfTooDataTypes = {
 			"string" = "String",
 			"varchar" = "String",
 			"char" = "String",
@@ -2642,7 +2655,7 @@ component accessors="true" output="false" {
 			"guid" = "Guid"
 		};
 
-		return "Edm." & ( structKeyExists( CfToBreezeTypes, type ) ? CfToBreezeTypes[ type ] : type );
+		return "Edm." & ( structKeyExists( CfTooDataTypes, type ) ? CfTooDataTypes[ type ] : type );
 
 	}
 

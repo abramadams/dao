@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.65
-	   	@updated 1/8/2015
+	  	@version 0.0.66
+	   	@updated 1/14/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -910,8 +910,8 @@
 					// when a non-closed quote or double-quote is passed in the literal string.
 					// (i.e. value="this is'nt" my string") would break the code if we didn't do the following
 
-					tmpString = reReplaceNoCase( tmpString, '^queryParam\(', '' );
-					tmpString = reReplaceNoCase( tmpString, '\)$', '' );
+					tmpString = reReplaceNoCase( tmpString, '^queryParam\(', '', 'all' );
+					tmpString = reReplaceNoCase( tmpString, '\)$', '', 'all' );
 
 					// literal strings would have been passed in as quoted values
 					// This needs to be removed in order to be converted to JSON -> Struct.
@@ -922,9 +922,9 @@
 					// Now protect date ojbects
 					tmpString = reReplaceNoCase( tmpString, "{ts '(.*?)'}","{ts &quote;\1&quote;}", "all" );
 					// Now scrube the passed in queryparam args if present (makes later regex easier)
-					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)="," cfsqltype\1=", "all" );
-					tmpString = reReplaceNoCase( tmpString, "null(\s*?)="," null\1=", "all" );
-					tmpString = reReplaceNoCase( tmpString, "list(\s*?)="," list\1=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)="," cfsqltype=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "null(\s*?)="," null=", "all" );
+					tmpString = reReplaceNoCase( tmpString, "list(\s*?)="," list=", "all" );
 					// Now clean up any unquoted boolean values
 					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(false|true)+",'value="\3"', "all" );
 					tmpString = reReplaceNoCase( tmpString, "value(\s*?)=(\s*?)(\{ts .*?\})+",'value="\3"', "all" );
@@ -932,7 +932,7 @@
 					tmpArr = listToArray( tmpString, "'" );
 					if( !arrayLen( tmpArr ) GT 3 || !arrayLen( tmpArr ) mod 2 ){
 						// Only one set of quotes were found.  Now we can simply remove those.
-						tmpString = reReplaceNoCase( tmpString, "=(\s*?)""'(.*?)'""", '="\2"', "all" );
+						tmpString = reReplaceNoCase( tmpString, "=(\s*?)'(.*?)'", '="\2"', "all" );
 					} else{
 						// More than one set of quotes found.  That means this was an IN statement and
 						// all of the single quotes need to be extracted.
