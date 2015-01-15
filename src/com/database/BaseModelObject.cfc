@@ -2461,6 +2461,9 @@ component accessors="true" output="false" {
 		return oDataMetaData;
 	}
 
+	/**
+	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+	**/
 	public array function listAsoData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys ){
 		if( len(trim( filter ) ) ){
 			/* parse oDatajs filter operators */
@@ -2497,7 +2500,9 @@ component accessors="true" output="false" {
 		return data;
 
 	}
-
+	/**
+	* Convenience function to return JSON representation of the current entity with additional oData keys
+	**/
 	public array function tooDataJSON( array excludeKey = variables.meta.privateKeys ){
 		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
 		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
