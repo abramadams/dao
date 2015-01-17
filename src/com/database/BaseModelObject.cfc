@@ -217,6 +217,9 @@ component accessors="true" output="false" {
 					if ( structKeyExists( variables.tabledef.instance.tablemeta.columns[col], 'length' ) ){
 						newProp["length"] = variables.tabledef.instance.tablemeta.columns[col].length;
 					}
+					if ( structKeyExists( variables.tabledef.instance.tablemeta.columns[col], 'where' ) ){
+						newProp["where"] = variables.tabledef.instance.tablemeta.columns[col].length;
+					}
 					if( !structIsEmpty( newProp ) ){
 						arrayAppend( variables.meta.properties, newProp );
 					}
@@ -421,13 +424,14 @@ component accessors="true" output="false" {
 	* flag will be set to true anytime data changes.
 	**/
 	private function setFunc( required any v ){
+		var functionName = getFunctionCalledName();
 		// prevent infinite recursion
-		if( getFunctionCalledName() == 'tmpFunc' ){
+		if( functionName == 'tmpFunc' ){
 			return;
 		}
 
-		if( left( getFunctionCalledName(), 3) == "set" && getFunctionCalledName() != 'setterFunc' ){
-			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
+		if( left( functionName, 3) == "set" && functionName != 'setterFunc' ){
+			var propName = mid( functionName, 4, len( functionName ) );
 
 			// If the property exists, compare the old value to the new value (case sensitive)
 			if( structKeyExists( variables, propName ) && isSimpleValue( v ) ){
@@ -441,10 +445,10 @@ component accessors="true" output="false" {
 			// Dynamically added properties won't have setters.  This will manually stuff the value into the property
 			this[propName] = variables[propName] = v;
 
-			if( structKeyExists( variables, "$$__" & getFunctionCalledName() ) ){
-				logIt('set called via setFunc as #getFunctionCalledName()# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
+			if( structKeyExists( variables, "$$__" & functionName ) ){
+				logIt('set called via setFunc as #functionName# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
 				// Get the original setter function that we set aside in the init routine.
-				var tmpFunc = duplicate( variables[ "$$__" & getFunctionCalledName() ] );
+				var tmpFunc = duplicate( variables[ "$$__" & functionName ] );
 				// tmpFunc is now the original setter so let's fire it.  The calling page
 				// will not know this happened.
 				tmpFunc( v );
@@ -467,10 +471,11 @@ component accessors="true" output="false" {
 		if( len( trim( name ) ) ){
 			return this[ name ];
 		}
+		var functionName = getFunctionCalledName();
 
-		if( left( getFunctionCalledName(), 3) == "get" && getFunctionCalledName() != 'getterFunc' && getFunctionCalledName() != 'getter' ){
+		if( left( functionName, 3) == "get" && functionName != 'getterFunc' && functionName != 'getter' ){
 
-			var propName = mid( getFunctionCalledName(), 4, len( getFunctionCalledName() ) );
+			var propName = mid( functionName, 4, len( functionName ) );
 			return variables[ propName ];
 		}
 
@@ -628,8 +633,9 @@ component accessors="true" output="false" {
 					}
 				}
 			}
-			// return this;
+
 		}else if( left( arguments.missingMethodName, 3 ) is "set" ){
+
 			// Handle setters that may not have been assigned to dynamic properties
 			var tableName = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 			var mapping = _getMapping( tableName );
@@ -642,25 +648,33 @@ component accessors="true" output="false" {
 			return this;
 
 		}else if( left( arguments.missingMethodName, 7 ) is "hasMany" ){
+
 			// Inject array of child objects
 			var newTableName = mid( arguments.missingMethodName, 8, len( arguments.missingMethodName ) );
 			//logIt('CALLING _getOneToMany() for #newTableName# using hasmany missing method handler');
 			variables[ newTableName ] = this[ newTableName ] = _getOneToMany( table = lcase( newTableName ), returnType = returnType );
 
 			return this;
+
 		}else if( left( arguments.missingMethodName, 9 ) is "belongsTo" ){
+
 			var newTableName = mid( arguments.missingMethodName, findNoCase( "belongsTo", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
 			// Using defined naming convention to create a potential fk column name to check for.
 			var potentialFkColumn = getPotentialFKColumnName(  newTableName );
 			variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = potentialFkColumn, returnType = returnType );
 
 			return this;
+
 		}else if( left( arguments.missingMethodName, 3 ) is "has" ){
+
 			var propertyName =  mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
+
 			return structKeyExists( variables, propertyName )
 				&& ( ( isArray( variables[ propertyName ] ) && arrayLen( variables[ propertyName ] ) )
 				|| ( isStruct( variables[ propertyName ] ) && structCount( variables[ propertyName ] ) ) );
+
 		}else if( left( arguments.missingMethodName, 3 ) is "add" ){
+
 			// Adder was called before relationship was wired up. Try to wire up the one-to-many relationship and add the item.
 			var adderInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 			var newTableName = var propertyName = adderInstructions;
@@ -718,14 +732,9 @@ component accessors="true" output="false" {
 					recordSQL &= " AND #LOCAL.columnName# = #getDao().queryParam(value="#arguments.missingMethodArguments[ i ]#")#";
 
 					//Setup defaults
-					// LOCAL.functionName = "set" & queryArguments[ i ];
-
 					try{
-						// LOCAL.tmpFunc = this[LOCAL.functionName];
-						// LOCAL.tmpFunc(arguments.missingMethodArguments[ i ]);
 						evaluate("this.set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
 					} catch ( any err ){
-						// writeDump([ arguments,err, this ]);
 						throw("Error Loading data into #this.getTable()# object.");
 					}
 				}
@@ -738,9 +747,6 @@ component accessors="true" output="false" {
 			}
 
 			var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
-			// var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID' ) );
-			// columns = listPrepend( columns, this.getDAO().getSafeColumnName( getIDField() ) & (getIDField() != 'ID' ? ' as ID ' : '') );
-			// columns = listPrepend( columns, this.getDAO().getSafeColumnName( getIDField() ) & (getIDField() != 'ID' ? ' as ID' : ''));
 
 			record = variables.dao.read(
 				table = this.getTable(),
@@ -750,9 +756,7 @@ component accessors="true" output="false" {
 				limit = limit,
 				name = "model_load_by_handler"
 			);
-			// if( limit ){
-			// 	writeDump([record,arguments,where, recordsql, getTable(), columns, originalMethodName]);abort;
-			// }
+
 			variables._isNew = record.recordCount EQ 0;
 
 			//If a record existed, load it
@@ -774,7 +778,7 @@ component accessors="true" output="false" {
 					}
 					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
 
-					lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="1"{
+					lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
 						var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
 					}
 					//logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -798,14 +802,16 @@ component accessors="true" output="false" {
 
 					arrayAppend( recordArray, tmpNewEntity );
 				}
-					// writeDump([tmplazy,this,variables.meta,arguments,getFunctionCalledName(),recordArray]);abort;
+
 				if( returnType is "json" ){
 					return "[" & arrayToList( recordArray ) & "]";
 				}
 				if( arraylen( recordArray ) == 1 && returnType != "array" ){
 					recordArray = recordArray[ 1 ];
 				}
+
 				return recordArray;
+
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
 
@@ -817,14 +823,8 @@ component accessors="true" output="false" {
 						if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
 							evaluate("set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
 						}
-						// LOCAL.tmpFunc = this[ LOCAL.functionName ];
-						// if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
-						// 	LOCAL.tmpFunc( arguments.missingMethodArguments[ i ] );
-						// }
 						this.set_isDirty( false );
 					} catch ( any err ){
-						// writeDump( err );
-						// throw( message = "Setting the value for #queryArguments[ i ]# failed." );
 						rethrow();
 					}
 				}
@@ -912,7 +912,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* A conveniece method for loading an object with pre-existing data.
+	* A convenience method for loading an object with pre-existing data.
 	* I take a struct that contains keys that match properties on the given
 	* entity and return an instance of the entity with the passed in values
 	* "loaded" into the entity.  If the properties argument contains a key
@@ -966,7 +966,7 @@ component accessors="true" output="false" {
 		if( isSimpleValue( ID ) && len( trim( ID ) ) && get__cacheEntities() ){
 			// Load from cache if we've got it
 			// cacheremove( '#this.getTable()#-#ID#' );
-			lock type="readonly" name="#this.getTable()#-#ID#" timeout="1"{
+			lock type="readonly" name="#this.getTable()#-#ID#" timeout="3"{
 				var cachedObject = cacheGet( '#this.getTable()#-#ID#' );
 			}
 			// logIt('Loaded #this.getTable()#-#ID# from cache');
@@ -1047,7 +1047,7 @@ component accessors="true" output="false" {
 			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
 				// First let's put this guy in our cache for faster retrieval.
-				lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+				lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 					cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 				}
 				// Save the pristine state of this entity instance
@@ -1195,7 +1195,7 @@ component accessors="true" output="false" {
 
 		if( isSimpleValue( ID ) && !this.isNew() ){
 			// Now cache this thing.  The next time we need to call it (within the cachedwithin timespan) we can just pull it from memory.
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
@@ -1288,7 +1288,7 @@ component accessors="true" output="false" {
 		this.registerChildEntity( { name = propertyName, table = lcase( mapping.table ), type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
 
 		// Update Cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 
@@ -1331,7 +1331,7 @@ component accessors="true" output="false" {
 		variables[ property ] = this[ property ] = _getOneToMany( table = lcase( table ), property = property, pkValue = getID(), fkColumn = fkColumn, returnType = returnType, where = where );
 
 		// Update Cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 		return this;
@@ -1398,7 +1398,7 @@ component accessors="true" output="false" {
 						} );
 
 		// Update Cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
@@ -1415,7 +1415,7 @@ component accessors="true" output="false" {
 		variables[ property ] = this[ property ] = _getManyToOne( table = lcase( arguments.table ), fkColumn = arguments.fkColumn, property = arguments.property, pkColumn = arguments.pkColumn, returnType = arguments.returnType, where = arguments.where );
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 		return this;
@@ -1823,7 +1823,7 @@ component accessors="true" output="false" {
 		// writeDUmp(['is new?', this.isNew(), 'is dirty?', this.isDirty()]);
 		// remove object from cache (if it exists)
 		// Removing #this.getTable()#-#this.getID()# from cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cacheRemove( '#this.getTable()#-#this.getID()#' );
 		}
 
@@ -2023,7 +2023,7 @@ component accessors="true" output="false" {
 		}
 
 		// Cache saved object
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 
@@ -2118,7 +2118,7 @@ component accessors="true" output="false" {
 			}
 		}
 		// Remove deleted object from cache
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="1"{
+		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 			cacheRemove( '#this.getTable()#-#this.getID()#' );
 		}
 
