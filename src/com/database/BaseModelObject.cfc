@@ -2524,7 +2524,7 @@ component accessors="true" output="false" {
 	/**
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
-	public function getoDataMetaData( array excludeKeys = variables.meta.privateKeys ){
+	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys ){
     	var oDataMetaData = {
 		    "schema" = {
 		        "namespace" = "#getoDataNameSpace()#",
@@ -2563,7 +2563,7 @@ component accessors="true" output="false" {
 	/**
 	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
-	public array function listAsoData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys ){
+	public array function listAsOData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys ){
 		if( len(trim( filter ) ) ){
 			/* parse oDatajs filter operators */
 			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
@@ -2602,7 +2602,7 @@ component accessors="true" output="false" {
 	/**
 	* Convenience function to return JSON representation of the current entity with additional oData keys
 	**/
-	public array function tooDataJSON( array excludeKey = variables.meta.privateKeys ){
+	public array function toODataJSON( array excludeKey = variables.meta.privateKeys ){
 		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
 		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
 		data["$id"] = data[ getIDField() ];
@@ -2611,7 +2611,7 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	*   I accept an array of oData entities and perform the appropriate DB interactions based on the metadata. I return the Entity struct with the following:
+	*   Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
 	* 	KeyMappings: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
 	* 	Errors (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
