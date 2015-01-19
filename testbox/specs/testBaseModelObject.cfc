@@ -338,7 +338,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitpopulateNewEntityWithStruct() test{
-     	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog", debugMode = true );
+     	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog", debugMode = false );
      	var testStruct = { event = 'test', eventdate = now() };
 
      	testEntity.populate( testStruct );
