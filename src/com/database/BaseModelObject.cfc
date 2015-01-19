@@ -55,6 +55,7 @@ component accessors="true" output="false" {
 	_isDirty = false;
 	_children = [];
 	_pristine = {};
+	_tableDefs = {};
 
 	public any function init( 	string table = "",
 								string parentTable = "",
@@ -144,7 +145,7 @@ component accessors="true" output="false" {
 				logIt('Loading any mappings for #this.getTable()#');
 				var mapping = _getMapping( getTable() );
 				// load the table definition based on the given table.
-				variables.tabledef = new tabledef( tableName = mapping.table, dsn = getDao().getDSN() );
+				variables.tabledef = _loadTableDef( mapping.table );
 			} catch (any e){
 				// writeDump([e,arguments]);abort;
 				if( e.type eq 'Database' ){
@@ -265,7 +266,15 @@ component accessors="true" output="false" {
 
 	    return this;
 	}
-
+	/**
+	* Convenience "factory" function to grab an instance of tabledef for the given table (or create one of one doesn't exist)
+	**/
+	private function _loadTableDef( table ){
+		if( structKeyExists( variables._tableDefs, table ) ){
+			return variables._tableDefs[ table ];
+		}
+		return new tabledef( tableName = table, dsn = getDao().getDSN() );
+	}
 	/**
 	* I inject a property into the current instance.  Shorthand for inserting the
 	* property into the "this" and "variables" scope
@@ -659,7 +668,7 @@ component accessors="true" output="false" {
 			// Using defined naming convention to create a potential fk column name to check for.
 			var potentialFkColumn = getPotentialFKColumnName(  newTableName );
 			// variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = potentialFkColumn, returnType = returnType );
-			var tableDef = new tabledef( tableName = newTableName, dsn = getDao().getDsn() );
+			var tableDef = _loadTableDef( newTableName );
 			logIt('is #table# a table? #tableDef.getIsTable()#');
 			if( tableDef.getIsTable() ){
 				variables[ "get" & newTableName ] = this[ "get" & newTableName ] = function(){
@@ -684,7 +693,7 @@ component accessors="true" output="false" {
 			// // try the call again.
 			// // writeDump(arguments.missingMethodArguments);abort;
 			// return evaluate("this.#arguments.missingMethodName#( arguments.missingMethodArguments[1] )");
-			var tableDef = new tabledef( tableName = newTableName, dsn = getDao().getDsn() );
+			var tableDef = _loadTableDef( newTableName );
 			logIt('is #table# a table? #tableDef.getIsTable()#');
 			if( tableDef.getIsTable() ){
 				variables[ "get" & newTableName ] = this[ "get" & newTableName ] = function(){
@@ -1147,7 +1156,7 @@ component accessors="true" output="false" {
 						// 	variables[ table ] = this[ table ] = tmpChildObj;
 						// 	variables[ property ] = this[ property ] = tmpChildObj;
 						// }
-						var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+						var tableDef = _loadTableDef( table );
 						logIt('is #table# a table? #tableDef.getIsTable()#');
 						if( tableDef.getIsTable() ){
 							// This breaks CF9, but man is it fast
@@ -1365,7 +1374,7 @@ component accessors="true" output="false" {
 	* 		^^ Assumes table order_items has a column named orders_ID, which points to the PK column in orders.
 	**/
 	public any function hasMany( required string table, string fkColumn = getIDField(), string property = arguments.table, string returnType = "object", string where = "" ){
-		var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+		var tableDef = _loadTableDef( table );
 		logIt('is #table# a table? #tableDef.getIsTable()#');
 		if( !tableDef.getIsTable() ){
 			return false;
@@ -1390,7 +1399,7 @@ component accessors="true" output="false" {
 			throw( message = "Unknown Foreign Key Property", type="BMO", detail="The Foreign Key: #fkColumn# did not exist in #table#.");
 		}
 
-		var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+		var tableDef = _loadTableDef( table );
 		logIt('is #table# a table? #tableDef.getIsTable()#');
 		if( !tableDef.getIsTable() ){
 			return false;
@@ -1499,7 +1508,7 @@ component accessors="true" output="false" {
 			if( !isStruct( mapping ) ){
 				logIt('mapping for #table# exists but is not a struct, creating new one now');
 				// mapping was not found or was not initialized
-				var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+				var tableDef = _loadTableDef( table );
 				mapping = { "table" = mapping, "property" = mapping, "key" = mapping, "IDField" = tableDef.getPrimaryKeyColumn(), "tableDef" = tableDef };
 			}else{
 				// mapping was found, but no key found. Update with table data
@@ -1514,7 +1523,7 @@ component accessors="true" output="false" {
 			logIt('mapping for #table# did not exist');
 			// table was not found in the current mappings.
 		  	// Let's see if the passed in table is a real table and if so create a generic mapping and return it.
-			var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+			var tableDef = _loadTableDef( table );
 			logIt('is #table# a table? #tableDef.getIsTable()#');
 			if( tableDef.getIsTable() ){
 				// passed in table was actually a table, now map it.
@@ -1533,7 +1542,7 @@ component accessors="true" output="false" {
 							var parentTable = reReplaceNoCase( field, regex, '\1', 'all' );
 							if( len( trim( parentTable ) ) ){
 								// _getMapping( parentTable );
-								var parentTableDef = new tabledef( tableName = parentTable, dsn = getDao().getDsn() );
+								var parentTableDef = _loadTableDef( parentTable );
 								parentTable = parentTableDef.getTableName();
 								// only add the mapping if it is to a real table
 								logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
@@ -1567,7 +1576,7 @@ component accessors="true" output="false" {
 						logIt("could not find mappings for #table#::: #getDynamicMappingFKConvention()#");
 						// we can be smart an look for more dynamic mappings based on naming convention
 						if( len( trim( getDynamicMappingFKConvention() ) ) ){
-							// var tableDef = new tabledef( tableName = table, dsn = getDao().getDsn() );
+							// var tableDef = _loadTableDef( table );
 							logIt('----Dynamic Mapping FK naming convention defined for #table#.  Looking for matches.');
 							var regex = reReplaceNoCase( getDynamicMappingFKConvention(), '(.*?){table}(.*)', '^\1(\w*?)\2$', 'all' );
 							// If we found a field name with tihs signature, let's add the mapping
@@ -1576,7 +1585,7 @@ component accessors="true" output="false" {
 								var parentTable = reReplaceNoCase( table, regex, '\1', 'all' );
 								if( len( trim( parentTable ) ) ){
 									// _getMapping( parentTable );
-									var parentTableDef = new tabledef( tableName = parentTable, dsn = getDao().getDsn() );
+									var parentTableDef = _loadTableDef( parentTable );
 									parentTable = parentTableDef.getTableName();
 									// only add the mapping if it is to a real table
 									logIt('...is #parentTable# a table? #parentTableDef.getIsTable()#');
@@ -2404,7 +2413,7 @@ component accessors="true" output="false" {
 			}
 		}
 
-		var tableDef = new tabledef( tableName = getTable(), dsn = getDao().getDSN(), loadMeta = false );
+		var tableDef = _loadTableDef( getTable );
 		/* var propLen = ArrayLen(variables.meta.properties);
 		var prop = [];
 		var col = {};
