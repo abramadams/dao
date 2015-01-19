@@ -3,14 +3,12 @@ dao - A ColdFusion library for easy Data Access and Object Mapping.
 #Elevator Pitch
 DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LYNQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.
 
+In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
+
 # Disclaimer
 Though I have been using this library for many years on many, many projects, it has never been used or tested outside
 of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
 a bit of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
-
-# Introduction
-The goal of this library is to allow one to interact with the database in a DB platform agnostic way,
-while making it super easy.
 
 # Requirements
 Currently this library has been actively used and tested on Railo 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).  To make the entire library work on CF9 you would need to change any code that calls _closure_*() methods as these use function expressions and closures, which break CF9.  So far I've included commented code that will make it cf9 compatible.  Simply find and uncomment the code preceded with "// CF9 Way" and comment out the code preceded with "// CF10+/Railo4+ way"
