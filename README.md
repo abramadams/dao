@@ -1,7 +1,7 @@
 dao - A ColdFusion library for easy Data Access and Object Mapping.
 ===
 #Elevator Pitch
-DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LYNQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.
+DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.
 
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 
