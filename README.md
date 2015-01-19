@@ -626,7 +626,7 @@ pet = new Pet( dao ).lazyLoadAll();
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
 # oData
-Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See [examples/breezejs/README.md](/examples/breezejs/readme.md) for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
+Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See [examples/breezejs/README.md](examples/breezejs) for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
 
 Currently we support the following oData methods:
 
