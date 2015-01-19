@@ -625,6 +625,19 @@ pet = new Pet( dao ).lazyLoadAll();
 // then, if I only need the first name of the "user" for the second pet I'd just:
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
+# oData
+Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See `examples/breezejs/` for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
+
+Currently we support the following oData methods:
+
+* _getODataMetaData_ - Returns oData metadata that describes the current entity ( for oData $metadata endpoint )
+* _listAsOData_ - Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+* _toODataJSON_ - Convenience function to return JSON representation of the current entity with additional oData keys.
+* _oDataSave_ - Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
+ * 	_Entities_: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
+ * 	_KeyMappings_: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
+ * 	_Errors_ (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
+	
 
 # More examples
 Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
