@@ -1,20 +1,27 @@
 dao - A ColdFusion library for easy Data Access and Object Mapping.
 ===
+#Elevator Pitch
+DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LYNQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.
 
 # Disclaimer
 Though I have been using this library for many years on many, many projects, it has never been used or tested outside
 of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
-a lot of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
-
-Also, the bulk of the dao.cfc stuff was developed in CF7-8 erra, and has been patched CF9/10 features started creeping in.  I
-am in the process of re-writing the library using the query.cfc and some other things that will break the pre-CF9 compatibility.
-For instance, this will be re-written using all script based code.
-
+a bit of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
 
 # Introduction
 The goal of this library is to allow one to interact with the database in a DB platform agnostic way,
 while making it super easy.
 
+# Requirements
+Currently this library has been actively used and tested on Railo 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).  To make the entire library work on CF9 you would need to change any code that calls _closure_*() methods as these use function expressions and closures, which break CF9.  So far I've included commented code that will make it cf9 compatible.  Simply find and uncomment the code preceded with "// CF9 Way" and comment out the code preceded with "// CF10+/Railo4+ way"
+
+# Database Platform Agnostic
+Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
+creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
+argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
+instantiate as: dao = new dao( dbType = 'otherrdbs' );
+
+# What's in this library?
 There are two parts to this library, the first is for a more traditional DAO
 type interaction where one uses a handful of CRUD functions:
 * `dao.insert()`
@@ -26,6 +33,8 @@ as well as a general `dao.execute()` to run arbitrary SQL against the database.
 
 Using the built-in methods for CRUD provides some benefits such as being database agnostic,
 providing optional "onFinish" callbacks functions, transaction logging (for custom replication).
+
+The second part (BaseModelObject.cfc) adds a layer of ORM type functionality, plus more.
 
 # Installation
 Copy the "database" folder `(/src/com/database)` into your project (or into the folder you place your components)
@@ -619,17 +628,6 @@ pet = new Pet( dao ).lazyLoadAll();
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
 
-# Requirements
-Currently this library has been actively used and tested on Railo 4x, CF9 and CF10 (though the dao.cfc stuff should work with CF8 - for now).
-There are some features that are disabled by default ( such as lazy loading child entities ), but can be "turned on" by un-commenting
-a few lines if you are running on CF10+ or Railo 4+ (uses anonymous functions)
-
-# Database Platform Agnostic
-Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
-creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
-argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
-instantiate as: dao = new dao( dbType = 'otherrdbs' );
-
 # More examples
 Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
 
@@ -639,5 +637,6 @@ Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache ser
 ```javascript
 this.cache.object = "your_cache_name_here";
 ```
+> NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.
 
 Also, the "Preserve single quotes" setting must be checked in the Railo admin.  DAO specifically passes the SQL strings through ```preserveSingleQuotes()```, but this doesn't seem to work unless you have that setting checked under `Services > Datasources`.

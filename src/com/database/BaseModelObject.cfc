@@ -1149,13 +1149,7 @@ component accessors="true" output="false" {
 						// If the above mapping attempts returned a map without an IDField that means we couldn't find a parent entity to tie to so we'll skip this.
 						logIt('[#parentTable#] [#table#] :#col.name#: dynamic #structKeyExists(col, "dynamic") ? col.dynamic : 'false'# -- #getFunctionCalledName()#');
 						// wire up the relationship
-						// tmpChildObj = _getManyToOne( table = lcase( table ), property = property, fkColumn = structKeyExists( col, 'column' ) ? col.column : col.name, pkColumn = mapping.IDField );
-						// // If a table matches the table, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
-						// // false.  We only need to inject it if it was an object.
-						// if( isObject( tmpChildObj ) ){
-						// 	variables[ table ] = this[ table ] = tmpChildObj;
-						// 	variables[ property ] = this[ property ] = tmpChildObj;
-						// }
+						// CF10+/Railo4+ way:
 						var tableDef = _loadTableDef( table );
 						logIt('is #table# a table? #tableDef.getIsTable()#');
 						if( tableDef.getIsTable() ){
@@ -1164,6 +1158,14 @@ component accessors="true" output="false" {
 							variables[ "get" & table ] = this[ "get" & table ] = variables[ "get" & property ] = this[ "get" & property ] = _closure_getManyToOne( table = lcase( table ), property = property, fkColumn = mapping.key, pkColumn = mapping.IDField, fkValue = this[ mapping.key ] );
 
  						}
+ 						// CF9 Way
+ 						// tmpChildObj = _getManyToOne( table = lcase( table ), property = property, fkColumn = structKeyExists( col, 'column' ) ? col.column : col.name, pkColumn = mapping.IDField );
+						// // If a table matches the table, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
+						// // false.  We only need to inject it if it was an object.
+						// if( isObject( tmpChildObj ) ){
+						// 	variables[ table ] = this[ table ] = tmpChildObj;
+						// 	variables[ property ] = this[ property ] = tmpChildObj;
+						// }
 					}
 				} catch ( any e ){
 
@@ -1204,9 +1206,10 @@ component accessors="true" output="false" {
 
 					//If lazy == true, we will just overload the "getter" method with an anonymous method that will instantiate the child entity when called.
 					}else{
-
-						// setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
+						// CF10+/Railo4+ way
 						this[ "get" & col.name ] = variables[ "get" & col.name ] = _closure_getOneToMany( table = tmp.getTable(), fkColumn = col.fkColumn, pkValue = this[ col.inverseJoinColumn ], where = childWhere );
+						// CF9 Way
+						// setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
 
 					}
 
