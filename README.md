@@ -626,17 +626,43 @@ pet = new Pet( dao ).lazyLoadAll();
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
 # oData
-Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See `examples/breezejs/` for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
+Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See (examples/breezejs/readme.md) for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
 
 Currently we support the following oData methods:
 
 * __getODataMetaData__ - Returns oData metadata that describes the current entity ( for oData $metadata endpoint )
 * __listAsOData__ - Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+```javascript
+// FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria
+remote function get(string $filter = "" ,string $orderby = "", string $skip = "", string $top = ""){
+	var todo = new com.database.BaseModelObject( table = "TodoItem" );
+
+	return representationOf(
+    	//returns an oData object containing all of the matching entities in our DB
+		todo.listAsoData(
+				filter = arguments.$filter,
+				orderby = arguments.$orderby,
+				skip = arguments.$skip,
+				top = arguments.$top,
+	            excludeKeys = [ "_id", "other_field_you_want_to_hide" ]
+			)
+		).withStatus(200);
+
+}
+```
 * __toODataJSON__ - Convenience function to return JSON representation of the current entity with additional oData keys.
 * __oDataSave__ - Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
  * 	__Entities__: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
  * 	__KeyMappings__: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
  * 	__Errors__ (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
+ ```javascript
+ // FROM BREEZEJS SAMPLE: Taffy Resource for "post" verb to save one or more "TodoItem" records.
+	remote function post(){
+		var todo = new com.database.BaseModelObject( table = "TodoItem" );
+		var ret = todo.oDataSave( arguments.entities );
+		return representationOf( ret ).withStatus(200);
+	}
+ ```
 
 
 # More examples
