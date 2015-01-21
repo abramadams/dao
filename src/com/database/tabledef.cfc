@@ -2,8 +2,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.63
-	   	@updated 1/2/2015
+	  	@version 0.0.64
+	   	@updated 1/21/2015
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
@@ -164,6 +164,10 @@
 
 	public struct function getColumnDefs( string exclude = "", string prefix ="" ){
 		return this.instance.tablemeta.columns;
+	}
+
+	public boolean function hasColumn( required string column ){
+		return structKeyExists( this.instance.tablemeta.columns, column );
 	}
 
 	public query function getRows(){
@@ -374,12 +378,12 @@
 		var keys = [];
 		for ( var col in this.instance.tablemeta.columns ){
 			if( this.instance.tablemeta.columns[col].isPrimaryKey == true ){
-				arrayAppend( Keys, col );
-				break;
+				return col;
 			}
 		}
 
-		return arrayToList( keys );
+		// If we make it here, there is no primary key.  Return the first column.
+		return listToArray( getColumns() )[1];
 	}
 
 	/**

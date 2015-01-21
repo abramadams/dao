@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.0
+*   @version 0.1.1
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 1/19/2015
+*   @updated 1/21/2015
 *   @author Abram Adams
 **/
 
@@ -157,7 +157,7 @@ component accessors="true" output="false" {
 							return  false;
 						}
 					}else{
-						writeDump( this );
+						// writeDump( this );
 						throw( e.message );
 					}
 				}else{
@@ -167,9 +167,9 @@ component accessors="true" output="false" {
 		}
 
 		// Setup the ID (primary key) field.  This can be used to generate id values, etc..
-		setIDField( arguments.IDField );
-		setAutoWire( arguments.autoWire );
+		setIDField( variables.tabledef.hasColumn( arguments.IDField ) ? arguments.IDField : variables.tabledef.getPrimaryKeyColumn() );
         setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
+		setAutoWire( arguments.autoWire );
 		setDeleteStatusCode( arguments.deleteStatusCode );
         variables.dao.addTableDef( variables.tabledef );
 
@@ -2589,12 +2589,16 @@ component accessors="true" output="false" {
 
 		var row = "";
 		var data = [];
-		for( var i = 1; i LTE arrayLen( list ); i++ ){
-			row = list[ i ];
-			row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
-			row["$id"] = row[ getIDField() ];
-			arrayAppend( data, row );
-			row = "";
+		try{
+			for( var i = 1; i LTE arrayLen( list ); i++ ){
+				row = list[ i ];
+				row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
+				row["$id"] = row[ getIDField() ];
+				arrayAppend( data, row );
+				row = "";
+			}
+		}catch(any e ){
+			writeDump([list,e]);abort;
 		}
 		return data;
 
