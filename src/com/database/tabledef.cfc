@@ -383,7 +383,9 @@
 		}
 
 		// If we make it here, there is no primary key.  Return the first column.
-		return listToArray( getColumns() )[1];
+		var indexes = listFirst( getIndexColumns() );
+		var columns = listLen( indexes ) ? indexes : getColumns();
+		return len( trim( columns ) )  ? listFirst( columns ) : '';
 	}
 
 	/**

@@ -813,8 +813,8 @@
 				throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
 			} catch( any e ){
 				// For Railo's sake....
-				if( reFindNoCase( "key \[.*?\] does not exist", e.message ) ){
-					e.name = rEReplaceNoCase( e.message, "key \[(.*?)\] doesn't exist", '\1', 'all' );
+				if( reFindNoCase( "key \[.*?\] does(\snot|n't) exist", e.message ) ){
+					e.name = rEReplaceNoCase( e.message, "key \[(.*?)\] does(\snot|n't) exist", '\1', 'all' );
 					throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
 				}else{
 					rethrow;
