@@ -28,7 +28,7 @@
 
 (function (definition) {
     // Turn off strict mode for this function so we can assign to global.Q
-    /* jshint strict: false */
+    /*jshint strict: false*/
 
     // This file will function properly as a <script> tag, or a module
     // using CommonJS and NodeJS or RequireJS module formats.  In
@@ -44,7 +44,7 @@
         module.exports = definition();
 
     // RequireJS
-    } else if (typeof define === "function" && define.amd) {
+    } else if (typeof define === "function") {
         define(definition);
 
     // SES (Secure EcmaScript)
@@ -63,13 +63,6 @@
 })(function () {
 "use strict";
 
-var hasStacks = false;
-try {
-    throw new Error();
-} catch (e) {
-    hasStacks = !!e.stack;
-}
-
 // All code after this point will be filtered from stack traces reported
 // by Q.
 var qStartingLine = captureLine();
@@ -80,130 +73,41 @@ var qFileName;
 // used for fallback in "allResolved"
 var noop = function () {};
 
-// Use the fastest possible means to execute a task in a future turn
+// use the fastest possible means to execute a task in a future turn
 // of the event loop.
-var nextTick =(function () {
-    // linked list of tasks (single, with head node)
-    var head = {task: void 0, next: null};
-    var tail = head;
-    var flushing = false;
-    var requestTick = void 0;
-    var isNodeJS = false;
-
-    function flush() {
-        /* jshint loopfunc: true */
-
-        while (head.next) {
-            head = head.next;
-            var task = head.task;
-            head.task = void 0;
-            var domain = head.domain;
-
-            if (domain) {
-                head.domain = void 0;
-                domain.enter();
-            }
-
-            try {
-                task();
-
-            } catch (e) {
-                if (isNodeJS) {
-                    // In node, uncaught exceptions are considered fatal errors.
-                    // Re-throw them synchronously to interrupt flushing!
-
-                    // Ensure continuation if the uncaught exception is suppressed
-                    // listening "uncaughtException" events (as domains does).
-                    // Continue in next event to avoid tick recursion.
-                    if (domain) {
-                        domain.exit();
-                    }
-                    setTimeout(flush, 0);
-                    if (domain) {
-                        domain.enter();
-                    }
-
-                    throw e;
-
-                } else {
-                    // In browsers, uncaught exceptions are not fatal.
-                    // Re-throw them asynchronously to avoid slow-downs.
-                    setTimeout(function() {
-                       throw e;
-                    }, 0);
-                }
-            }
-
-            if (domain) {
-                domain.exit();
-            }
-        }
-
-        flushing = false;
-    }
-
-    nextTick = function (task) {
-        tail = tail.next = {
-            task: task,
-            domain: isNodeJS && process.domain,
-            next: null
-        };
-
-        if (!flushing) {
-            flushing = true;
-            requestTick();
-        }
-    };
-
-    if (typeof process !== "undefined" && process.nextTick) {
-        // Node.js before 0.9. Note that some fake-Node environments, like the
-        // Mocha test runner, introduce a `process` global without a `nextTick`.
-        isNodeJS = true;
-
-        requestTick = function () {
-            process.nextTick(flush);
-        };
-
-    } else if (typeof setImmediate === "function") {
-        // In IE10, Node.js 0.9+, or https://github.com/NobleJS/setImmediate
-        if (typeof window !== "undefined") {
-            requestTick = setImmediate.bind(window, flush);
-        } else {
-            requestTick = function () {
-                setImmediate(flush);
-            };
-        }
-
-    } else if (typeof MessageChannel !== "undefined") {
-        // modern browsers
-        // http://www.nonblocking.io/2011/06/windownexttick.html
-        var channel = new MessageChannel();
-        // At least Safari Version 6.0.5 (8536.30.1) intermittently cannot create
-        // working message ports the first time a page loads.
-        channel.port1.onmessage = function () {
-            requestTick = requestPortTick;
-            channel.port1.onmessage = flush;
-            flush();
-        };
-        var requestPortTick = function () {
-            // Opera requires us to provide a message payload, regardless of
-            // whether we use it.
-            channel.port2.postMessage(0);
-        };
-        requestTick = function () {
-            setTimeout(flush, 0);
-            requestPortTick();
-        };
-
+var nextTick;
+if (typeof process !== "undefined") {
+    // node
+    nextTick = process.nextTick;
+} else if (typeof setImmediate === "function") {
+    // In IE10, or use https://github.com/NobleJS/setImmediate
+    if (typeof window !== "undefined") {
+        nextTick = setImmediate.bind(window);
     } else {
-        // old browsers
-        requestTick = function () {
-            setTimeout(flush, 0);
-        };
+        nextTick = setImmediate;
     }
-
-    return nextTick;
-})();
+} else if (typeof MessageChannel !== "undefined") {
+    // modern browsers
+    // http://www.nonblocking.io/2011/06/windownexttick.html
+    var channel = new MessageChannel();
+    // linked list of tasks (single, with head node)
+    var head = {}, tail = head;
+    channel.port1.onmessage = function () {
+        head = head.next;
+        var task = head.task;
+        delete head.task;
+        task();
+    };
+    nextTick = function (task) {
+        tail = tail.next = {task: task};
+        channel.port2.postMessage(0);
+    };
+} else {
+    // old browsers
+    nextTick = function (task) {
+        setTimeout(task, 0);
+    };
+}
 
 // Attempt to make generics safe in the face of downstream
 // modifications.
@@ -216,12 +120,12 @@ var nextTick =(function () {
 // hard-to-minify characters.
 // See Mark Miller’s explanation of what this does.
 // http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
-var call = Function.call;
 function uncurryThis(f) {
+    var call = Function.call;
     return function () {
         return call.apply(f, arguments);
     };
-}
+};
 // This is equivalent, but slower:
 // uncurryThis = Function_bind.bind(Function_bind.call);
 // http://jsperf.com/uncurrythis
@@ -300,13 +204,8 @@ var object_keys = Object.keys || function (object) {
 
 var object_toString = uncurryThis(Object.prototype.toString);
 
-function isObject(value) {
-    return value === Object(value);
-}
-
 // generator related shims
 
-// FIXME: Remove this function once ES6 generators are in SpiderMonkey.
 function isStopIteration(exception) {
     return (
         object_toString(exception) === "[object StopIteration]" ||
@@ -314,8 +213,6 @@ function isStopIteration(exception) {
     );
 }
 
-// FIXME: Remove this helper and Q.return once ES6 generators are in
-// SpiderMonkey.
 var QReturnValue;
 if (typeof ReturnValue !== "undefined") {
     QReturnValue = ReturnValue;
@@ -325,46 +222,25 @@ if (typeof ReturnValue !== "undefined") {
     };
 }
 
-// Until V8 3.19 / Chromium 29 is released, SpiderMonkey is the only
-// engine that has a deployed base of browsers that support generators.
-// However, SM's generators use the Python-inspired semantics of
-// outdated ES6 drafts.  We would like to support ES6, but we'd also
-// like to make it possible to use generators in deployed browsers, so
-// we also support Python-style generators.  At some point we can remove
-// this block.
-var hasES6Generators;
-try {
-    /* jshint evil: true, nonew: false */
-    new Function("(function* (){ yield 1; })");
-    hasES6Generators = true;
-} catch (e) {
-    hasES6Generators = false;
-}
-
 // long stack traces
+
+Q.longStackJumpLimit = 1;
 
 var STACK_JUMP_SEPARATOR = "From previous event:";
 
 function makeStackTraceLong(error, promise) {
-    // If possible, transform the error stack trace by removing Node and Q
-    // cruft, then concatenating with the stack trace of `promise`. See #57.
-    if (hasStacks &&
-        promise.stack &&
+    // If possible (that is, if in V8), transform the error stack
+    // trace by removing Node and Q cruft, then concatenating with
+    // the stack trace of the promise we are ``done``ing. See #57.
+    if (promise.stack &&
         typeof error === "object" &&
         error !== null &&
         error.stack &&
         error.stack.indexOf(STACK_JUMP_SEPARATOR) === -1
     ) {
-        var stacks = [];
-        for (var p = promise; !!p; p = p.source) {
-            if (p.stack) {
-                stacks.unshift(p.stack);
-            }
-        }
-        stacks.unshift(error.stack);
-
-        var concatedStacks = stacks.join("\n" + STACK_JUMP_SEPARATOR + "\n");
-        error.stack = filterStackString(concatedStacks);
+        error.stack = filterStackString(error.stack) +
+            "\n" + STACK_JUMP_SEPARATOR + "\n" +
+            filterStackString(promise.stack);
     }
 }
 
@@ -374,7 +250,7 @@ function filterStackString(stackString) {
     for (var i = 0; i < lines.length; ++i) {
         var line = lines[i];
 
-        if (!isInternalFrame(line) && !isNodeFrame(line) && line) {
+        if (!isInternalFrame(line) && !isNodeFrame(line)) {
             desiredLines.push(line);
         }
     }
@@ -386,36 +262,15 @@ function isNodeFrame(stackLine) {
            stackLine.indexOf("(node.js:") !== -1;
 }
 
-function getFileNameAndLineNumber(stackLine) {
-    // Named functions: "at functionName (filename:lineNumber:columnNumber)"
-    // In IE10 function name can have spaces ("Anonymous function") O_o
-    var attempt1 = /at .+ \((.+):(\d+):(?:\d+)\)$/.exec(stackLine);
-    if (attempt1) {
-        return [attempt1[1], Number(attempt1[2])];
-    }
-
-    // Anonymous functions: "at filename:lineNumber:columnNumber"
-    var attempt2 = /at ([^ ]+):(\d+):(?:\d+)$/.exec(stackLine);
-    if (attempt2) {
-        return [attempt2[1], Number(attempt2[2])];
-    }
-
-    // Firefox style: "function@filename:lineNumber or @filename:lineNumber"
-    var attempt3 = /.*@(.+):(\d+)$/.exec(stackLine);
-    if (attempt3) {
-        return [attempt3[1], Number(attempt3[2])];
-    }
-}
-
 function isInternalFrame(stackLine) {
-    var fileNameAndLineNumber = getFileNameAndLineNumber(stackLine);
+    var pieces = /at .+ \((.*):(\d+):\d+\)/.exec(stackLine);
 
-    if (!fileNameAndLineNumber) {
+    if (!pieces) {
         return false;
     }
 
-    var fileName = fileNameAndLineNumber[0];
-    var lineNumber = fileNameAndLineNumber[1];
+    var fileName = pieces[1];
+    var lineNumber = pieces[2];
 
     return fileName === qFileName &&
         lineNumber >= qStartingLine &&
@@ -425,31 +280,31 @@ function isInternalFrame(stackLine) {
 // discover own file name and line number range for filtering stack
 // traces
 function captureLine() {
-    if (!hasStacks) {
-        return;
-    }
+    if (Error.captureStackTrace) {
+        var fileName, lineNumber;
 
-    try {
-        throw new Error();
-    } catch (e) {
-        var lines = e.stack.split("\n");
-        var firstLine = lines[0].indexOf("@") > 0 ? lines[1] : lines[2];
-        var fileNameAndLineNumber = getFileNameAndLineNumber(firstLine);
-        if (!fileNameAndLineNumber) {
-            return;
-        }
+        var oldPrepareStackTrace = Error.prepareStackTrace;
 
-        qFileName = fileNameAndLineNumber[0];
-        return fileNameAndLineNumber[1];
+        Error.prepareStackTrace = function (error, frames) {
+            fileName = frames[1].getFileName();
+            lineNumber = frames[1].getLineNumber();
+        };
+
+        // teases call of temporary prepareStackTrace
+        // JSHint and Closure Compiler generate known warnings here
+        /*jshint expr: true */
+        new Error().stack;
+
+        Error.prepareStackTrace = oldPrepareStackTrace;
+        qFileName = fileName;
+        return lineNumber;
     }
 }
 
 function deprecate(callback, name, alternative) {
     return function () {
-        if (typeof console !== "undefined" &&
-            typeof console.warn === "function") {
-            console.warn(name + " is deprecated, use " + alternative +
-                         " instead.", new Error("").stack);
+        if (typeof console !== "undefined" && typeof console.warn === "function") {
+            console.warn(name + " is deprecated, use " + alternative + " instead.", new Error("").stack);
         }
         return callback.apply(callback, arguments);
     };
@@ -459,26 +314,13 @@ function deprecate(callback, name, alternative) {
 // beginning of real work
 
 /**
- * Constructs a promise for an immediate reference, passes promises through, or
- * coerces promises from different systems.
- * @param value immediate reference or promise
+ * Creates fulfilled promises from non-promises,
+ * Passes Q promises through,
+ * Coerces CommonJS/Promises/A+ promises to Q promises.
  */
 function Q(value) {
-    // If the object is already a Promise, return it directly.  This enables
-    // the resolve function to both be used to created references from objects,
-    // but to tolerably coerce non-promises to promises.
-    if (isPromise(value)) {
-        return value;
-    }
-
-    // assimilate thenables
-    if (isPromiseAlike(value)) {
-        return coerce(value);
-    } else {
-        return fulfill(value);
-    }
+    return resolve(value);
 }
-Q.resolve = Q;
 
 /**
  * Performs a task in a future turn of the event loop.
@@ -487,131 +329,88 @@ Q.resolve = Q;
 Q.nextTick = nextTick;
 
 /**
- * Controls whether or not long stack traces will be on
- */
-Q.longStackSupport = false;
-
-/**
- * Constructs a {promise, resolve, reject} object.
+ * Constructs a {promise, resolve} object.
  *
- * `resolve` is a callback to invoke with a more resolved value for the
- * promise. To fulfill the promise, invoke `resolve` with any value that is
- * not a thenable. To reject the promise, invoke `resolve` with a rejected
- * thenable, or invoke `reject` with the reason directly. To resolve the
- * promise to another thenable, thus putting it in the same state, invoke
- * `resolve` with that other thenable.
+ * The resolver is a callback to invoke with a more resolved value for the
+ * promise. To fulfill the promise, invoke the resolver with any value that is
+ * not a function. To reject the promise, invoke the resolver with a rejection
+ * object. To put the promise in the same state as another promise, invoke the
+ * resolver with that other promise.
  */
 Q.defer = defer;
 function defer() {
-    // if "messages" is an "Array", that indicates that the promise has not yet
+    // if "pending" is an "Array", that indicates that the promise has not yet
     // been resolved.  If it is "undefined", it has been resolved.  Each
-    // element of the messages array is itself an array of complete arguments to
+    // element of the pending array is itself an array of complete arguments to
     // forward to the resolved promise.  We coerce the resolution value to a
-    // promise using the `resolve` function because it handles both fully
-    // non-thenable values and other thenables gracefully.
-    var messages = [], progressListeners = [], resolvedPromise;
+    // promise using the ref promise because it handles both fully
+    // resolved values and other promises gracefully.
+    var pending = [], progressListeners = [], value;
 
     var deferred = object_create(defer.prototype);
-    var promise = object_create(Promise.prototype);
+    var promise = object_create(makePromise.prototype);
 
     promise.promiseDispatch = function (resolve, op, operands) {
         var args = array_slice(arguments);
-        if (messages) {
-            messages.push(args);
+        if (pending) {
+            pending.push(args);
             if (op === "when" && operands[1]) { // progress operand
                 progressListeners.push(operands[1]);
             }
         } else {
             nextTick(function () {
-                resolvedPromise.promiseDispatch.apply(resolvedPromise, args);
+                value.promiseDispatch.apply(value, args);
             });
         }
     };
 
-    // XXX deprecated
-    promise.valueOf = deprecate(function () {
-        if (messages) {
+    promise.valueOf = function () {
+        if (pending) {
             return promise;
         }
-        var nearerValue = nearer(resolvedPromise);
-        if (isPromise(nearerValue)) {
-            resolvedPromise = nearerValue; // shorten chain
-        }
-        return nearerValue;
-    }, "valueOf", "inspect");
-
-    promise.inspect = function () {
-        if (!resolvedPromise) {
-            return { state: "pending" };
-        }
-        return resolvedPromise.inspect();
+        value = valueOf(value); // shorten chain
+        return value;
     };
 
-    if (Q.longStackSupport && hasStacks) {
-        try {
-            throw new Error();
-        } catch (e) {
-            // NOTE: don't try to use `Error.captureStackTrace` or transfer the
-            // accessor around; that causes memory leaks as per GH-111. Just
-            // reify the stack trace as a string ASAP.
-            //
-            // At the same time, cut off the first line; it's always just
-            // "[object Promise]\n", as per the `toString`.
-            promise.stack = e.stack.substring(e.stack.indexOf("\n") + 1);
-        }
+    if (Error.captureStackTrace && Q.longStackJumpLimit > 0) {
+        Error.captureStackTrace(promise, defer);
+
+        // Reify the stack into a string by using the accessor; this prevents
+        // memory leaks as per GH-111. At the same time, cut off the first line;
+        // it's always just "[object Promise]\n", as per the `toString`.
+        promise.stack = promise.stack.substring(promise.stack.indexOf("\n") + 1);
     }
 
-    // NOTE: we do the checks for `resolvedPromise` in each method, instead of
-    // consolidating them into `become`, since otherwise we'd create new
-    // promises with the lines `become(whatever(value))`. See e.g. GH-252.
-
-    function become(newPromise) {
-        resolvedPromise = newPromise;
-        promise.source = newPromise;
-
-        array_reduce(messages, function (undefined, message) {
+    function become(resolvedValue) {
+        if (!pending) {
+            return;
+        }
+        value = resolve(resolvedValue);
+        array_reduce(pending, function (undefined, pending) {
             nextTick(function () {
-                newPromise.promiseDispatch.apply(newPromise, message);
+                value.promiseDispatch.apply(value, pending);
             });
         }, void 0);
-
-        messages = void 0;
+        pending = void 0;
         progressListeners = void 0;
     }
 
     deferred.promise = promise;
-    deferred.resolve = function (value) {
-        if (resolvedPromise) {
-            return;
-        }
-
-        become(Q(value));
-    };
-
+    deferred.resolve = become;
     deferred.fulfill = function (value) {
-        if (resolvedPromise) {
-            return;
-        }
-
         become(fulfill(value));
     };
-    deferred.reject = function (reason) {
-        if (resolvedPromise) {
-            return;
-        }
-
-        become(reject(reason));
+    deferred.reject = function (exception) {
+        become(reject(exception));
     };
     deferred.notify = function (progress) {
-        if (resolvedPromise) {
-            return;
+        if (pending) {
+            array_reduce(progressListeners, function (undefined, progressListener) {
+                nextTick(function () {
+                    progressListener(progress);
+                });
+            }, void 0);
         }
-
-        array_reduce(progressListeners, function (undefined, progressListener) {
-            nextTick(function () {
-                progressListener(progress);
-            });
-        }, void 0);
     };
 
     return deferred;
@@ -636,91 +435,27 @@ defer.prototype.makeNodeResolver = function () {
 };
 
 /**
- * @param resolver {Function} a function that returns nothing and accepts
+ * @param makePromise {Function} a function that returns nothing and accepts
  * the resolve, reject, and notify functions for a deferred.
  * @returns a promise that may be resolved with the given resolve and reject
- * functions, or rejected by a thrown exception in resolver
+ * functions, or rejected by a thrown exception in makePromise
  */
 Q.promise = promise;
-function promise(resolver) {
-    if (typeof resolver !== "function") {
-        throw new TypeError("resolver must be a function.");
-    }
+function promise(makePromise) {
     var deferred = defer();
-    try {
-        resolver(deferred.resolve, deferred.reject, deferred.notify);
-    } catch (reason) {
-        deferred.reject(reason);
-    }
+    fcall(
+        makePromise,
+        deferred.resolve,
+        deferred.reject,
+        deferred.notify
+    ).fail(deferred.reject);
     return deferred.promise;
 }
-
-// XXX experimental.  This method is a way to denote that a local value is
-// serializable and should be immediately dispatched to a remote upon request,
-// instead of passing a reference.
-Q.passByCopy = function (object) {
-    //freeze(object);
-    //passByCopies.set(object, true);
-    return object;
-};
-
-Promise.prototype.passByCopy = function () {
-    //freeze(object);
-    //passByCopies.set(object, true);
-    return this;
-};
-
-/**
- * If two promises eventually fulfill to the same value, promises that value,
- * but otherwise rejects.
- * @param x {Any*}
- * @param y {Any*}
- * @returns {Any*} a promise for x and y if they are the same, but a rejection
- * otherwise.
- *
- */
-Q.join = function (x, y) {
-    return Q(x).join(y);
-};
-
-Promise.prototype.join = function (that) {
-    return Q([this, that]).spread(function (x, y) {
-        if (x === y) {
-            // TODO: "===" should be Object.is or equiv
-            return x;
-        } else {
-            throw new Error("Can't join: not the same: " + x + " " + y);
-        }
-    });
-};
-
-/**
- * Returns a promise for the first of an array of promises to become fulfilled.
- * @param answers {Array[Any*]} promises to race
- * @returns {Any*} the first promise to be fulfilled
- */
-Q.race = race;
-function race(answerPs) {
-    return promise(function(resolve, reject) {
-        // Switch to this once we can assume at least ES5
-        // answerPs.forEach(function(answerP) {
-        //     Q(answerP).then(resolve, reject);
-        // });
-        // Use this in the meantime
-        for (var i = 0, len = answerPs.length; i < len; i++) {
-            Q(answerPs[i]).then(resolve, reject);
-        }
-    });
-}
-
-Promise.prototype.race = function () {
-    return this.then(Q.race);
-};
 
 /**
  * Constructs a Promise with a promise descriptor object and optional fallback
  * function.  The descriptor contains methods like when(rejected), get(name),
- * set(name, value), post(name, args), and delete(name), which all
+ * put(name, value), post(name, args), and delete(name), which all
  * return either a value, a promise for a value, or a rejection.  The fallback
  * accepts the operation name, a resolver, and any further arguments that would
  * have been forwarded to the appropriate method above had a method been
@@ -728,22 +463,15 @@ Promise.prototype.race = function () {
  * of the returned object, apart from that it is usable whereever promises are
  * bought and sold.
  */
-Q.makePromise = Promise;
-function Promise(descriptor, fallback, inspect) {
+Q.makePromise = makePromise;
+function makePromise(descriptor, fallback, valueOf, exception) {
     if (fallback === void 0) {
         fallback = function (op) {
-            return reject(new Error(
-                "Promise does not support operation: " + op
-            ));
-        };
-    }
-    if (inspect === void 0) {
-        inspect = function () {
-            return {state: "unknown"};
+            return reject(new Error("Promise does not support operation: " + op));
         };
     }
 
-    var promise = object_create(Promise.prototype);
+    var promise = object_create(makePromise.prototype);
 
     promise.promiseDispatch = function (resolve, op, args) {
         var result;
@@ -761,102 +489,285 @@ function Promise(descriptor, fallback, inspect) {
         }
     };
 
-    promise.inspect = inspect;
+    if (valueOf) {
+        promise.valueOf = valueOf;
+    }
 
-    // XXX deprecated `valueOf` and `exception` support
-    if (inspect) {
-        var inspected = inspect();
-        if (inspected.state === "rejected") {
-            promise.exception = inspected.reason;
-        }
-
-        promise.valueOf = deprecate(function () {
-            var inspected = inspect();
-            if (inspected.state === "pending" ||
-                inspected.state === "rejected") {
-                return promise;
-            }
-            return inspected.value;
-        });
+    if (exception) {
+        promise.exception = exception;
     }
 
     return promise;
 }
 
-Promise.prototype.toString = function () {
+// provide thenables, CommonJS/Promises/A
+makePromise.prototype.then = function (fulfilled, rejected, progressed) {
+    return when(this, fulfilled, rejected, progressed);
+};
+
+makePromise.prototype.thenResolve = function (value) {
+    return when(this, function () { return value; });
+};
+
+// Chainable methods
+array_reduce(
+    [
+        "isFulfilled", "isRejected", "isPending",
+        "dispatch",
+        "when", "spread",
+        "get", "put", "set", "del", "delete",
+        "post", "send", "invoke",
+        "keys",
+        "fapply", "fcall", "fbind",
+        "all", "allResolved",
+        "timeout", "delay",
+        "catch", "finally", "fail", "fin", "progress", "done",
+        "nfcall", "nfapply", "nfbind",
+        "ncall", "napply", "nbind",
+        "npost", "nsend", "ninvoke",
+        "nodeify"
+    ],
+    function (undefined, name) {
+        makePromise.prototype[name] = function () {
+            return Q[name].apply(
+                Q,
+                [this].concat(array_slice(arguments))
+            );
+        };
+    },
+    void 0
+);
+
+makePromise.prototype.toSource = function () {
+    return this.toString();
+};
+
+makePromise.prototype.toString = function () {
     return "[object Promise]";
 };
 
-Promise.prototype.then = function (fulfilled, rejected, progressed) {
-    var self = this;
-    var deferred = defer();
-    var done = false;   // ensure the untrusted promise makes at most a
-                        // single call to one of the callbacks
-
-    function _fulfilled(value) {
-        try {
-            return typeof fulfilled === "function" ? fulfilled(value) : value;
-        } catch (exception) {
-            return reject(exception);
-        }
+/**
+ * If an object is not a promise, it is as "near" as possible.
+ * If a promise is rejected, it is as "near" as possible too.
+ * If it’s a fulfilled promise, the fulfillment value is nearer.
+ * If it’s a deferred promise and the deferred has been resolved, the
+ * resolution is "nearer".
+ * @param object
+ * @returns most resolved (nearest) form of the object
+ */
+Q.nearer = valueOf;
+function valueOf(value) {
+    if (isPromise(value)) {
+        return value.valueOf();
     }
+    return value;
+}
 
-    function _rejected(exception) {
-        if (typeof rejected === "function") {
-            makeStackTraceLong(exception, self);
-            try {
-                return rejected(exception);
-            } catch (newException) {
-                return reject(newException);
-            }
-        }
-        return reject(exception);
+/**
+ * @returns whether the given object is a promise.
+ * Otherwise it is a fulfilled value.
+ */
+Q.isPromise = isPromise;
+function isPromise(object) {
+    return object && typeof object.promiseDispatch === "function";
+}
+
+Q.isPromiseAlike = isPromiseAlike;
+function isPromiseAlike(object) {
+    return object && typeof object.then === "function";
+}
+
+/**
+ * @returns whether the given object is a pending promise, meaning not
+ * fulfilled or rejected.
+ */
+Q.isPending = isPending;
+function isPending(object) {
+    return !isFulfilled(object) && !isRejected(object);
+}
+
+/**
+ * @returns whether the given object is a value or fulfilled
+ * promise.
+ */
+Q.isFulfilled = isFulfilled;
+function isFulfilled(object) {
+    return !isPromiseAlike(valueOf(object));
+}
+
+/**
+ * @returns whether the given object is a rejected promise.
+ */
+Q.isRejected = isRejected;
+function isRejected(object) {
+    object = valueOf(object);
+    return isPromise(object) && 'exception' in object;
+}
+
+var rejections = [];
+var errors = [];
+var errorsDisplayed;
+function displayErrors() {
+    if (
+        !errorsDisplayed &&
+        typeof window !== "undefined" &&
+        !window.Touch &&
+        window.console
+    ) {
+        // This promise library consumes exceptions thrown in handlers so
+        // they can be handled by a subsequent promise.  The rejected
+        // promises get added to this array when they are created, and
+        // removed when they are handled.
+        console.log("Should be empty:", errors);
     }
+    errorsDisplayed = true;
+}
 
-    function _progressed(value) {
-        return typeof progressed === "function" ? progressed(value) : value;
-    }
-
-    nextTick(function () {
-        self.promiseDispatch(function (value) {
-            if (done) {
-                return;
-            }
-            done = true;
-
-            deferred.resolve(_fulfilled(value));
-        }, "when", [function (exception) {
-            if (done) {
-                return;
-            }
-            done = true;
-
-            deferred.resolve(_rejected(exception));
-        }]);
-    });
-
-    // Progress propagator need to be attached in the current tick.
-    self.promiseDispatch(void 0, "when", [void 0, function (value) {
-        var newValue;
-        var threw = false;
-        try {
-            newValue = _progressed(value);
-        } catch (e) {
-            threw = true;
-            if (Q.onerror) {
-                Q.onerror(e);
+// Show unhandled rejection if Node exits without handling an outstanding
+// rejection.  (Note that Browserify presently produces a process global
+// without the Emitter on interface)
+if (typeof process !== "undefined" && process.on) {
+    process.on("exit", function () {
+        for (var i = 0; i < errors.length; i++) {
+            var error = errors[i];
+            if (error && typeof error.stack !== "undefined") {
+                console.warn("Unhandled rejected promise:", error.stack);
             } else {
-                throw e;
+                console.warn("Unhandled rejected promise (no stack):", error);
             }
         }
+    });
+}
 
-        if (!threw) {
-            deferred.notify(newValue);
+/**
+ * Constructs a rejected promise.
+ * @param exception value describing the failure
+ */
+Q.reject = reject;
+function reject(exception) {
+    var rejection = makePromise({
+        "when": function (rejected) {
+            // note that the error has been handled
+            if (rejected) {
+                var at = array_indexOf(rejections, this);
+                if (at !== -1) {
+                    errors.splice(at, 1);
+                    rejections.splice(at, 1);
+                }
+            }
+            return rejected ? rejected(exception) : this;
         }
-    }]);
+    }, function fallback() {
+        return reject(exception);
+    }, function valueOf() {
+        return this;
+    }, exception);
+    // note that the error has not been handled
+    displayErrors();
+    rejections.push(rejection);
+    errors.push(exception);
+    return rejection;
+}
 
+/**
+ * Constructs a fulfilled promise for an immediate reference.
+ * @param value immediate reference
+ */
+Q.fulfill = fulfill;
+function fulfill(object) {
+    return makePromise({
+        "when": function () {
+            return object;
+        },
+        "get": function (name) {
+            return object[name];
+        },
+        "set": function (name, value) {
+            object[name] = value;
+        },
+        "delete": function (name) {
+            delete object[name];
+        },
+        "post": function (name, args) {
+            // Mark Miller proposes that post with no name should apply a
+            // promised function.
+            if (name == null) { // iff name is null or undefined
+                return object.apply(void 0, args);
+            } else {
+                return object[name].apply(object, args);
+            }
+        },
+        "apply": function (args) {
+            return object.apply(void 0, args);
+        },
+        "keys": function () {
+            return object_keys(object);
+        }
+    }, void 0, function valueOf() {
+        return object;
+    });
+}
+
+/**
+ * Constructs a promise for an immediate reference, passes promises through, or
+ * coerces promises from different systems.
+ * @param value immediate reference or promise
+ */
+Q.resolve = resolve;
+function resolve(value) {
+    // If the object is already a Promise, return it directly.  This enables
+    // the resolve function to both be used to created references from objects,
+    // but to tolerably coerce non-promises to promises.
+    if (isPromise(value)) {
+        return value;
+    }
+    // In order to break infinite recursion or loops between `then` and
+    // `resolve`, it is necessary to attempt to extract fulfilled values
+    // out of foreign promise implementations before attempting to wrap
+    // them as unresolved promises.  It is my hope that other
+    // implementations will implement `valueOf` to synchronously extract
+    // the fulfillment value from their fulfilled promises.  If the
+    // other promise library does not implement `valueOf`, the
+    // implementations on primordial prototypes are harmless.
+    value = valueOf(value);
+    // assimilate thenables, CommonJS/Promises/A+
+    if (isPromiseAlike(value)) {
+        return coerce(value);
+    } else {
+        return fulfill(value);
+    }
+}
+
+/**
+ * Converts thenables to Q promises.
+ * @param promise thenable promise
+ * @returns a Q promise
+ */
+function coerce(promise) {
+    var deferred = defer();
+    promise.then(deferred.resolve, deferred.reject, deferred.notify);
     return deferred.promise;
-};
+}
+
+/**
+ * Annotates an object such that it will never be
+ * transferred away from this process over any promise
+ * communication channel.
+ * @param object
+ * @returns promise a wrapping of that object that
+ * additionally responds to the "isDef" message
+ * without a rejection.
+ */
+Q.master = master;
+function master(object) {
+    return makePromise({
+        "isDef": function () {}
+    }, function fallback(op, args) {
+        return dispatch(object, op, args);
+    }, function () {
+        return valueOf(object);
+    });
+}
 
 /**
  * Registers an observer on a promise.
@@ -876,294 +787,74 @@ Promise.prototype.then = function (fulfilled, rejected, progressed) {
  */
 Q.when = when;
 function when(value, fulfilled, rejected, progressed) {
-    return Q(value).then(fulfilled, rejected, progressed);
-}
-
-Promise.prototype.thenResolve = function (value) {
-    return this.then(function () { return value; });
-};
-
-Q.thenResolve = function (promise, value) {
-    return Q(promise).thenResolve(value);
-};
-
-Promise.prototype.thenReject = function (reason) {
-    return this.then(function () { throw reason; });
-};
-
-Q.thenReject = function (promise, reason) {
-    return Q(promise).thenReject(reason);
-};
-
-/**
- * If an object is not a promise, it is as "near" as possible.
- * If a promise is rejected, it is as "near" as possible too.
- * If it’s a fulfilled promise, the fulfillment value is nearer.
- * If it’s a deferred promise and the deferred has been resolved, the
- * resolution is "nearer".
- * @param object
- * @returns most resolved (nearest) form of the object
- */
-
-// XXX should we re-do this?
-Q.nearer = nearer;
-function nearer(value) {
-    if (isPromise(value)) {
-        var inspected = value.inspect();
-        if (inspected.state === "fulfilled") {
-            return inspected.value;
-        }
-    }
-    return value;
-}
-
-/**
- * @returns whether the given object is a promise.
- * Otherwise it is a fulfilled value.
- */
-Q.isPromise = isPromise;
-function isPromise(object) {
-    return isObject(object) &&
-        typeof object.promiseDispatch === "function" &&
-        typeof object.inspect === "function";
-}
-
-Q.isPromiseAlike = isPromiseAlike;
-function isPromiseAlike(object) {
-    return isObject(object) && typeof object.then === "function";
-}
-
-/**
- * @returns whether the given object is a pending promise, meaning not
- * fulfilled or rejected.
- */
-Q.isPending = isPending;
-function isPending(object) {
-    return isPromise(object) && object.inspect().state === "pending";
-}
-
-Promise.prototype.isPending = function () {
-    return this.inspect().state === "pending";
-};
-
-/**
- * @returns whether the given object is a value or fulfilled
- * promise.
- */
-Q.isFulfilled = isFulfilled;
-function isFulfilled(object) {
-    return !isPromise(object) || object.inspect().state === "fulfilled";
-}
-
-Promise.prototype.isFulfilled = function () {
-    return this.inspect().state === "fulfilled";
-};
-
-/**
- * @returns whether the given object is a rejected promise.
- */
-Q.isRejected = isRejected;
-function isRejected(object) {
-    return isPromise(object) && object.inspect().state === "rejected";
-}
-
-Promise.prototype.isRejected = function () {
-    return this.inspect().state === "rejected";
-};
-
-//// BEGIN UNHANDLED REJECTION TRACKING
-
-// This promise library consumes exceptions thrown in handlers so they can be
-// handled by a subsequent promise.  The exceptions get added to this array when
-// they are created, and removed when they are handled.  Note that in ES6 or
-// shimmed environments, this would naturally be a `Set`.
-var unhandledReasons = [];
-var unhandledRejections = [];
-var unhandledReasonsDisplayed = false;
-var trackUnhandledRejections = true;
-function displayUnhandledReasons() {
-    if (
-        !unhandledReasonsDisplayed &&
-        typeof window !== "undefined" &&
-        !window.Touch &&
-        window.console
-    ) {
-        console.warn("[Q] Unhandled rejection reasons (should be empty):",
-                     unhandledReasons);
-    }
-
-    unhandledReasonsDisplayed = true;
-}
-
-function logUnhandledReasons() {
-    for (var i = 0; i < unhandledReasons.length; i++) {
-        var reason = unhandledReasons[i];
-        console.warn("Unhandled rejection reason:", reason);
-    }
-}
-
-function resetUnhandledRejections() {
-    unhandledReasons.length = 0;
-    unhandledRejections.length = 0;
-    unhandledReasonsDisplayed = false;
-
-    if (!trackUnhandledRejections) {
-        trackUnhandledRejections = true;
-
-        // Show unhandled rejection reasons if Node exits without handling an
-        // outstanding rejection.  (Note that Browserify presently produces a
-        // `process` global without the `EventEmitter` `on` method.)
-        if (typeof process !== "undefined" && process.on) {
-            process.on("exit", logUnhandledReasons);
-        }
-    }
-}
-
-function trackRejection(promise, reason) {
-    if (!trackUnhandledRejections) {
-        return;
-    }
-
-    unhandledRejections.push(promise);
-    if (reason && typeof reason.stack !== "undefined") {
-        unhandledReasons.push(reason.stack);
-    } else {
-        unhandledReasons.push("(no stack) " + reason);
-    }
-    displayUnhandledReasons();
-}
-
-function untrackRejection(promise) {
-    if (!trackUnhandledRejections) {
-        return;
-    }
-
-    var at = array_indexOf(unhandledRejections, promise);
-    if (at !== -1) {
-        unhandledRejections.splice(at, 1);
-        unhandledReasons.splice(at, 1);
-    }
-}
-
-Q.resetUnhandledRejections = resetUnhandledRejections;
-
-Q.getUnhandledReasons = function () {
-    // Make a copy so that consumers can't interfere with our internal state.
-    return unhandledReasons.slice();
-};
-
-Q.stopUnhandledRejectionTracking = function () {
-    resetUnhandledRejections();
-    if (typeof process !== "undefined" && process.on) {
-        process.removeListener("exit", logUnhandledReasons);
-    }
-    trackUnhandledRejections = false;
-};
-
-resetUnhandledRejections();
-
-//// END UNHANDLED REJECTION TRACKING
-
-/**
- * Constructs a rejected promise.
- * @param reason value describing the failure
- */
-Q.reject = reject;
-function reject(reason) {
-    var rejection = Promise({
-        "when": function (rejected) {
-            // note that the error has been handled
-            if (rejected) {
-                untrackRejection(this);
-            }
-            return rejected ? rejected(reason) : this;
-        }
-    }, function fallback() {
-        return this;
-    }, function inspect() {
-        return { state: "rejected", reason: reason };
-    });
-
-    // Note that the reason has not been handled.
-    trackRejection(rejection, reason);
-
-    return rejection;
-}
-
-/**
- * Constructs a fulfilled promise for an immediate reference.
- * @param value immediate reference
- */
-Q.fulfill = fulfill;
-function fulfill(value) {
-    return Promise({
-        "when": function () {
-            return value;
-        },
-        "get": function (name) {
-            return value[name];
-        },
-        "set": function (name, rhs) {
-            value[name] = rhs;
-        },
-        "delete": function (name) {
-            delete value[name];
-        },
-        "post": function (name, args) {
-            // Mark Miller proposes that post with no name should apply a
-            // promised function.
-            if (name === null || name === void 0) {
-                return value.apply(void 0, args);
-            } else {
-                return value[name].apply(value, args);
-            }
-        },
-        "apply": function (thisp, args) {
-            return value.apply(thisp, args);
-        },
-        "keys": function () {
-            return object_keys(value);
-        }
-    }, void 0, function inspect() {
-        return { state: "fulfilled", value: value };
-    });
-}
-
-/**
- * Converts thenables to Q promises.
- * @param promise thenable promise
- * @returns a Q promise
- */
-function coerce(promise) {
     var deferred = defer();
-    nextTick(function () {
-        try {
-            promise.then(deferred.resolve, deferred.reject, deferred.notify);
-        } catch (exception) {
-            deferred.reject(exception);
-        }
-    });
-    return deferred.promise;
-}
+    var done = false;   // ensure the untrusted promise makes at most a
+                        // single call to one of the callbacks
 
-/**
- * Annotates an object such that it will never be
- * transferred away from this process over any promise
- * communication channel.
- * @param object
- * @returns promise a wrapping of that object that
- * additionally responds to the "isDef" message
- * without a rejection.
- */
-Q.master = master;
-function master(object) {
-    return Promise({
-        "isDef": function () {}
-    }, function fallback(op, args) {
-        return dispatch(object, op, args);
-    }, function () {
-        return Q(object).inspect();
+    function _fulfilled(value) {
+        try {
+            return typeof fulfilled === "function" ? fulfilled(value) : value;
+        } catch (exception) {
+            return reject(exception);
+        }
+    }
+
+    function _rejected(exception) {
+        if (typeof rejected === "function") {
+            makeStackTraceLong(exception, resolvedValue);
+            try {
+                return rejected(exception);
+            } catch (newException) {
+                return reject(newException);
+            }
+        }
+        return reject(exception);
+    }
+
+    function _progressed(value) {
+        return typeof progressed === "function" ? progressed(value) : value;
+    }
+
+    var resolvedValue = resolve(value);
+    nextTick(function () {
+        resolvedValue.promiseDispatch(function (value) {
+            if (done) {
+                return;
+            }
+            done = true;
+
+            deferred.resolve(_fulfilled(value));
+        }, "when", [function (exception) {
+            if (done) {
+                return;
+            }
+            done = true;
+
+            deferred.resolve(_rejected(exception));
+        }]);
     });
+
+    // Progress propagator need to be attached in the current tick.
+    resolvedValue.promiseDispatch(void 0, "when", [void 0, function (value) {
+        var newValue;
+        var threw = false;
+        try {
+            newValue = _progressed(value);
+        } catch (e) {
+            threw = true;
+            if (Q.onerror) {
+                Q.onerror(e);
+            } else {
+                throw e;
+            }
+        }
+
+        if (!threw) {
+            deferred.notify(newValue);
+        }
+    }]);
+
+    return deferred.promise;
 }
 
 /**
@@ -1177,27 +868,20 @@ function master(object) {
  * either callback.
  */
 Q.spread = spread;
-function spread(value, fulfilled, rejected) {
-    return Q(value).spread(fulfilled, rejected);
-}
-
-Promise.prototype.spread = function (fulfilled, rejected) {
-    return this.all().then(function (array) {
-        return fulfilled.apply(void 0, array);
+function spread(promise, fulfilled, rejected) {
+    return when(promise, function (valuesOrPromises) {
+        return all(valuesOrPromises).then(function (values) {
+            return fulfilled.apply(void 0, values);
+        }, rejected);
     }, rejected);
-};
+}
 
 /**
  * The async function is a decorator for generator functions, turning
- * them into asynchronous generators.  Although generators are only part
- * of the newest ECMAScript 6 drafts, this code does not cause syntax
- * errors in older engines.  This code should continue to work and will
- * in fact improve over time as the language improves.
- *
- * ES6 generators are currently part of V8 version 3.19 with the
- * --harmony-generators runtime flag enabled.  SpiderMonkey has had them
- * for longer, but under an older Python-inspired form.  This function
- * works on both kinds of generators.
+ * them into asynchronous generators.  This presently only works in
+ * Firefox/Spidermonkey, however, this code does not cause syntax
+ * errors in older engines.  This code should continue to work and
+ * will in fact improve over time as the language improves.
  *
  * Decorates a generator function such that:
  *  - it may yield promises
@@ -1212,6 +896,18 @@ Promise.prototype.spread = function (fulfilled, rejected) {
  *    every following yield until it is caught, or until it escapes
  *    the generator function altogether, and is translated into a
  *    rejection for the promise returned by the decorated generator.
+ *  - in present implementations of generators, when a generator
+ *    function is complete, it throws ``StopIteration``, ``return`` is
+ *    a syntax error in the presence of ``yield``, so there is no
+ *    observable return value. There is a proposal[1] to add support
+ *    for ``return``, which would permit the value to be carried by a
+ *    ``StopIteration`` instance, in which case it would fulfill the
+ *    promise returned by the asynchronous generator.  This can be
+ *    emulated today by throwing StopIteration explicitly with a value
+ *    property.
+ *
+ *  [1]: http://wiki.ecmascript.org/doku.php?id=strawman:async_functions#reference_implementation
+ *
  */
 Q.async = async;
 function async(makeGenerator) {
@@ -1220,83 +916,45 @@ function async(makeGenerator) {
         // when verb is "throw", arg is an exception
         function continuer(verb, arg) {
             var result;
-            if (hasES6Generators) {
-                try {
-                    result = generator[verb](arg);
-                } catch (exception) {
+            try {
+                result = generator[verb](arg);
+            } catch (exception) {
+                if (isStopIteration(exception)) {
+                    return exception.value;
+                } else {
                     return reject(exception);
                 }
-                if (result.done) {
-                    return result.value;
-                } else {
-                    return when(result.value, callback, errback);
-                }
-            } else {
-                // FIXME: Remove this case when SM does ES6 generators.
-                try {
-                    result = generator[verb](arg);
-                } catch (exception) {
-                    if (isStopIteration(exception)) {
-                        return exception.value;
-                    } else {
-                        return reject(exception);
-                    }
-                }
-                return when(result, callback, errback);
             }
+            return when(result, callback, errback);
         }
         var generator = makeGenerator.apply(this, arguments);
-        var callback = continuer.bind(continuer, "next");
+        var callback = continuer.bind(continuer, "send");
         var errback = continuer.bind(continuer, "throw");
         return callback();
     };
 }
 
 /**
- * The spawn function is a small wrapper around async that immediately
- * calls the generator and also ends the promise chain, so that any
- * unhandled errors are thrown instead of forwarded to the error
- * handler. This is useful because it's extremely common to run
- * generators at the top-level to work with libraries.
- */
-Q.spawn = spawn;
-function spawn(makeGenerator) {
-    Q.done(Q.async(makeGenerator)());
-}
-
-// FIXME: Remove this interface once ES6 generators are in SpiderMonkey.
-/**
  * Throws a ReturnValue exception to stop an asynchronous generator.
- *
- * This interface is a stop-gap measure to support generator return
- * values in older Firefox/SpiderMonkey.  In browsers that support ES6
- * generators like Chromium 29, just use "return" in your generator
- * functions.
- *
+ * Only useful presently in Firefox/SpiderMonkey since generators are
+ * implemented.
  * @param value the return value for the surrounding generator
  * @throws ReturnValue exception with the value.
  * @example
- * // ES6 style
- * Q.async(function* () {
- *      var foo = yield getFooPromise();
- *      var bar = yield getBarPromise();
- *      return foo + bar;
- * })
- * // Older SpiderMonkey style
  * Q.async(function () {
  *      var foo = yield getFooPromise();
  *      var bar = yield getBarPromise();
  *      Q.return(foo + bar);
  * })
  */
-Q["return"] = _return;
+Q['return'] = _return;
 function _return(value) {
     throw new QReturnValue(value);
 }
 
 /**
  * The promised function decorator ensures that any promise arguments
- * are settled and passed as values (`this` is also settled and passed
+ * are resolved and passed as values (`this` is also resolved and passed
  * as a value).  It will also ensure that the result of a function is
  * always a promise.
  *
@@ -1304,7 +962,7 @@ function _return(value) {
  * var add = Q.promised(function (a, b) {
  *     return a + b;
  * });
- * add(Q(a), Q(B));
+ * add(Q.resolve(a), Q.resolve(B));
  *
  * @param {function} callback The function to decorate
  * @returns {function} a function that has been decorated.
@@ -1327,17 +985,26 @@ function promised(callback) {
  */
 Q.dispatch = dispatch;
 function dispatch(object, op, args) {
-    return Q(object).dispatch(op, args);
-}
-
-Promise.prototype.dispatch = function (op, args) {
-    var self = this;
     var deferred = defer();
     nextTick(function () {
-        self.promiseDispatch(deferred.resolve, op, args);
+        resolve(object).promiseDispatch(deferred.resolve, op, args);
     });
     return deferred.promise;
-};
+}
+
+/**
+ * Constructs a promise method that can be used to safely observe resolution of
+ * a promise for an arbitrarily named method like "propfind" in a future turn.
+ *
+ * "dispatcher" constructs methods like "get(promise, name)" and "put(promise)".
+ */
+Q.dispatcher = dispatcher;
+function dispatcher(op) {
+    return function (object) {
+        var args = array_slice(arguments, 1);
+        return dispatch(object, op, args);
+    };
+}
 
 /**
  * Gets the value of a property in a future turn.
@@ -1345,13 +1012,7 @@ Promise.prototype.dispatch = function (op, args) {
  * @param name      name of property to get
  * @return promise for the property value
  */
-Q.get = function (object, key) {
-    return Q(object).dispatch("get", [key]);
-};
-
-Promise.prototype.get = function (key) {
-    return this.dispatch("get", [key]);
-};
+Q.get = dispatcher("get");
 
 /**
  * Sets the value of a property in a future turn.
@@ -1360,13 +1021,7 @@ Promise.prototype.get = function (key) {
  * @param value     new value of property
  * @return promise for the return value
  */
-Q.set = function (object, key, value) {
-    return Q(object).dispatch("set", [key, value]);
-};
-
-Promise.prototype.set = function (key, value) {
-    return this.dispatch("set", [key, value]);
-};
+Q.set = dispatcher("set");
 
 /**
  * Deletes a property in a future turn.
@@ -1374,15 +1029,8 @@ Promise.prototype.set = function (key, value) {
  * @param name      name of property to delete
  * @return promise for the return value
  */
-Q.del = // XXX legacy
-Q["delete"] = function (object, key) {
-    return Q(object).dispatch("delete", [key]);
-};
-
-Promise.prototype.del = // XXX legacy
-Promise.prototype["delete"] = function (key) {
-    return this.dispatch("delete", [key]);
-};
+Q["delete"] = // XXX experimental
+Q.del = dispatcher("delete");
 
 /**
  * Invokes a method in a future turn.
@@ -1397,15 +1045,7 @@ Promise.prototype["delete"] = function (key) {
  * @return promise for the return value
  */
 // bound locally because it is used by other methods
-Q.mapply = // XXX As proposed by "Redsandro"
-Q.post = function (object, name, args) {
-    return Q(object).dispatch("post", [name, args]);
-};
-
-Promise.prototype.mapply = // XXX As proposed by "Redsandro"
-Promise.prototype.post = function (name, args) {
-    return this.dispatch("post", [name, args]);
-};
+var post = Q.post = dispatcher("post");
 
 /**
  * Invokes a method in a future turn.
@@ -1414,44 +1054,31 @@ Promise.prototype.post = function (name, args) {
  * @param ...args   array of invocation arguments
  * @return promise for the return value
  */
-Q.send = // XXX Mark Miller's proposed parlance
-Q.mcall = // XXX As proposed by "Redsandro"
-Q.invoke = function (object, name /*...args*/) {
-    return Q(object).dispatch("post", [name, array_slice(arguments, 2)]);
-};
-
-Promise.prototype.send = // XXX Mark Miller's proposed parlance
-Promise.prototype.mcall = // XXX As proposed by "Redsandro"
-Promise.prototype.invoke = function (name /*...args*/) {
-    return this.dispatch("post", [name, array_slice(arguments, 1)]);
-};
+Q.send = send;
+Q.invoke = send; // synonyms
+function send(value, name) {
+    var args = array_slice(arguments, 2);
+    return post(value, name, args);
+}
 
 /**
  * Applies the promised function in a future turn.
  * @param object    promise or immediate reference for target function
  * @param args      array of application arguments
  */
-Q.fapply = function (object, args) {
-    return Q(object).dispatch("apply", [void 0, args]);
-};
-
-Promise.prototype.fapply = function (args) {
-    return this.dispatch("apply", [void 0, args]);
-};
+var fapply = Q.fapply = dispatcher("apply");
 
 /**
  * Calls the promised function in a future turn.
  * @param object    promise or immediate reference for target function
  * @param ...args   array of application arguments
  */
-Q["try"] =
-Q.fcall = function (object /* ...args*/) {
-    return Q(object).dispatch("apply", [void 0, array_slice(arguments, 1)]);
-};
-
-Promise.prototype.fcall = function (/*...args*/) {
-    return this.dispatch("apply", [void 0, array_slice(arguments)]);
-};
+Q["try"] = fcall; // XXX experimental
+Q.fcall = fcall;
+function fcall(value) {
+    var args = array_slice(arguments, 1);
+    return fapply(value, args);
+}
 
 /**
  * Binds the promised function, transforming return values into a fulfilled
@@ -1459,40 +1086,22 @@ Promise.prototype.fcall = function (/*...args*/) {
  * @param object    promise or immediate reference for target function
  * @param ...args   array of application arguments
  */
-Q.fbind = function (object /*...args*/) {
-    var promise = Q(object);
+Q.fbind = fbind;
+function fbind(value) {
     var args = array_slice(arguments, 1);
     return function fbound() {
-        return promise.dispatch("apply", [
-            this,
-            args.concat(array_slice(arguments))
-        ]);
+        var allArgs = args.concat(array_slice(arguments));
+        return fapply(value, allArgs);
     };
-};
-Promise.prototype.fbind = function (/*...args*/) {
-    var promise = this;
-    var args = array_slice(arguments);
-    return function fbound() {
-        return promise.dispatch("apply", [
-            this,
-            args.concat(array_slice(arguments))
-        ]);
-    };
-};
+}
 
 /**
  * Requests the names of the owned properties of a promised
  * object in a future turn.
  * @param object    promise or immediate reference for target object
- * @return promise for the keys of the eventually settled object
+ * @return promise for the keys of the eventually resolved object
  */
-Q.keys = function (object) {
-    return Q(object).dispatch("keys", []);
-};
-
-Promise.prototype.keys = function () {
-    return this.dispatch("keys", []);
-};
+Q.keys = dispatcher("keys");
 
 /**
  * Turns an array of promises into a promise for an array.  If any of
@@ -1506,45 +1115,33 @@ Promise.prototype.keys = function () {
 Q.all = all;
 function all(promises) {
     return when(promises, function (promises) {
-        var countDown = 0;
+        var countDown = promises.length;
+        if (countDown === 0) {
+            return resolve(promises);
+        }
         var deferred = defer();
         array_reduce(promises, function (undefined, promise, index) {
-            var snapshot;
-            if (
-                isPromise(promise) &&
-                (snapshot = promise.inspect()).state === "fulfilled"
-            ) {
-                promises[index] = snapshot.value;
+            if (isFulfilled(promise)) {
+                promises[index] = valueOf(promise);
+                if (--countDown === 0) {
+                    deferred.resolve(promises);
+                }
             } else {
-                ++countDown;
-                when(
-                    promise,
-                    function (value) {
-                        promises[index] = value;
-                        if (--countDown === 0) {
-                            deferred.resolve(promises);
-                        }
-                    },
-                    deferred.reject,
-                    function (progress) {
-                        deferred.notify({ index: index, value: progress });
+                when(promise, function (value) {
+                    promises[index] = value;
+                    if (--countDown === 0) {
+                        deferred.resolve(promises);
                     }
-                );
+                })
+                .fail(deferred.reject);
             }
         }, void 0);
-        if (countDown === 0) {
-            deferred.resolve(promises);
-        }
         return deferred.promise;
     });
 }
 
-Promise.prototype.all = function () {
-    return all(this);
-};
-
 /**
- * Waits for all promises to be settled, either fulfilled or
+ * Waits for all promises to be resolved, either fulfilled or
  * rejected.  This is distinct from `all` since that would stop
  * waiting at the first rejection.  The promise returned by
  * `allResolved` will never be rejected.
@@ -1552,10 +1149,10 @@ Promise.prototype.all = function () {
  * (or values)
  * @return a promise for an array of promises
  */
-Q.allResolved = deprecate(allResolved, "allResolved", "allSettled");
+Q.allResolved = allResolved;
 function allResolved(promises) {
     return when(promises, function (promises) {
-        promises = array_map(promises, Q);
+        promises = array_map(promises, resolve);
         return when(all(array_map(promises, function (promise) {
             return when(promise, noop, noop);
         })), function () {
@@ -1563,37 +1160,6 @@ function allResolved(promises) {
         });
     });
 }
-
-Promise.prototype.allResolved = function () {
-    return allResolved(this);
-};
-
-/**
- * @see Promise#allSettled
- */
-Q.allSettled = allSettled;
-function allSettled(promises) {
-    return Q(promises).allSettled();
-}
-
-/**
- * Turns an array of promises into a promise for an array of their states (as
- * returned by `inspect`) when they have all settled.
- * @param {Array[Any*]} values an array (or promise for an array) of values (or
- * promises for values)
- * @returns {Array[State]} an array of states for the respective values.
- */
-Promise.prototype.allSettled = function () {
-    return this.then(function (promises) {
-        return all(array_map(promises, function (promise) {
-            promise = Q(promise);
-            function regardless() {
-                return promise.inspect();
-            }
-            return promise.then(regardless, regardless);
-        }));
-    });
-};
 
 /**
  * Captures the failure of a promise, giving an oportunity to recover
@@ -1604,15 +1170,11 @@ Promise.prototype.allSettled = function () {
  * given promise is rejected
  * @returns a promise for the return value of the callback
  */
-Q.fail = // XXX legacy
-Q["catch"] = function (object, rejected) {
-    return Q(object).then(void 0, rejected);
-};
-
-Promise.prototype.fail = // XXX legacy
-Promise.prototype["catch"] = function (rejected) {
-    return this.then(void 0, rejected);
-};
+Q["catch"] = // XXX experimental
+Q.fail = fail;
+function fail(promise, rejected) {
+    return when(promise, void 0, rejected);
+}
 
 /**
  * Attaches a listener that can respond to progress notifications from a
@@ -1623,16 +1185,12 @@ Promise.prototype["catch"] = function (rejected) {
  * @returns the given promise, unchanged
  */
 Q.progress = progress;
-function progress(object, progressed) {
-    return Q(object).then(void 0, void 0, progressed);
+function progress(promise, progressed) {
+    return when(promise, void 0, void 0, progressed);
 }
 
-Promise.prototype.progress = function (progressed) {
-    return this.then(void 0, void 0, progressed);
-};
-
 /**
- * Provides an opportunity to observe the settling of a promise,
+ * Provides an opportunity to observe the rejection of a promise,
  * regardless of whether the promise is fulfilled or rejected.  Forwards
  * the resolution to the returned promise when the callback is done.
  * The callback can return a promise to defer completion.
@@ -1642,25 +1200,19 @@ Promise.prototype.progress = function (progressed) {
  * @returns a promise for the resolution of the given promise when
  * ``fin`` is done.
  */
-Q.fin = // XXX legacy
-Q["finally"] = function (object, callback) {
-    return Q(object)["finally"](callback);
-};
-
-Promise.prototype.fin = // XXX legacy
-Promise.prototype["finally"] = function (callback) {
-    callback = Q(callback);
-    return this.then(function (value) {
-        return callback.fcall().then(function () {
+Q["finally"] = // XXX experimental
+Q.fin = fin;
+function fin(promise, callback) {
+    return when(promise, function (value) {
+        return when(callback(), function () {
             return value;
         });
-    }, function (reason) {
-        // TODO attempt to recycle the rejection with "this".
-        return callback.fcall().then(function () {
-            throw reason;
+    }, function (exception) {
+        return when(callback(), function () {
+            return reject(exception);
         });
     });
-};
+}
 
 /**
  * Terminates a chain of promises, forcing rejections to be
@@ -1668,16 +1220,14 @@ Promise.prototype["finally"] = function (callback) {
  * @param {Any*} promise at the end of a chain of promises
  * @returns nothing
  */
-Q.done = function (object, fulfilled, rejected, progress) {
-    return Q(object).done(fulfilled, rejected, progress);
-};
-
-Promise.prototype.done = function (fulfilled, rejected, progress) {
+Q.done = done;
+function done(promise, fulfilled, rejected, progress) {
     var onUnhandledError = function (error) {
         // forward to a future turn so that ``when``
         // does not catch it and turn it into a rejection.
         nextTick(function () {
             makeStackTraceLong(error, promise);
+
             if (Q.onerror) {
                 Q.onerror(error);
             } else {
@@ -1687,73 +1237,62 @@ Promise.prototype.done = function (fulfilled, rejected, progress) {
     };
 
     // Avoid unnecessary `nextTick`ing via an unnecessary `when`.
-    var promise = fulfilled || rejected || progress ?
-        this.then(fulfilled, rejected, progress) :
-        this;
+    var promiseToHandle = fulfilled || rejected || progress ?
+        when(promise, fulfilled, rejected, progress) :
+        promise;
 
     if (typeof process === "object" && process && process.domain) {
         onUnhandledError = process.domain.bind(onUnhandledError);
     }
-
-    promise.then(void 0, onUnhandledError);
-};
+    fail(promiseToHandle, onUnhandledError);
+}
 
 /**
  * Causes a promise to be rejected if it does not get fulfilled before
  * some milliseconds time out.
  * @param {Any*} promise
  * @param {Number} milliseconds timeout
- * @param {String} custom error message (optional)
  * @returns a promise for the resolution of the given promise if it is
  * fulfilled before the timeout, otherwise rejected.
  */
-Q.timeout = function (object, ms, message) {
-    return Q(object).timeout(ms, message);
-};
-
-Promise.prototype.timeout = function (ms, message) {
+Q.timeout = timeout;
+function timeout(promise, ms) {
     var deferred = defer();
     var timeoutId = setTimeout(function () {
-        deferred.reject(new Error(message || "Timed out after " + ms + " ms"));
+        deferred.reject(new Error("Timed out after " + ms + " ms"));
     }, ms);
 
-    this.then(function (value) {
+    when(promise, function (value) {
         clearTimeout(timeoutId);
         deferred.resolve(value);
     }, function (exception) {
         clearTimeout(timeoutId);
         deferred.reject(exception);
-    }, deferred.notify);
+    });
 
     return deferred.promise;
-};
+}
 
 /**
- * Returns a promise for the given value (or promised value), some
- * milliseconds after it resolved. Passes rejections immediately.
+ * Returns a promise for the given value (or promised value) after some
+ * milliseconds.
  * @param {Any*} promise
  * @param {Number} milliseconds
- * @returns a promise for the resolution of the given promise after milliseconds
- * time has elapsed since the resolution of the given promise.
- * If the given promise rejects, that is passed immediately.
+ * @returns a promise for the resolution of the given promise after some
+ * time has elapsed.
  */
-Q.delay = function (object, timeout) {
+Q.delay = delay;
+function delay(promise, timeout) {
     if (timeout === void 0) {
-        timeout = object;
-        object = void 0;
+        timeout = promise;
+        promise = void 0;
     }
-    return Q(object).delay(timeout);
-};
-
-Promise.prototype.delay = function (timeout) {
-    return this.then(function (value) {
-        var deferred = defer();
-        setTimeout(function () {
-            deferred.resolve(value);
-        }, timeout);
-        return deferred.promise;
-    });
-};
+    var deferred = defer();
+    setTimeout(function () {
+        deferred.resolve(promise);
+    }, timeout);
+    return deferred.promise;
+}
 
 /**
  * Passes a continuation to a Node function, which is called with the given
@@ -1764,86 +1303,56 @@ Promise.prototype.delay = function (timeout) {
  *      })
  *
  */
-Q.nfapply = function (callback, args) {
-    return Q(callback).nfapply(args);
-};
-
-Promise.prototype.nfapply = function (args) {
-    var deferred = defer();
+Q.nfapply = nfapply;
+function nfapply(callback, args) {
     var nodeArgs = array_slice(args);
+    var deferred = defer();
     nodeArgs.push(deferred.makeNodeResolver());
-    this.fapply(nodeArgs).fail(deferred.reject);
+
+    fapply(callback, nodeArgs).fail(deferred.reject);
     return deferred.promise;
-};
+}
 
 /**
  * Passes a continuation to a Node function, which is called with the given
  * arguments provided individually, and returns a promise.
- * @example
- * Q.nfcall(FS.readFile, __filename)
- * .then(function (content) {
- * })
+ *
+ *      Q.nfcall(FS.readFile, __filename)
+ *      .then(function (content) {
+ *      })
  *
  */
-Q.nfcall = function (callback /*...args*/) {
-    var args = array_slice(arguments, 1);
-    return Q(callback).nfapply(args);
-};
-
-Promise.prototype.nfcall = function (/*...args*/) {
-    var nodeArgs = array_slice(arguments);
+Q.nfcall = nfcall;
+function nfcall(callback/*, ...args */) {
+    var nodeArgs = array_slice(arguments, 1);
     var deferred = defer();
     nodeArgs.push(deferred.makeNodeResolver());
-    this.fapply(nodeArgs).fail(deferred.reject);
+
+    fapply(callback, nodeArgs).fail(deferred.reject);
     return deferred.promise;
-};
+}
 
 /**
  * Wraps a NodeJS continuation passing function and returns an equivalent
  * version that returns a promise.
- * @example
- * Q.nfbind(FS.readFile, __filename)("utf-8")
- * .then(console.log)
- * .done()
+ *
+ *      Q.nfbind(FS.readFile, __filename)("utf-8")
+ *      .then(console.log)
+ *      .done()
+ *
  */
-Q.nfbind =
-Q.denodeify = function (callback /*...args*/) {
+Q.nfbind = nfbind;
+function nfbind(callback/*, ...args */) {
     var baseArgs = array_slice(arguments, 1);
     return function () {
         var nodeArgs = baseArgs.concat(array_slice(arguments));
         var deferred = defer();
         nodeArgs.push(deferred.makeNodeResolver());
-        Q(callback).fapply(nodeArgs).fail(deferred.reject);
+
+        fapply(callback, nodeArgs).fail(deferred.reject);
         return deferred.promise;
     };
-};
-
-Promise.prototype.nfbind =
-Promise.prototype.denodeify = function (/*...args*/) {
-    var args = array_slice(arguments);
-    args.unshift(this);
-    return Q.denodeify.apply(void 0, args);
-};
-
-Q.nbind = function (callback, thisp /*...args*/) {
-    var baseArgs = array_slice(arguments, 2);
-    return function () {
-        var nodeArgs = baseArgs.concat(array_slice(arguments));
-        var deferred = defer();
-        nodeArgs.push(deferred.makeNodeResolver());
-        function bound() {
-            return callback.apply(thisp, arguments);
-        }
-        Q(bound).fapply(nodeArgs).fail(deferred.reject);
-        return deferred.promise;
-    };
-};
-
-Promise.prototype.nbind = function (/*thisp, ...args*/) {
-    var args = array_slice(arguments, 0);
-    args.unshift(this);
-    return Q.nbind.apply(void 0, args);
-};
+}
 
 /**
  * Calls a method of a Node-style object that accepts a Node-style
@@ -1854,19 +1363,15 @@ Promise.prototype.nbind = function (/*thisp, ...args*/) {
  * will be provided by Q and appended to these arguments.
  * @returns a promise for the value or error
  */
-Q.nmapply = // XXX As proposed by "Redsandro"
-Q.npost = function (object, name, args) {
-    return Q(object).npost(name, args);
-};
-
-Promise.prototype.nmapply = // XXX As proposed by "Redsandro"
-Promise.prototype.npost = function (name, args) {
-    var nodeArgs = array_slice(args || []);
+Q.npost = npost;
+function npost(object, name, args) {
+    var nodeArgs = array_slice(args);
     var deferred = defer();
     nodeArgs.push(deferred.makeNodeResolver());
-    this.dispatch("post", [name, nodeArgs]).fail(deferred.reject);
+
+    post(object, name, nodeArgs).fail(deferred.reject);
     return deferred.promise;
-};
+}
 
 /**
  * Calls a method of a Node-style object that accepts a Node-style
@@ -1878,44 +1383,20 @@ Promise.prototype.npost = function (name, args) {
  * be provided by Q and appended to these arguments.
  * @returns a promise for the value or error
  */
-Q.nsend = // XXX Based on Mark Miller's proposed "send"
-Q.nmcall = // XXX Based on "Redsandro's" proposal
-Q.ninvoke = function (object, name /*...args*/) {
+Q.nsend = nsend;
+Q.ninvoke = Q.nsend; // synonyms
+function nsend(object, name /*, ...args*/) {
     var nodeArgs = array_slice(arguments, 2);
     var deferred = defer();
     nodeArgs.push(deferred.makeNodeResolver());
-    Q(object).dispatch("post", [name, nodeArgs]).fail(deferred.reject);
+    post(object, name, nodeArgs).fail(deferred.reject);
     return deferred.promise;
-};
-
-Promise.prototype.nsend = // XXX Based on Mark Miller's proposed "send"
-Promise.prototype.nmcall = // XXX Based on "Redsandro's" proposal
-Promise.prototype.ninvoke = function (name /*...args*/) {
-    var nodeArgs = array_slice(arguments, 1);
-    var deferred = defer();
-    nodeArgs.push(deferred.makeNodeResolver());
-    this.dispatch("post", [name, nodeArgs]).fail(deferred.reject);
-    return deferred.promise;
-};
-
-/**
- * If a function would like to support both Node continuation-passing-style and
- * promise-returning-style, it can end its internal promise chain with
- * `nodeify(nodeback)`, forwarding the optional nodeback argument.  If the user
- * elects to use a nodeback, the result will be sent there.  If they do not
- * pass a nodeback, they will receive the result promise.
- * @param object a result (or a promise for a result)
- * @param {Function} nodeback a Node.js-style callback
- * @returns either the promise or nothing
- */
-Q.nodeify = nodeify;
-function nodeify(object, nodeback) {
-    return Q(object).nodeify(nodeback);
 }
 
-Promise.prototype.nodeify = function (nodeback) {
+Q.nodeify = nodeify;
+function nodeify(promise, nodeback) {
     if (nodeback) {
-        this.then(function (value) {
+        promise.then(function (value) {
             nextTick(function () {
                 nodeback(null, value);
             });
@@ -1925,9 +1406,9 @@ Promise.prototype.nodeify = function (nodeback) {
             });
         });
     } else {
-        return this;
+        return promise;
     }
-};
+}
 
 // All code before this point will be filtered from stack traces.
 var qEndingLine = captureLine();

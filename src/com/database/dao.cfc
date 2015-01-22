@@ -564,10 +564,26 @@
 		}
 
 		/**
-		* I return a list of tables for the current database
+		* I return an array of tables for the current database
 		**/
-    	public query function getTables(){
-			return this.conn.getTables();
+    	public array function getTables(){
+			if ( isDefined('server') && structKeyExists( server, 'railo' ) ){
+				// railo does things a bit different with dbinfo.
+				var railoHacks = new railoHacks( variables.dsn );
+				// See if the table exists, if not return false;
+				var tables = railoHacks.getTables();
+				if( !tables.recordCount ){
+					return [];
+				}
+
+			}else{
+				var d = new dbinfo( datasource = variables.dsn );
+				var tables = d.tables();
+				if( !tables.recordCount ){
+					return [];
+				}
+			}
+			return listToArray( valueList( tables.table_name ) );
 		}
 
 		/**
@@ -576,7 +592,6 @@
 		public function getColumns( required string table, string prefix = table ){
 			var def = new tabledef( tablename = arguments.table, dsn = variables.dsn );
 			var cols = def.getColumns( prefix = prefix );
-			// writeDump(cols);abort;
 			if( !len( trim( cols ) ) ){
 				cols = "*";
 			}

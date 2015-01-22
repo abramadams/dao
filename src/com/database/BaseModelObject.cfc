@@ -76,7 +76,7 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		set__FromCache( false );
 		set__cacheEntities( cacheEntities );
-        // If true, will tell logIt() to actually write to log.
+		// If true, will tell logIt() to actually write to log.
 		set__debugMode( debugMode );
 
 		// Make sure we have a dao (see dao.cfc)
@@ -100,16 +100,16 @@ component accessors="true" output="false" {
 
 		variables.dropcreate = arguments.dropcreate;
 		// used to introspect the given table.
-        variables.meta =_getMetaData();
+		variables.meta =_getMetaData();
 
-        // Convenience properties so developers can find out which version they are using.
-        if( structKeyExists( variables.meta.extends, 'version' ) ){
-	        set_Norm_Version( variables.meta.extends.version );
-	        set_Norm_Updated( variables.meta.extends.updated );
-        }else if( structKeyExists( variables.meta, 'version' ) ){
-	        set_Norm_Version( variables.meta.version );
-	        set_Norm_Updated( variables.meta.updated );
-        }
+		// Convenience properties so developers can find out which version they are using.
+		if( structKeyExists( variables.meta.extends, 'version' ) ){
+			set_Norm_Version( variables.meta.extends.version );
+			set_Norm_Updated( variables.meta.extends.updated );
+		}else if( structKeyExists( variables.meta, 'version' ) ){
+			set_Norm_Version( variables.meta.version );
+			set_Norm_Updated( variables.meta.updated );
+		}
 
 
 		if( !len( trim( arguments.table ) ) ){
@@ -121,7 +121,7 @@ component accessors="true" output="false" {
 				setTable( variables.meta.extends.table );
 			// If not, use the component's name as the table name
 			}else if( structKeyExists( variables.meta, 'fullName' ) ){
-                setTable( listLast( variables.meta.fullName, '.') );
+				setTable( listLast( variables.meta.fullName, '.') );
 			}else{
 				throw('Argument: "Table" is required if the component declaration does not indicate a table.','variables','If you don''t pass in the table argument, you must specify the table attribute of the component.  I.e.  component table="table_name" {...}');
 			}
@@ -168,12 +168,12 @@ component accessors="true" output="false" {
 
 		// Setup the ID (primary key) field.  This can be used to generate id values, etc..
 		setIDField( variables.tabledef.hasColumn( arguments.IDField ) ? arguments.IDField : variables.tabledef.getPrimaryKeyColumn() );
-        setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
+		setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
 		setAutoWire( arguments.autoWire );
 		setDeleteStatusCode( arguments.deleteStatusCode );
-        variables.dao.addTableDef( variables.tabledef );
+		variables.dao.addTableDef( variables.tabledef );
 
-        variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
+		variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
 
 		// If there are more columns in the table than there are properties, let's dynamically add them
 		// This will allow us to dynamically stub out the entity "class".  So one could just create a
@@ -181,7 +181,7 @@ component accessors="true" output="false" {
 		// could directly instantiate BaseModelObject and pass it a table name and get a fully instantiated entity.
 
 		var found = false;
-		if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){
+		// if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){
 			// We'll loop through each column in the table definition and see if we have a property, if not, create one.
 			// @TODO when CF9 support is no longer needed, use an arrayFind with an anonymous function to do the search.
 			for( var col in variables.tabledef.instance.tablemeta.columns ){
@@ -228,15 +228,18 @@ component accessors="true" output="false" {
 
 				found = false;
 
+				if( getAutoWire() ){
+					resolveChildEntity( col );
+				}
 			}
-		}
+		// }
 
 
-       /**
-       * This will hijack all of the setters and inject a function that will set the
-       * isDirty flag to true anytime data changes
-       **/
-       var setter = setFunc;
+	   /**
+	   * This will hijack all of the setters and inject a function that will set the
+	   * isDirty flag to true anytime data changes
+	   **/
+	   var setter = setFunc;
 		for ( var prop in variables.meta.properties ){
 			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 
@@ -264,8 +267,9 @@ component accessors="true" output="false" {
 			}
 		}
 
-	    return this;
+		return this;
 	}
+
 	/**
 	* Convenience "factory" function to grab an instance of tabledef for the given table (or create one of one doesn't exist)
 	**/
@@ -316,7 +320,8 @@ component accessors="true" output="false" {
 				arrayAppend( privateKeys, prop.name );
 			}
 		}
-		metadata.privateKeys = privateKeys;
+		metadata["privateKeys"] = privateKeys;
+		metadata["childEntities"] = getChildEntities();
 		return metadata;
 	}
 
@@ -499,6 +504,12 @@ component accessors="true" output="false" {
 	**/
 	public boolean function isNew(){
 		return variables._isNew;
+	}
+	/**
+	* Sets the _isNew variable
+	**/
+	private void function _setIsNew( boolean val = true ){
+		variables._isNew = val;
 	}
 
 	/**
@@ -721,7 +732,7 @@ component accessors="true" output="false" {
 			){
 
 			var loadAll = ( left( originalMethodName, 7 ) is "loadAll"
-						  	|| left( originalMethodName , 11 ) is "lazyLoadAll" );
+							|| left( originalMethodName , 11 ) is "lazyLoadAll" );
 
 			// Build where clause based on function name
 			if( arguments.missingMethodName != "loadAll" && arguments.missingMethodName != "loadTop" ){
@@ -869,43 +880,60 @@ component accessors="true" output="false" {
 	* Creates a new empty instance of the entity.  If properties are passed in the new instance will
 	* be loaded with these properties.
 	**/
-	public function new( struct properties = {}, string table = getTable(), dao dao = getDao(), string IDField = getIDField() ){
+	public function new( struct properties = {}, string table = getTable(), dao dao = getDao(), string IDField = getIDField(), boolean autoWire = getAutoWire(), debugMode = get__debugMode() ){
+		// Pull from cache if it exists
+		var cacheName = "empty-bmo-#table#";
 
-		var newEntity = this;
-		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-				newEntity = new BaseModelObject(
-					dao = dao,
-					table = table,
-					// dynamicMappings = getDynamicMappings(),
-					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-					cacheEntities = get__cacheEntities(),
-					cachedWithin = getcachedWithin(),
-					IDField = IDField,
-					autoWire = getAutoWire() );
-		}else{
-			try{
-				newEntity = createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init(
-					dao = dao,
-					table = table,
-					// dynamicMappings = getDynamicMappings(),
-					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-					cacheEntities = get__cacheEntities(),
-					cachedWithin = getcachedWithin(),
-					IDField = IDField,
-					autoWire = getAutoWire() );
-			}catch( any e ){
-				newEntity = new BaseModelObject(
-					dao = dao,
-					table = table,
-					// dynamicMappings = getDynamicMappings(),
-					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-					cacheEntities = get__cacheEntities(),
-					cachedWithin = getcachedWithin(),
-					IDField = IDField,
-					autoWire = getAutoWire() );
-				// return createObject( "component", variables.meta.fullName ).init( dao = dao );
+		var start = getTickCount();
+		var newEntity = cacheGet( cacheName );
+		writeLog( 'took #getTickCount()-start# ms to load from cache');
+		start = getTickCount();
+		if( isNull( newEntity ) ){
+			if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
+					newEntity = new BaseModelObject(
+						dao = dao,
+						table = table,
+						// dynamicMappings = getDynamicMappings(),
+						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+						cacheEntities = get__cacheEntities(),
+						cachedWithin = getcachedWithin(),
+						IDField = IDField,
+						autoWire = autoWire,
+						debugMode = debugMode );
+			}else{
+				try{
+					newEntity = createObject( "component", listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table ).init(
+						dao = dao,
+						table = table,
+						// dynamicMappings = getDynamicMappings(),
+						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+						cacheEntities = get__cacheEntities(),
+						cachedWithin = getcachedWithin(),
+						IDField = IDField,
+						autoWire = autoWire,
+						debugMode = debugMode );
+				}catch( any e ){
+					newEntity = new BaseModelObject(
+						dao = dao,
+						table = table,
+						// dynamicMappings = getDynamicMappings(),
+						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+						cacheEntities = get__cacheEntities(),
+						cachedWithin = getcachedWithin(),
+						IDField = IDField,
+						autoWire = autoWire,
+						debugMode = debugMode );
+					// return createObject( "component", variables.meta.fullName ).init( dao = dao );
+				}
 			}
+			writeLog( 'took #getTickCount()-start# ms to initalize the object');
 		}
+		newEntity._setIsNew( true );
+		// Cache the empty instance for later retrieval
+		lock type="exclusive" name="#cacheName#" timeout="1"{
+			cachePut( cacheName, newEntity );
+		}
+
 		// If properties are passed in (name/value pairs of entity fields), load it as a new object populated with the property data.
 		if( structCount( properties ) ){
 			// First delete the id field from the properties struct.  If the desire is to load record if it exists, use load() directly.
@@ -1158,9 +1186,9 @@ component accessors="true" output="false" {
 							logIt('injecting closure to lazy load related entity for #table#/#property#');
 							variables[ "get" & table ] = this[ "get" & table ] = variables[ "get" & property ] = this[ "get" & property ] = _closure_getManyToOne( table = lcase( table ), property = property, fkColumn = mapping.key, pkColumn = mapping.IDField, fkValue = this[ mapping.key ] );
 
- 						}
- 						// CF9 Way
- 						// tmpChildObj = _getManyToOne( table = lcase( table ), property = property, fkColumn = structKeyExists( col, 'column' ) ? col.column : col.name, pkColumn = mapping.IDField );
+						}
+						// CF9 Way
+						// tmpChildObj = _getManyToOne( table = lcase( table ), property = property, fkColumn = structKeyExists( col, 'column' ) ? col.column : col.name, pkColumn = mapping.IDField );
 						// // If a table matches the table, a relationship was found and tmpChildObj would be an object, otherwise it would have returned
 						// // false.  We only need to inject it if it was an object.
 						// if( isObject( tmpChildObj ) ){
@@ -1262,14 +1290,49 @@ component accessors="true" output="false" {
 	/************************************************************************
 	* DYNAMIC ENTITY RELATIONSHIPS
 	************************************************************************/
+
 	/**
-	* I return an array of any child entities related to (and loaded into) the current entity.
+	* Inspects the given column and attempts to determine if it is a foriegn
+	* key to a child entity (based on dynamicMappingFKConvention.  If so,
+	* it adds that entity definition to the child mappings.
+	**/
+	private function resolveChildEntity( required string column ){
+		var children = getChildEntities();
+		// only need to do this once per entity
+		for( var child in children ){
+			if( child.name == column ){
+				return;
+			}
+		}
+
+		var regex = reReplaceNoCase( getDynamicMappingFKConvention(), '(.*?){table}(.*)', '^\1(\w*?)\2$', 'all' );
+		// If we found a field name with tihs signature, let's add the mapping
+		if( arrayLen( reMatch( regex, column ) ) ){
+			// logIt('Found Dynamic Mapping FK naming convention match "#field#" for entity #table#.');
+			var childTable = reReplaceNoCase( column, regex, '\1', 'all' );
+			if( len( trim( childTable ) ) ){
+				var childTableDef = _loadTableDef( childTable );
+				childTable = childTableDef.getTableName();
+				// only add the mapping if it is to a real table
+				// logIt('...is #childTable# a table? #childTableDef.getIsTable()#');
+				if( childTableDef.getIsTable() ){
+				var mapping = _getMapping( childTable );
+					// logIt('#childTable# with a pk col: #childTableDef.getPrimaryKeyColumn()#');
+					registerChildEntity( { name = mapping.property, table = mapping.table, type = "one-to-many", childIDField = column, parentIDField = childTableDef.getPrimaryKeyColumn() } );
+				}
+			}
+		}
+
+	}
+	/**
+	* Returns an array of any child entities related to (and loaded into) the current entity.
 	**/
 	public array function getChildEntities(){
 		return variables._children;
 	}
 
 	public function registerChildEntity( struct definition ){
+		logIt('***Registering Child Entity: #definition.name# for parent #this.getTable()#');
 		arrayAppend( variables._children, definition );
 	}
 
@@ -1321,7 +1384,7 @@ component accessors="true" output="false" {
 		this[ "get" & propertyName ] = variables[ "get" & propertyName ] = _getter;
 		this[ "has" & propertyName ] = _has;
 
-		this.registerChildEntity( { name = propertyName, table = lcase( mapping.table ), type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
+		this.registerChildEntity( { name = propertyName, table = mapping.table, type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
 
 		// Update Cache
 		if( get__cacheEntities() ){
@@ -1526,7 +1589,7 @@ component accessors="true" output="false" {
 		}else{
 			logIt('mapping for #table# did not exist');
 			// table was not found in the current mappings.
-		  	// Let's see if the passed in table is a real table and if so create a generic mapping and return it.
+			// Let's see if the passed in table is a real table and if so create a generic mapping and return it.
 			var tableDef = _loadTableDef( table );
 			logIt('is #table# a table? #tableDef.getIsTable()#');
 			if( tableDef.getIsTable() ){
@@ -1655,13 +1718,13 @@ component accessors="true" output="false" {
 	* is specified I will return the record matching that ID.  If not, I will return
 	* the record of the currently instantiated entity.
 	**/
-    public query function get( any ID ){
-        return getRecord( ID );
-    }
+	public query function get( any ID ){
+		return getRecord( ID );
+	}
 
-    /**
-    * The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
-    **/
+	/**
+	* The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
+	**/
 	/* string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID,  #this.getIDField()#' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID,#this.getIDField()#' ) )#", */
 	public query function list(
 		string columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
@@ -1689,89 +1752,89 @@ component accessors="true" output="false" {
 	/**
 	* I return a JSON array of structs representing the records matching the specified criteria; one record per array indicie.
 	**/
-    public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
-        return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys ) );
-    }
-    /**
-    * Returns a CF array of structs representing the records matching the specified criteria; one record per array indicie.
-    **/
-    public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
-        var LOCAL = {};
-        var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys );
+	public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+		return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys ) );
+	}
+	/**
+	* Returns a CF array of structs representing the records matching the specified criteria; one record per array indicie.
+	**/
+	public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+		var LOCAL = {};
+		var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys );
 
-        // Determine the indexes that we will need to loop over.
-        // To do so, check to see if we are working with a given row,
-        // or the whole record set.
-        if (arguments.row){
+		// Determine the indexes that we will need to loop over.
+		// To do so, check to see if we are working with a given row,
+		// or the whole record set.
+		if (arguments.row){
 
-            // We are only looping over one row.
-            LOCAL.fromIndex = arguments.row;
-            LOCAL.toIndex = arguments.row;
+			// We are only looping over one row.
+			LOCAL.fromIndex = arguments.row;
+			LOCAL.toIndex = arguments.row;
 
-        } else {
+		} else {
 
-            // We are looping over the entire query.
-            LOCAL.fromIndex = 1;
-            LOCAL.toIndex = query.recordCount;
+			// We are looping over the entire query.
+			LOCAL.fromIndex = 1;
+			LOCAL.toIndex = query.recordCount;
 
-        }
+		}
 
-        // Get the list of columns as an array and the column count.
-        LOCAL.columns = ListToArray( camelCase(query.columnList) );
-        LOCAL.columnCount = arrayLen( LOCAL.columns );
+		// Get the list of columns as an array and the column count.
+		LOCAL.columns = ListToArray( camelCase(query.columnList) );
+		LOCAL.columnCount = arrayLen( LOCAL.columns );
 
-        // Create an array to keep all the objects.
-        LOCAL.dataArray = [];
+		// Create an array to keep all the objects.
+		LOCAL.dataArray = [];
 
-        // Loop over the rows to create a structure for each row.
-        for ( LOCAL.rowIndex = LOCAL.fromIndex ; LOCAL.rowIndex LTE LOCAL.toIndex ; LOCAL.rowIndex++ ){
+		// Loop over the rows to create a structure for each row.
+		for ( LOCAL.rowIndex = LOCAL.fromIndex ; LOCAL.rowIndex LTE LOCAL.toIndex ; LOCAL.rowIndex++ ){
 
-            // Create a new structure for this row.
-            arrayAppend( LOCAL.dataArray, {} );
+			// Create a new structure for this row.
+			arrayAppend( LOCAL.dataArray, {} );
 
-            // Get the index of the current data array object.
-            LOCAL.dataArrayIndex = arrayLen( LOCAL.dataArray );
+			// Get the index of the current data array object.
+			LOCAL.dataArrayIndex = arrayLen( LOCAL.dataArray );
 
-            // Loop over the columns to set the structure values.
-            for ( LOCAL.columnIndex = 1 ; LOCAL.columnIndex LTE LOCAL.columnCount ; LOCAL.columnIndex++ ){
+			// Loop over the columns to set the structure values.
+			for ( LOCAL.columnIndex = 1 ; LOCAL.columnIndex LTE LOCAL.columnCount ; LOCAL.columnIndex++ ){
 
-                // Get the column value.
-                LOCAL.columnName = LOCAL.columns[ LOCAL.columnIndex ];
+				// Get the column value.
+				LOCAL.columnName = LOCAL.columns[ LOCAL.columnIndex ];
 
-                // Set column value into the structure.
-                //writeDump( [listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) ]);
-                if ( listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) == "BIT"){
-                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = val( query[ LOCAL.columnName ][ LOCAL.rowIndex ] ) ? true : false;
-                }else{
-                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
-                }
+				// Set column value into the structure.
+				//writeDump( [listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) ]);
+				if ( listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) == "BIT"){
+					LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = val( query[ LOCAL.columnName ][ LOCAL.rowIndex ] ) ? true : false;
+				}else{
+					LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
+				}
 
-            }
+			}
 
-        }
+		}
 
-        // At this point, we have an array of structure objects that
-        // represent the rows in the query over the indexes that we
-        // wanted to convert. If we did not want to convert a specific
-        // record, return the array. If we wanted to convert a single
-        // row, then return the just that STRUCTURE, not the array.
-        if (arguments.row){
+		// At this point, we have an array of structure objects that
+		// represent the rows in the query over the indexes that we
+		// wanted to convert. If we did not want to convert a specific
+		// record, return the array. If we wanted to convert a single
+		// row, then return the just that STRUCTURE, not the array.
+		if (arguments.row){
 
-            // Return the first array item.
-            return( LOCAL.dataArray[ 1 ] );
+			// Return the first array item.
+			return( LOCAL.dataArray[ 1 ] );
 
-        } else {
+		} else {
 
-            // Return the entire array.
-            return( LOCAL.dataArray );
+			// Return the entire array.
+			return( LOCAL.dataArray );
 
-        }
+		}
 
-    }
+	}
 
-    /**
-    * I return a struct representation of the object in its current state.
-    **/
+	/**
+	* I return a struct representation of the object in its current state.
+	**/
 	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1 ){
 
 			var arg = "";
@@ -1899,8 +1962,8 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * I return a JSON representation of the object in its current state.
-    **/
+	* I return a JSON representation of the object in its current state.
+	**/
 	public string function toJSON( array excludeKeys = [], numeric top = 0, boolean preserveCase = true ){
 		try {
 			return serializeJSON( this.toStruct( excludeKeys = excludeKeys, top = top, preserveCase = preserveCase ) );
@@ -1910,8 +1973,8 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * I save the current state to the database. I either insert or update based on the isNew flag
-    **/
+	* I save the current state to the database. I either insert or update based on the isNew flag
+	**/
 	public any function save( struct overrides = {}, boolean force = false, any callback ){
 
 		var tempID = this.getID();
@@ -1993,7 +2056,7 @@ component accessors="true" output="false" {
 			}
 
 			/*
-            // attach parent ID to child
+			// attach parent ID to child
 			for ( var i = 1; i LT arrayLen( variables.meta.properties ); i++ ){
 				var col = variables.meta.properties[ i ];
 
@@ -2013,11 +2076,11 @@ component accessors="true" output="false" {
 			}
 
 			callbackArgs.newID = variables['ID'] = this['ID'] = newID;
-            tempID = newID;
+			tempID = newID;
 
-            // This is the second pass of the child save routine.
-            // This pass will pick up those one-to-many relationships and
-            // persist the data with the new parent ID (this parent)
+			// This is the second pass of the child save routine.
+			// This pass will pick up those one-to-many relationships and
+			// persist the data with the new parent ID (this parent)
 			_saveTheChildren( tempID );
 
 			// Run postInsert function.
@@ -2134,8 +2197,8 @@ component accessors="true" output="false" {
 	 /* Now save any child records */
 	 logIt('_savethechildren: saving the children for #this.getTable()#:#arguments.tempID#');
 		for ( var col in variables.meta.properties ){
-	 		logIt('_savethechildren: is #col.name# a fk to a relationship?');
-	 		logIt('_savethechildren: #serializeJSON(col)#');
+			logIt('_savethechildren: is #col.name# a fk to a relationship?');
+			logIt('_savethechildren: #serializeJSON(col)#');
 
 			if( structKeyExists( col, 'fieldType' )
 				&& col.fieldType eq 'one-to-many'
@@ -2199,8 +2262,8 @@ component accessors="true" output="false" {
 	}
 
 	/**
-    * I delete the current record
-    **/
+	* I delete the current record
+	**/
 	public void function delete( boolean soft = false, any callback ){
 		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};
 		// Run preDelete function.  If it returns anything we'll
@@ -2398,15 +2461,15 @@ component accessors="true" output="false" {
 
 	/* SETUP/ALTER TABLE */
 	/**
-    * I drop the current table.
-    **/
+	* I drop the current table.
+	**/
 	private function dropTable(){
 		variables.dao.dropTable( this.getTable() );
 	}
 
 	/**
-    * I create a table based on the current object's properties.
-    **/
+	* I create a table based on the current object's properties.
+	**/
 	private function makeTable(){
 		// Throw a helpful error message if the BaseModelObject was instantiated directly.
 		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
@@ -2519,55 +2582,165 @@ component accessors="true" output="false" {
 	}
 
 /* *************************************************************************** */
-/* oData interface ( i.e. for BreezeJS )	*/
+/* oData interface ( i.e. for BreezeJS )									   */
 /* *************************************************************************** */
-
+	/**
+	* Public method to purge the currently cached oData Metadata.  This should
+	* be called any time there is a schema change (or to ensure the metadata)
+	* is generated fresh to pick up dynamically added properties/relationships.
+	* If the tables parameter is passed in we'll purge only the version of the
+	* cached object that contains those exact tables, in the exact same order.
+	**/
+	public function purgeODataMetaData( array tables = [] ){
+		var cacheName = "#this.getDAO().getDsn()#-oData-Metadata";
+		if( arrayLen( tables ) ){
+			cacheName &= tables.hashCode();
+		}
+		cacheRemove( cacheName );
+	}
 	/**
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
-	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys ){
+	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [] ){
+		var start = getTickCount();
+		var cacheName = "#this.getDAO().getDsn()#-oData-Metadata";
+		// if( arrayLen( tables ) ){
+		// 	cacheName &= tables.hashCode();
+		// }
+		// if( !ignoreCache ){
+		// 	var cached = cacheGet( cacheName );
+		// 	if( !isNull( cached ) ){
+		// 		return cached;
+		// 	}
+		// }
 		var cSpaceOSpaceMapping = [];
-		var tables = this.getDao().getTables();
-		var entityType = [];
-		var key = structKeyList( tables );
+		// if tables are passed in, only include those.
+		writeLog( "there are #arrayLen(tables)# tables specified ");
+		tables = arrayLen( tables ) ? tables : this.getDao().getTables();
+		writeLog( "now there are #arrayLen(tables)# tables specified ");
+		var entityTypes = [];
+		var entitySet = [];
+		var associationSet = [];
+		var associations = [];
 		for( table in tables ){
-			var tableName = table[ key ];
-			var tabledef = _loadTableDef( tableName );
-			var bmo[ tableName ] = new( table = tableName );
+			var tabledef = _loadTableDef( table );
+			writeLog( "grab #table# bmo ");
+			var grabstart = getTickCount();
+			var bmo[ table ] = new( table = table, autoWire = true );
+			writeLog( "took #getTickCount()-grabstart# ms to grab #table#");
 			arrayAppend( cSpaceOSpaceMapping, [
-		                "#getoDataNameSpace()#.#bmo[ tableName ].getoDataEntityName()#",
-		                "#getoDataNameSpace()#.#bmo[ tableName ].getoDataEntityName()#"
-		            ]);
+						"#getoDataNameSpace()#.#bmo[ table ].getoDataEntityName()#",
+						"#getoDataNameSpace()#.#bmo[ table ].getoDataEntityName()#"
+					]);
+			var children = bmo[ table ].getChildEntities();
+			var navigationProperties = [];
 
-			arrayAppend( entityType, {
-		            "name" = bmo[ tableName ].getoDataEntityName(),
-		            "key" = {
-		                "propertyRef" = {
-		                    "name" = lcase( bmo[ tableName ].getIDField() )
-		                }
-		            },
-		            "property" = bmo[ tableName ].generateODataProperties( excludeKeys =  excludeKeys )
-		        });
+			if( arrayLen( children ) ){
+				for( var child in children ){
+					arrayAppend( navigationProperties, {
+						"name": child.name,
+						"relationship": "Self.#child.table#_#table#",
+						"fromRole": "#child.table#_#table#_Target",
+						"toRole": "#child.table#_#table#_Source"
+					});
+					arrayAppend( associations, {
+						"name": "#child.table#_#table#",
+						"end": [
+						  {
+							"role": "#child.table#_#table#_Source",
+							"type": "Edm.Self.#table#",
+							"multiplicity": "*"
+						  },
+						  {
+							"role": "#child.table#_#table#_Target",
+							"type": "Edm.Self.#child.table#",
+							"multiplicity": "1",
+							"onDelete": {
+							  "action": "Cascade"
+							}
+						  }
+						],
+						"referentialConstraint": {
+						  "principal": {
+							"role": "#child.table#_#table#_Target",
+							"propertyRef": {
+							  "name": lcase( child.parentIdField )
+							}
+						  },
+						  "dependent": {
+							"role": "#child.table#_#table#_Source",
+							"propertyRef": {
+							  "name": lcase( child.childIdField )
+							}
+						  }
+						}
+					});
+
+					arrayAppend( associationSet, {
+						"name": "#child.table#_#table#",
+						"association": "Self.#child.table#_#table#",
+						"end": [
+							{
+								"role": "#child.table#_#table#_Source",
+								"entitySet": "#table#"
+							},
+							{
+								"role": "#child.table#_#table#_Target",
+								"entitySet": "#child.table#"
+							}
+						]
+					});
+				}
+			}
+			var entityType = {
+				"name" = bmo[ table ].getoDataEntityName(),
+				"key" = {
+					"propertyRef" = {
+						"name" = lcase( bmo[ table ].getIDField() )
+					}
+				},
+				"property" = bmo[ table ].generateODataProperties( excludeKeys =  excludeKeys )
+			};
+			if( arrayLen( navigationProperties ) ){
+				entityType[ "navigationProperty" ] = navigationProperties;
+			}
+			arrayAppend( entityTypes, entityType);
+
+			arrayAppend( entitySet, {
+				"name" = table,
+				"entityType" = "Self.#bmo[ table ].getoDataEntityName()#"
+			});
 		}
-    	var oDataMetaData = {
-		    "schema" = {
-		        "namespace" = "#getoDataNameSpace()#",
-		        "alias" = "Self",
-		        "d4p1 =UseStrongSpatialTypes" = "false",
-		        "xmlns =d4p1" = "http://schemas.microsoft.com/ado/2009/02/edm/annotation",
-		        "xmlns" = "http://schemas.microsoft.com/ado/2009/11/edm",
-		        "cSpaceOSpaceMapping" = cSpaceOSpaceMapping,
-		        "entityType" = entityType,
-		        "entityContainer" = {
-		            "name" = "#getDao().getDSN()#Context",
-		            "entitySet" = {
-		                "name" = "#getoDataNameSpace()#",
-		                "entityType" = "Self.getoDataEntityName()"
-		            }
-		        }
-		    }
-		};
 
+		// Now put all the metadata together in the oData package
+		var oDataMetaData = {
+			"schema" : {
+				"namespace" : "#getoDataNameSpace()#",
+				"alias": "Self",
+				"annotation:UseStrongSpatialTypes": "false",
+				"xmlns:annotation": "http://schemas.microsoft.com/ado/2009/02/edm/annotation",
+				"xmlns": "http://schemas.microsoft.com/ado/2009/11/edm",
+				"cSpaceOSpaceMapping" : serializeJSON( cSpaceOSpaceMapping ),
+				"entityType" : entityTypes,
+				"entityContainer" : {
+					"name" : "#getDao().getDSN()#Context",
+					"entitySet" : entitySet
+				}
+			}
+		};
+		// Now tack on any associations (relationships)
+		if( arrayLen( associations ) ){
+			oDataMetaData.schema[ "association" ] = associations;
+		}
+		if( arrayLen( associationSet ) ){
+			oDataMetaData.schema.entityContainer[ "associationSet" ] = associationSet;
+		}
+
+		lock type="exclusive" name="#this.getDAO().getDsn()#-oData-Metadata" timeout="1"{
+			cachePut( cacheName, oDataMetaData );
+		}
+
+		writeLog( "took a total of #getTickCount()-start# ms to build the oData metadata");
 		return oDataMetaData;
 	}
 
@@ -2697,7 +2870,9 @@ component accessors="true" output="false" {
 	* I return the name of the entity container, i.e. the table name. We'll use either the table name or a singularName if defined.
 	**/
 	private function getoDataEntityName(){
-		return structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : this.getTable();
+		var mapping = _getMapping( this.getTable() );
+		var entityName = structKeyExists( variables.meta, 'singularName' ) ? variables.meta.singularName : mapping.property;
+		return entityName;
 	}
 
 	/**
@@ -2722,7 +2897,7 @@ component accessors="true" output="false" {
 			/* is part of a key? */
 			if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id'
 				|| structKeyExists( col, 'uniquekey' ) || col.name == getIDField() ){
-			 	prop["name"] = lcase( col.column );
+				prop["name"] = lcase( col.column );
 				prop["isPartOfKey"] = true;
 				prop["d4p1:StoreGeneratedPattern"] = "Identity";
 				prop["nullable"] = "false";
@@ -2740,8 +2915,8 @@ component accessors="true" output="false" {
 				prop["maxLength"] = col.length;
 				/* arrayAppend( validators, {
 											"maxLength"= col.length,
-                        					"validatorName"= "maxLength"
-                        				});	 */
+											"validatorName"= "maxLength"
+										});	 */
 			}
 			if( prop["type"] == "Edm.String" ){
 				prop["unicode"] = "true";

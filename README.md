@@ -630,7 +630,7 @@ Any of your BaseModelObject entities can produce and/or consume [oData](http://w
 
 Currently we support the following oData methods:
 
-* __getODataMetaData__ - Returns oData metadata that describes the current entity ( for oData $metadata endpoint )
+* __getODataMetaData__ - Returns oData metadata that describes the entire server model ( for oData $metadata endpoint )
 * __listAsOData__ - Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 ```javascript
 // FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria

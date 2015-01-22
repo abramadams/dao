@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.64
-	   	@updated 12/30/2014
+		@version 0.0.65
+	   	@updated 1/22/2015
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -12,7 +12,6 @@
 	  ********************************************************** --->
 
 <cfcomponent output="false" accessors="true" implements="IDAOConnector">
-	<!---  implements="IDAOConnector" --->
 	<cfproperty name="dao" type="dao" />
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
@@ -430,17 +429,6 @@
 		</cfquery>
 
 		<cfreturn def />
-	</cffunction>
-
-	<cffunction name="getTables" hint="I return a list of tables for the current database." returntype="query" access="public" output="false">
-
-		<!--- <cfset var tables = getDAO().read('SHOW TABLES')> --->
-		<cfset var tables = ""/>
-		<cfquery name="tables" datasource="#variables.dsn#">
-			SHOW TABLES
-		</cfquery>
-
-		<cfreturn tables />
 	</cffunction>
 
 	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MySQL specific." returntype="struct" access="public" output="false">
