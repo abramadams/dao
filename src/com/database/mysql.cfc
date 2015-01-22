@@ -434,7 +434,11 @@
 
 	<cffunction name="getTables" hint="I return a list of tables for the current database." returntype="query" access="public" output="false">
 
-		<cfset var tables = read('SHOW TABLES')>
+		<!--- <cfset var tables = getDAO().read('SHOW TABLES')> --->
+		<cfset var tables = ""/>
+		<cfquery name="tables" datasource="#variables.dsn#">
+			SHOW TABLES
+		</cfquery>
 
 		<cfreturn tables />
 	</cffunction>

@@ -273,7 +273,8 @@ component accessors="true" output="false" {
 		if( structKeyExists( variables._tableDefs, table ) ){
 			return variables._tableDefs[ table ];
 		}
-		return new tabledef( tableName = table, dsn = getDao().getDSN() );
+		variables._tableDefs[ table ] = new tabledef( tableName = table, dsn = getDao().getDSN() );
+		return variables._tableDefs[ table ];
 	}
 	/**
 	* I inject a property into the current instance.  Shorthand for inserting the
@@ -2525,6 +2526,29 @@ component accessors="true" output="false" {
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
 	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys ){
+		var cSpaceOSpaceMapping = [];
+		var tables = this.getDao().getTables();
+		var entityType = [];
+		var key = structKeyList( tables );
+		for( table in tables ){
+			var tableName = table[ key ];
+			var tabledef = _loadTableDef( tableName );
+			var bmo[ tableName ] = new( table = tableName );
+			arrayAppend( cSpaceOSpaceMapping, [
+		                "#getoDataNameSpace()#.#bmo[ tableName ].getoDataEntityName()#",
+		                "#getoDataNameSpace()#.#bmo[ tableName ].getoDataEntityName()#"
+		            ]);
+
+			arrayAppend( entityType, {
+		            "name" = bmo[ tableName ].getoDataEntityName(),
+		            "key" = {
+		                "propertyRef" = {
+		                    "name" = lcase( bmo[ tableName ].getIDField() )
+		                }
+		            },
+		            "property" = bmo[ tableName ].generateODataProperties( excludeKeys =  excludeKeys )
+		        });
+		}
     	var oDataMetaData = {
 		    "schema" = {
 		        "namespace" = "#getoDataNameSpace()#",
@@ -2532,26 +2556,13 @@ component accessors="true" output="false" {
 		        "d4p1 =UseStrongSpatialTypes" = "false",
 		        "xmlns =d4p1" = "http://schemas.microsoft.com/ado/2009/02/edm/annotation",
 		        "xmlns" = "http://schemas.microsoft.com/ado/2009/11/edm",
-		        "cSpaceOSpaceMapping" = [
-		            [
-		                "#getoDataNameSpace()#.#getoDataEntityName()#",
-		                "#getoDataNameSpace()#.#getoDataEntityName()#"
-		            ]
-		        ],
-		        "entityType" = {
-		            "name" = getoDataEntityName(),
-		            "key" = {
-		                "propertyRef" = {
-		                    "name" = lcase( getIDField() )
-		                }
-		            },
-		            "property" = generateoDataProperties( excludeKeys =  excludeKeys )
-		        },
+		        "cSpaceOSpaceMapping" = cSpaceOSpaceMapping,
+		        "entityType" = entityType,
 		        "entityContainer" = {
 		            "name" = "#getDao().getDSN()#Context",
 		            "entitySet" = {
 		                "name" = "#getoDataNameSpace()#",
-		                "entityType" = "Self.#getoDataEntityName()#"
+		                "entityType" = "Self.getoDataEntityName()"
 		            }
 		        }
 		    }
@@ -2692,7 +2703,7 @@ component accessors="true" output="false" {
 	/**
 	* I return an array of structs containing all of the oData friendly properties of the entity (table).
 	**/
-	private function generateoDataProperties( array excludeKeys = variables.meta.privateKeys ){
+	private function generateODataProperties( array excludeKeys = variables.meta.privateKeys ){
 		var props = [];
 		//var prop = { "validators" = [] };
 		var prop = { };
@@ -2702,7 +2713,7 @@ component accessors="true" output="false" {
 			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'persistent' ) && !col.persistent ) || arrayFindNoCase( excludeKeys, col.name ) ){
 				continue;
 			}
-			prop["name"] = col.name;
+			prop["name"] = lcase(col.column);
 
 			prop["type"] = getoDataType( col.type );
 			//prop["defaultValue"] = structKeyExists( col, 'default' ) ? col.default : "";
@@ -2710,9 +2721,9 @@ component accessors="true" output="false" {
 
 			/* is part of a key? */
 			if( structKeyExists( col, 'fieldType' ) && col.fieldType == 'id'
-				|| structKeyExists( col, 'uniquekey' ) ){
-			 	prop["name"] = lcase( col.name );
-				//prop["isPartOfKey"] = true;
+				|| structKeyExists( col, 'uniquekey' ) || col.name == getIDField() ){
+			 	prop["name"] = lcase( col.column );
+				prop["isPartOfKey"] = true;
 				prop["d4p1:StoreGeneratedPattern"] = "Identity";
 				prop["nullable"] = "false";
 			}
