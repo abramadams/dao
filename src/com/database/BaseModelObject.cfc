@@ -353,7 +353,7 @@ component accessors="true" output="false" {
 		if( isSimpleValue( variables[ propName ] ) && !variables._isDirty ){
 			variables._isDirty = compare( value, variables[ propName ] ) != 0;
 		}else{
-			this.set_isDirty( true );
+			this._setIsDirty( true );
 		}
 		// logIt('set called via _setter as #propname# and dirty is: #variables._isDirty#');
 	}
@@ -374,7 +374,7 @@ component accessors="true" output="false" {
 	private function _adder( any value ){
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
-		this.set_isDirty( true );
+		this._setIsDirty( true );
 		try{
 			if( !value.isNew() ){
 				// Whole lot of rigmarole to see if the entity already exists (based on the "ID" value) before appending.
@@ -409,7 +409,7 @@ component accessors="true" output="false" {
 		var propName = getFunctionCalledName();
 		var idx = index;
 		propName = mid( propName, 7, len( propName ) );
-		this.set_isDirty( true );
+		this._setIsDirty( true );
 		try{
 			if( isObject( index ) ){
 				idx = arrayFind( variables[ propName ], index );
@@ -505,9 +505,6 @@ component accessors="true" output="false" {
 	public boolean function isNew(){
 		return variables._isNew;
 	}
-	/**
-	* Sets the _isNew variable
-	**/
 	private void function _setIsNew( boolean val = true ){
 		variables._isNew = val;
 	}
@@ -519,7 +516,7 @@ component accessors="true" output="false" {
 	public boolean function isDirty(){
 		return variables._isDirty;
 	}
-	public function set_isDirty( required boolean isDirty ){
+	private function _setIsDirty( required boolean isDirty ){
 		variables._isDirty = isDirty;
 	}
 
@@ -663,7 +660,7 @@ component accessors="true" output="false" {
 			_injectProperty( mapping.property, arguments.missingMethodArguments[ 1 ] );
 			// this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			// variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
-			this.set_isDirty( true );
+			this._setIsDirty( true );
 			logIt('#arguments.missingMethodName# :: #isDirty()#');
 
 			return this;
@@ -849,7 +846,7 @@ component accessors="true" output="false" {
 						if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
 							evaluate("set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
 						}
-						this.set_isDirty( false );
+						this._setIsDirty( false );
 					} catch ( any err ){
 						// throw( message = "Setting the value for #queryArguments[ i ]# failed." );
 						rethrow();
@@ -884,10 +881,8 @@ component accessors="true" output="false" {
 		// Pull from cache if it exists
 		var cacheName = "empty-bmo-#table#";
 
-		var start = getTickCount();
 		var newEntity = cacheGet( cacheName );
-		writeLog( 'took #getTickCount()-start# ms to load from cache');
-		start = getTickCount();
+		// If not in cache, create a new instance.
 		if( isNull( newEntity ) ){
 			if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
 					newEntity = new BaseModelObject(
@@ -926,7 +921,6 @@ component accessors="true" output="false" {
 					// return createObject( "component", variables.meta.fullName ).init( dao = dao );
 				}
 			}
-			writeLog( 'took #getTickCount()-start# ms to initalize the object');
 		}
 		newEntity._setIsNew( true );
 		// Cache the empty instance for later retrieval
@@ -1085,7 +1079,7 @@ component accessors="true" output="false" {
 					}else{
 						variables[ prop.name ] = this[ prop.name ] = arguments.ID[ prop.name ];
 					}
-					this.set_isDirty( true ); // <-- may not be, but we can't tell so better safe than sorry
+					this._setIsDirty( true ); // <-- may not be, but we can't tell so better safe than sorry
 				}
 			}
 			if ( structKeyExists( arguments.ID, getIDField() ) && !this.isNew() ){
@@ -1131,7 +1125,7 @@ component accessors="true" output="false" {
 					this[ fld ] = record[ fld ][ 1 ];
 					variables[ fld ] = record[ fld ][ 1 ];
 				}
-				this.set_isDirty( false );
+				this._setIsDirty( false );
 			}
 		}
 		/*  Now iterate the properties and see if there are any relationships we can resolve */
@@ -2020,7 +2014,7 @@ component accessors="true" output="false" {
 				// set uuid for fields set to generator="uuid"
 				if( structKeyExists( col, 'generator' ) && col.generator eq 'uuid' ){
 					variables[ col.name ] = lcase( createUUID() );
-					this.set_isDirty( true );
+					this._setIsDirty( true );
 				}
 				if( structKeyExists( col, 'formula' ) && len( trim( col.formula ) ) ){
 					variables[ col.name ] = evaluate( col.formula );
@@ -2602,32 +2596,29 @@ component accessors="true" output="false" {
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
 	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [] ){
-		var start = getTickCount();
+
 		var cacheName = "#this.getDAO().getDsn()#-oData-Metadata";
-		// if( arrayLen( tables ) ){
-		// 	cacheName &= tables.hashCode();
-		// }
-		// if( !ignoreCache ){
-		// 	var cached = cacheGet( cacheName );
-		// 	if( !isNull( cached ) ){
-		// 		return cached;
-		// 	}
-		// }
+		if( arrayLen( tables ) ){
+			cacheName &= tables.hashCode();
+		}
+		if( !ignoreCache ){
+			var cached = cacheGet( cacheName );
+			if( !isNull( cached ) ){
+				return cached;
+			}
+		}
 		var cSpaceOSpaceMapping = [];
 		// if tables are passed in, only include those.
-		writeLog( "there are #arrayLen(tables)# tables specified ");
 		tables = arrayLen( tables ) ? tables : this.getDao().getTables();
-		writeLog( "now there are #arrayLen(tables)# tables specified ");
+
 		var entityTypes = [];
 		var entitySet = [];
 		var associationSet = [];
 		var associations = [];
 		for( table in tables ){
 			var tabledef = _loadTableDef( table );
-			writeLog( "grab #table# bmo ");
-			var grabstart = getTickCount();
 			var bmo[ table ] = new( table = table, autoWire = true );
-			writeLog( "took #getTickCount()-grabstart# ms to grab #table#");
+
 			arrayAppend( cSpaceOSpaceMapping, [
 						"#getoDataNameSpace()#.#bmo[ table ].getoDataEntityName()#",
 						"#getoDataNameSpace()#.#bmo[ table ].getoDataEntityName()#"
@@ -2740,7 +2731,6 @@ component accessors="true" output="false" {
 			cachePut( cacheName, oDataMetaData );
 		}
 
-		writeLog( "took a total of #getTickCount()-start# ms to build the oData metadata");
 		return oDataMetaData;
 	}
 
