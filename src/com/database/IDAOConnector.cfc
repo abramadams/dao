@@ -42,9 +42,6 @@ interface {
 	query function define( required string tableName ) output = false
 		description="I return the structure of the passed table.";
 
-	query function getTables() output = false
-		description="I return a list of tables for the current database.";
-
 	struct function getPrimaryKey( required string tableName ) output = false
 		description="I return the primary key column name and type for the passed in table.";
 
