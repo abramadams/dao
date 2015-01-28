@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MSSQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.64
-	   	@updated 12/30/2014
+		@version 0.0.65
+	   	@updated 1/22/2015
 		Description	: Targeted database access object that will
 		controll all MSSQL specific database interaction.
 		This component will use MSSQL syntax to perform general
@@ -424,13 +424,6 @@
 		<cfset var def = table.getTableMeta()>
 
 		<cfreturn def />
-	</cffunction>
-
-	<cffunction name="getTables" hint="I return a list of tables for the current database." returntype="query" access="public" output="false">
-
-		<cfset var tables = read('SHOW TABLES')>
-
-		<cfreturn tables />
 	</cffunction>
 
 	<cffunction name="getPrimaryKey" hint="I return the primary key column name and type for the passed in table.  I am MSSQL specific." returntype="struct" output="false">

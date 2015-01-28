@@ -1,20 +1,25 @@
 dao - A ColdFusion library for easy Data Access and Object Mapping.
 ===
+#Elevator Pitch
+DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.
+
+In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 
 # Disclaimer
 Though I have been using this library for many years on many, many projects, it has never been used or tested outside
 of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
-a lot of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
+a bit of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )
 
-Also, the bulk of the dao.cfc stuff was developed in CF7-8 erra, and has been patched CF9/10 features started creeping in.  I
-am in the process of re-writing the library using the query.cfc and some other things that will break the pre-CF9 compatibility.
-For instance, this will be re-written using all script based code.
+# Requirements
+Currently this library has been actively used and tested on Railo 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).  To make the entire library work on CF9 you would need to change any code that calls _closure_*() methods as these use function expressions and closures, which break CF9.  So far I've included commented code that will make it cf9 compatible.  Simply find and uncomment the code preceded with "// CF9 Way" and comment out the code preceded with "// CF10+/Railo4+ way"
 
+# Database Platform Agnostic
+Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
+creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
+argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
+instantiate as: dao = new dao( dbType = 'otherrdbs' );
 
-# Introduction
-The goal of this library is to allow one to interact with the database in a DB platform agnostic way,
-while making it super easy.
-
+# What's in this library?
 There are two parts to this library, the first is for a more traditional DAO
 type interaction where one uses a handful of CRUD functions:
 * `dao.insert()`
@@ -26,6 +31,8 @@ as well as a general `dao.execute()` to run arbitrary SQL against the database.
 
 Using the built-in methods for CRUD provides some benefits such as being database agnostic,
 providing optional "onFinish" callbacks functions, transaction logging (for custom replication).
+
+The second part (BaseModelObject.cfc) adds a layer of ORM type functionality, plus more.
 
 # Installation
 Copy the "database" folder `(/src/com/database)` into your project (or into the folder you place your components)
@@ -211,6 +218,49 @@ Each method takes the following options:
  - cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
 * `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
 * `null` - True/False.  If true, the __value__ is considered null.
+
+# Callbacks
+DAO can automatically fire a callback method upon completion each data modifying event.  To take advantage of this, supply the a function to the "onFinish" argument of the `update`, `insert` or `delete` functions.  DAO will supply the callback with data specific to the action, or more precisely:
+* on `insert()`:
+ * table = Name of the table in which data was inserted
+ * data = A query object containing the data that was inserted into said table
+ * id = The value of the primary key that was generated (or supplied)
+* on `update()`:
+ * table = Name of the table in which data was updated
+ * data = A query object containing the data that was inserted into said table
+ * changes = An array of structs containing the actual changed data as:
+  *  column = Name of column that changed
+  *  original = Original value before the data was changed
+  *  new = Value the data was changed to
+* on `delete()`:
+ * table = Name of the table from which data was deleted
+ * id = The value of the primary key that was deleted
+In addition to the DAO supplied argumetns, you can also pass in an argument named callbackArgs to the insert/update/delete function.  These will be passed in along with the DAO supplied data to your handler method.
+```javascript
+DATA = {
+	"id" = 123,
+	"last_name" = "Bond"
+};
+dao.update( table = "users", data = DATA, onFinish = afterUpdate, callbackArgs = { "modifiedBy" : session.userId } );
+
+public function afterUpdate( response ){
+	// Simple audit logger, could get much more detailed.
+	var description = "User: #response.modifiedBy# Updated table: #response.table# ID: #response.data.ID# -- ";
+	for( var change in response.changes ){
+		description &= "Changed #change.column# from '#change.original#' to '#change.new#'. ";
+	}
+	description &= " -- at #now()#";
+	this.execute( "
+			INSERT INTO eventLog( event, description, eventDate )
+			VALUES (
+			 #this.queryParam('update')#
+			,#this.queryParam(description)#
+			,#this.queryParam(now(),'timestamp')#
+			)
+		" );
+}
+```
+>*Note*: Using the ORM-like functionality provided by BaseModelObject (see `The ORM'sh side of DAO` section below) will give you much more control over the insert/update/delete using an event model similar to the ColdFusion ORM events.
 
 # Query of Queries
 With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
@@ -618,17 +668,45 @@ pet = new Pet( dao ).lazyLoadAll();
 // then, if I only need the first name of the "user" for the second pet I'd just:
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
+# oData
+Any of your BaseModelObject entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See [examples/breezejs/README.md](examples/breezejs) for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
 
-# Requirements
-Currently this library has been actively used and tested on Railo 4x, CF9 and CF10 (though the dao.cfc stuff should work with CF8 - for now).
-There are some features that are disabled by default ( such as lazy loading child entities ), but can be "turned on" by un-commenting
-a few lines if you are running on CF10+ or Railo 4+ (uses anonymous functions)
+Currently we support the following oData methods:
 
-# Database Platform Agnostic
-Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
-creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
-argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
-instantiate as: dao = new dao( dbType = 'otherrdbs' );
+* __getODataMetaData__ - Returns oData metadata that describes the entire server model ( for oData $metadata endpoint )
+* __listAsOData__ - Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+```javascript
+// FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria
+remote function get(string $filter = "" ,string $orderby = "", string $skip = "", string $top = ""){
+	var todo = new com.database.BaseModelObject( table = "TodoItem" );
+
+	return representationOf(
+    	//returns an oData object containing all of the matching entities in our DB
+		todo.listAsoData(
+				filter = arguments.$filter,
+				orderby = arguments.$orderby,
+				skip = arguments.$skip,
+				top = arguments.$top,
+	            excludeKeys = [ "_id", "other_field_you_want_to_hide" ]
+			)
+		).withStatus(200);
+
+}
+```
+* __toODataJSON__ - Convenience function to return JSON representation of the current entity with additional oData keys.
+* __oDataSave__ - Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
+ * 	__Entities__: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
+ * 	__KeyMappings__: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
+ * 	__Errors__ (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
+ ```javascript
+ // FROM BREEZEJS SAMPLE: Taffy Resource for "post" verb to save one or more "TodoItem" records.
+	remote function post(){
+		var todo = new com.database.BaseModelObject( table = "TodoItem" );
+		var ret = todo.oDataSave( arguments.entities );
+		return representationOf( ret ).withStatus(200);
+	}
+ ```
+
 
 # More examples
 Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
@@ -639,5 +717,6 @@ Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache ser
 ```javascript
 this.cache.object = "your_cache_name_here";
 ```
+> NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.
 
 Also, the "Preserve single quotes" setting must be checked in the Railo admin.  DAO specifically passes the SQL strings through ```preserveSingleQuotes()```, but this doesn't seem to work unless you have that setting checked under `Services > Datasources`.

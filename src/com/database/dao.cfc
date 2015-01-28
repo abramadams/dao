@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.66
-	   	@updated 1/14/2015
+	  	@version 0.0.67
+	   	@updated 1/27/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -248,6 +248,7 @@
 			var LOCAL = {};
 
 			LOCAL.isDirty = false;
+			var changes = [];
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
 			if( !structKeyExists( variables.tabledefs, arguments.table) ){
@@ -290,6 +291,7 @@
 
 					LOCAL.table.setColumnIsDirty( column = column, isDirty = true );
 					LOCAL.isDirty = true;
+					arrayAppend( changes, { "column" = column,"original" = currentData[ column ][ 1 ].toString(), "new" = arguments.data[ column ].toString() } );
 				}
 			}
 
@@ -320,7 +322,7 @@
 			}
 
 			if( isCustomFunction( onFinish ) ){
-				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ] } );
+				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ], "changes" = changes } );
 				try{
 					onFinish( callbackArgs );
 				}catch(any e){
@@ -541,7 +543,9 @@
 			}else if( listFindNoCase( bit_types, arguments.type ) ){
 				ret = "cf_sql_bit";
 			}
-
+			if( !listFirst( ret, '_') == 'cf'){
+			writeDump( type );abort;
+			}
 			return ret;
 		}
 
@@ -564,10 +568,26 @@
 		}
 
 		/**
-		* I return a list of tables for the current database
+		* I return an array of tables for the current database
 		**/
-    	public query function getTables(){
-			return this.conn.getTables();
+    	public array function getTables(){
+			if ( isDefined('server') && structKeyExists( server, 'railo' ) ){
+				// railo does things a bit different with dbinfo.
+				var railoHacks = new railoHacks( variables.dsn );
+				// See if the table exists, if not return false;
+				var tables = railoHacks.getTables();
+				if( !tables.recordCount ){
+					return [];
+				}
+
+			}else{
+				var d = new dbinfo( datasource = variables.dsn );
+				var tables = d.tables();
+				if( !tables.recordCount ){
+					return [];
+				}
+			}
+			return listToArray( valueList( tables.table_name ) );
 		}
 
 		/**
@@ -576,7 +596,6 @@
 		public function getColumns( required string table, string prefix = table ){
 			var def = new tabledef( tablename = arguments.table, dsn = variables.dsn );
 			var cols = def.getColumns( prefix = prefix );
-			// writeDump(cols);abort;
 			if( !len( trim( cols ) ) ){
 				cols = "*";
 			}
@@ -813,8 +832,8 @@
 				throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
 			} catch( any e ){
 				// For Railo's sake....
-				if( reFindNoCase( "key \[.*?\] does not exist", e.message ) ){
-					e.name = reReplaceNoCase( e.message, "key \[(.*?)\] does not exist", '\1', 'all' );
+				if( reFindNoCase( "key \[.*?\] does(\snot|n't) exist", e.message ) ){
+					e.name = rEReplaceNoCase( e.message, "key \[(.*?)\] does(\snot|n't) exist", '\1', 'all' );
 					throw( message = "Expected named parameter: #e.name#, but only got #structKeyList( arguments.params )#.", detail = e, type = "DAO.parseQueryParams.MissingNamedParameter" );
 				}else{
 					rethrow;
