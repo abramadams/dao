@@ -450,7 +450,7 @@
 			</cfcatch>
 		</cftry>
 		<cfset ret.field = get.field>
-		<cfset ret.type = getDAO().getCFSQLType(get.type)>
+		<cfset ret.type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
 
 		<cfreturn ret />
 
@@ -470,7 +470,7 @@
 		<cfoutput query="get">
 			<cfset arrayAppend(ret, structNew())/>
 			<cfset ret[arrayLen(ret)].field = get.field>
-			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType(get.type)>
+			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
 		</cfoutput>
 
 		<cfreturn ret />

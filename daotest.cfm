@@ -31,7 +31,7 @@
 	json = dao.read(sql="eventLog",returnType="json", orderby = 'EVENTDATE desc', limit = 10);
 	writeDump(json);
 	// Generate the event log table used to track data interaction
-	if ( dao.getDBtype  == "mssql" ){
+	if ( dao.getDBtype()  == "mssql" ){
 		// MSSQL specific
 		dao.execute( "
 			IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'eventLog' AND xtype = 'U' )
@@ -43,7 +43,7 @@
 					eventDate date NULL
 				)
 			" );
-	} else if ( dao.getDBtype == "mysql" ){
+	} else if ( dao.getDBtype() == "mysql" ){
 
 		// MySQL specific
 		 dao.execute( "
@@ -134,12 +134,18 @@
 	dao.delete(table = 'TodoItem', recordID = '*', onFinish = afterDelete);
 
 	// Callback functions for insert/update/delete
-	public function afterUpdate( data ){
+	public function afterUpdate( response ){
+		// Simple audit logger, could get much more detailed.
+		var description = "Updated table: #response.table# ID: #response.data.ID# -- ";
+		for( var change in response.changes ){
+			description &= "Changed #change.column# from '#change.original#' to '#change.new#'. ";
+		}
+		description &= " -- at #now()#";
 		this.execute( "
 				INSERT INTO eventLog( event, description, eventDate )
 				VALUES (
 				 #this.queryParam('update')#
-				,#this.queryParam('updated #data.ID#')#
+				,#this.queryParam(description)#
 				,#this.queryParam(now(),'timestamp')#
 				)
 			" );

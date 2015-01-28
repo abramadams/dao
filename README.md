@@ -219,6 +219,49 @@ Each method takes the following options:
 * `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
 * `null` - True/False.  If true, the __value__ is considered null.
 
+# Callbacks
+DAO can automatically fire a callback method upon completion each data modifying event.  To take advantage of this, supply the a function to the "onFinish" argument of the `update`, `insert` or `delete` functions.  DAO will supply the callback with data specific to the action, or more precisely:
+* on `insert()`:
+ * table = Name of the table in which data was inserted
+ * data = A query object containing the data that was inserted into said table
+ * id = The value of the primary key that was generated (or supplied)
+* on `update()`:
+ * table = Name of the table in which data was updated
+ * data = A query object containing the data that was inserted into said table
+ * changes = An array of structs containing the actual changed data as:
+  *  column = Name of column that changed
+  *  original = Original value before the data was changed
+  *  new = Value the data was changed to
+* on `delete()`:
+ * table = Name of the table from which data was deleted
+ * id = The value of the primary key that was deleted
+In addition to the DAO supplied argumetns, you can also pass in an argument named callbackArgs to the insert/update/delete function.  These will be passed in along with the DAO supplied data to your handler method.
+```javascript
+DATA = {
+	"id" = 123,
+	"last_name" = "Bond"
+};
+dao.update( table = "users", data = DATA, onFinish = afterUpdate, callbackArgs = { "modifiedBy" : session.userId } );
+
+public function afterUpdate( response ){
+	// Simple audit logger, could get much more detailed.
+	var description = "User: #response.modifiedBy# Updated table: #response.table# ID: #response.data.ID# -- ";
+	for( var change in response.changes ){
+		description &= "Changed #change.column# from '#change.original#' to '#change.new#'. ";
+	}
+	description &= " -- at #now()#";
+	this.execute( "
+			INSERT INTO eventLog( event, description, eventDate )
+			VALUES (
+			 #this.queryParam('update')#
+			,#this.queryParam(description)#
+			,#this.queryParam(now(),'timestamp')#
+			)
+		" );
+}
+```
+>*Note*: Using the ORM-like functionality provided by BaseModelObject (see `The ORM'sh side of DAO` section below) will give you much more control over the insert/update/delete using an event model similar to the ColdFusion ORM events.
+
 # Query of Queries
 With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
 ```javascript

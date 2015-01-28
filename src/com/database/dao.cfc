@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.66
-	   	@updated 1/14/2015
+	  	@version 0.0.67
+	   	@updated 1/27/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -248,6 +248,7 @@
 			var LOCAL = {};
 
 			LOCAL.isDirty = false;
+			var changes = [];
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
 			if( !structKeyExists( variables.tabledefs, arguments.table) ){
@@ -290,6 +291,7 @@
 
 					LOCAL.table.setColumnIsDirty( column = column, isDirty = true );
 					LOCAL.isDirty = true;
+					arrayAppend( changes, { "column" = column,"original" = currentData[ column ][ 1 ].toString(), "new" = arguments.data[ column ].toString() } );
 				}
 			}
 
@@ -320,7 +322,7 @@
 			}
 
 			if( isCustomFunction( onFinish ) ){
-				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ] } );
+				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = LOCAL.table.getRows()[ IDField ], "changes" = changes } );
 				try{
 					onFinish( callbackArgs );
 				}catch(any e){
@@ -541,7 +543,9 @@
 			}else if( listFindNoCase( bit_types, arguments.type ) ){
 				ret = "cf_sql_bit";
 			}
-
+			if( !listFirst( ret, '_') == 'cf'){
+			writeDump( type );abort;
+			}
 			return ret;
 		}
 
