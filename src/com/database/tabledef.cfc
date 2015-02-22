@@ -435,7 +435,7 @@
 
 			// get the columns for the table for any schema
 			// auto-detect the database type.
-			if (isDefined('server') && structKeyExists(server,'railo')){
+			if (isDefined('server') && ( structKeyExists(server,'railo') || structKeyExists(server,'lucee') ) ){
 				// railo does things a bit different with dbinfo.
 				var railoHacks = new railoHacks( this.getDsn() );
 				// See if the table exists, if not return false;

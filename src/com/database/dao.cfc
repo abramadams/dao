@@ -339,7 +339,7 @@
 		* @columns Optional list columns to be updated.
 		* @IDField Optional ID field.
 		**/
-		public numeric function updateTable( required tabledef tabledef, string columns = "", string IDField = ""){
+		public function updateTable( required tabledef tabledef, string columns = "", string IDField = ""){
 			var ret = "";
 
 			if( !len( trim( arguments.IDField ) ) ){

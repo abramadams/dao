@@ -13,9 +13,15 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function createNewEntityInstanceWithoutProvidingDAO() test{
-     	var testEntity = new com.database.BaseModelObject();
+          var testEntity = new com.database.BaseModelObject( table = "users" );
 
-     	$assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
+     }
+     function createNewEntityInstanceWithoutProvidingDAOOrTable() test{
+
+     	var testEntity = createObject("component", "com.database.BaseModelObject");
+          $assert.throws( target = function(){ testEntity.init();} , type = "BMO.setTable" );
+
      }
 
      function loadRecordByID() test{
@@ -138,6 +144,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           // change event to 'test'
           testEntity.setEvent('not a test insert');
           testEntity.setEventDate(now());
+
           // save changes
      	testEntity.save();
 
@@ -186,17 +193,28 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadExistingEntityToStruct() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          var testEntity = new model.EventLog( dao = request.dao );
+
+          // change event to 'test'
+          testEntity.loadFirstByEvent( 'test insert' );
+
+          // now entity's getEvent should return 'test'
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+          // isNew should be false now
+          $assert.isFalse( testEntity.isNew() );
+
+          $assert.typeOf( "struct", testEntity.toStruct() );
+
+     }
+     function loadExistingEntityWithChildrenToStruct() test{
+     	var testEntity = new model.Pet( dao = request.dao );
 
      	// change event to 'test'
-     	testEntity.loadFirstByEvent( 'test insert' );
-
-     	// now entity's getEvent should return 'test'
-		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
-		// isNew should be false now
-		$assert.isFalse( testEntity.isNew() );
-
-		$assert.typeOf( "struct", testEntity.toStruct() );
+     	testEntity.load(93);
+          var testStruct = testEntity.toStruct();
+          $assert.typeOf( "struct",  testStruct );
+          $assert.isTrue( structKeyExists( testStruct, 'user' ) );
+		$assert.typeOf( "struct", testStruct.user );
 
      }
 
