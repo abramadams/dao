@@ -3,10 +3,8 @@ interface {
 	any function init(
 					required dao dao,
 					required string dsn,
-					string dbtype = "mysql",
 					string user = "",
 					string password = "",
-					string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql",
 					boolean useCFQueryParams = true ) output = false
 		description="I initialize DB Specific DAO Connector.";
 

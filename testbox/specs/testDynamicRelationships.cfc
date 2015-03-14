@@ -106,6 +106,10 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
 
      }
 
+     function lazyLoadChildren() test{
+
+     }
+
      // executes after all tests
      function afterTests(){
 

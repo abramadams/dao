@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MSSQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.65
-	   	@updated 1/22/2015
+		@version 0.0.67
+	   	@updated 2/25/2015
 		Description	: Targeted database access object that will
 		controll all MSSQL specific database interaction.
 		This component will use MSSQL syntax to perform general
@@ -12,42 +12,32 @@
 	  ********************************************************** --->
 
 
-<cfcomponent output="false" accessors="true">
-	<cfproperty name="dao" type="dao"/>
+<cfcomponent output="false" accessors="true" implements="IDAOConnector">
+	<cfproperty name="dao" type="dao" />
+	<cfproperty name="dsn" type="string" />
+	<cfproperty name="useCFQueryParams" type="boolean" />
 
-	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize mssql DAO.">
+	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
 		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
-		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mssql" />
 		<cfargument name="user" type="string" required="false" default="" hint="Data Source User Name" />
 		<cfargument name="password" type="string" required="false" default="" hint="Data Source Password" />
-		<cfargument name="transactionLogFile" type="string" required="false" hint="Database Type" default="#expandPath('/')#sql_transaction_log.sql" />
 		<cfargument name="useCFQueryParams" type="boolean" required="false" hint="Determines if execute queries will use cfqueryparam" default="true" />
 
 		<cfscript>
 
 			//This is the datasource name for the system
-			variables.dsn = Arguments.dsn;
-			variables.dao = arguments.dao;
-			variables.transactionLogFile = arguments.transactionLogFile;
-
-			this.useCFQueryParams = arguments.useCFQueryParams;
-
+			setDsn( dsn );
+			setDao( dao );
+			setUseCFQueryParams( arguments.useCFQueryParams );
 		</cfscript>
 
 		<cfreturn this />
 
 	</cffunction>
 
-	<cffunction name="getUseCFQueryParams" access="public" returntype="boolean" output="false">
-
-		<cfreturn this.useCFQueryParams />
-
-	</cffunction>
-
-
 	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MSSQL specific." returntype="any" output="false">
-		<cfquery name="get" datasource="#variables.dsn#">
+		<cfquery name="get" datasource="#getDsn()#">
 			SELECT Scope_Identity() as thekey
 		</cfquery>
 		<cfreturn get.thekey />
@@ -64,7 +54,7 @@
 		<cfset var del = "" />
 
 		<cftry>
-			<cfquery name="del" datasource="#variables.dsn#">
+			<cfquery name="del" datasource="#getDsn()#">
 				DELETE from #arguments.tablename#
 				<cfif not len(trim(arguments.IDField))>
 				WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getCFSQLType(pk.type)#" value="#arguments.recordID#">
@@ -86,7 +76,7 @@
 		<cfset var rel = "" />
 
 		<cftry>
-			<cfquery name="del" datasource="#variables.dsn#">
+			<cfquery name="del" datasource="#getDsn()#">
 				DELETE from #arguments.tablename#
 			</cfquery>
 			<cfcatch type="any">
@@ -117,7 +107,7 @@
 		<cftry>
 			<cfif listlen(trim(arguments.sql), ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 							Parse out the queryParam calls inside the where statement
@@ -138,7 +128,7 @@
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#variables.dsn#">
+					<cfquery name="get" datasource="#getDsn()#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 							Parse out the queryParam calls inside the where statement
@@ -165,7 +155,7 @@
 					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
 
 						SELECT #arguments.columns#
 						FROM (
@@ -199,7 +189,7 @@
 						</cfif>
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#variables.dsn#">
+					<cfquery name="get" datasource="#getDsn()#">
 						SELECT #arguments.columns#
 							FROM (
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#

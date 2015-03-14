@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.66
-	   	@updated 1/27/2015
+		@version 0.0.68
+	   	@updated 3/13/2015
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -13,34 +13,26 @@
 
 <cfcomponent output="false" accessors="true" implements="IDAOConnector">
 	<cfproperty name="dao" type="dao" />
+	<cfproperty name="dsn" type="string" />
+	<cfproperty name="useCFQueryParams" type="boolean" />
 
 	<cffunction name="init" access="public" output="false" displayname="DAO Constructor" hint="I initialize MySQL DAO.">
 		<cfargument name="dao" type="dao" required="true" hint="DAO object" />
 		<cfargument name="dsn" type="string" required="true" hint="Data Source Name" />
-		<cfargument name="dbtype" type="string" required="false" hint="Database Type" default="mysql" />
 		<cfargument name="user" type="string" required="false" default="" hint="Data Source User Name" />
 		<cfargument name="password" type="string" required="false" default="" hint="Data Source Password" />
-		<cfargument name="transactionLogFile" type="string" required="false" hint="Database Type" default="#expandPath('/')#sql_transaction_log.sql" />
 		<cfargument name="useCFQueryParams" type="boolean" required="false" hint="Determines if execute queries will use cfqueryparam" default="true" />
 
 		<cfscript>
 
 			//This is the datasource name for the system
-			variables.dsn = arguments.dsn;
-			variables.dao = arguments.dao;
-			variables.transactionLogFile = arguments.transactionLogFile;
-
-			this.useCFQueryParams = arguments.useCFQueryParams;
-
+			setDsn( dsn );
+			setDao( dao );
+			setUseCFQueryParams( useCFQueryParams );
+			// writeDump( [ this, serializeJSON( this ) ] );abort;
 		</cfscript>
 
 		<cfreturn this />
-
-	</cffunction>
-
-	<cffunction name="getUseCFQueryParams" access="public" returntype="boolean" output="false">
-
-		<cfreturn this.useCFQueryParams />
 
 	</cffunction>
 
@@ -48,7 +40,7 @@
 
 		<cfset var get = "" />
 
-		<cfquery name="get" datasource="#variables.dsn#">
+		<cfquery name="get" datasource="#getDsn()#">
 			Select LAST_INSERT_ID() as thekey
 		</cfquery>
 		<cfreturn get.thekey />
@@ -64,7 +56,7 @@
 		<cfset var del = "" />
 
 		<!--- <cftry> --->
-			<cfquery name="del" datasource="#variables.dsn#">
+			<cfquery name="del" datasource="#getDsn()#">
 				DELETE from #arguments.tablename#
 				<cfif not len(trim(arguments.IDField))>
 				WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getDAO().getCFSQLType(pk.type)#" value="#arguments.recordID#">
@@ -86,7 +78,7 @@
 		<cfset var rel = "" />
 
 		<!--- <cftry> --->
-			<cfquery name="del" datasource="#variables.dsn#">
+			<cfquery name="del" datasource="#getDsn()#">
 				DELETE from #arguments.tablename#
 			</cfquery>
 			<!--- <cfcatch type="any">
@@ -117,7 +109,7 @@
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -138,7 +130,7 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#variables.dsn#">
+					<cfquery name="get" datasource="#getDsn()#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -163,11 +155,12 @@
 			<cfelse>
 				<!--- Table select --->
 				<cfif !len( trim( arguments.columns ) ) >
-					<cfset arguments.columns = getSafeColumnNames(variables.dao.getColumns(arguments.table))/>
+					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
-						SELECT #getSafeColumnNames(variables.dao.getColumns(arguments.table))#
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
+						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
+						#getSafeColumnNames(getDao().getColumns(arguments.table))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 							<!---
@@ -196,9 +189,18 @@
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
+					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+						<cfquery name="count" datasource="#variables.dsn#">
+							select FOUND_ROWS() as found_rows;
+						</cfquery>
+						<cfquery name="get" dbtype="query">
+							SELECT '#count.found_rows#' __count, get.* FROM get
+						</cfquery>
+					</cfif>
 				<cfelse>
-					<cfquery name="get" datasource="#variables.dsn#">
-						SELECT #arguments.columns#
+					<cfquery name="get" datasource="#getDsn()#">
+						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
+						#arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 
@@ -229,6 +231,14 @@
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
+					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+						<cfquery name="count" datasource="#variables.dsn#">
+							select FOUND_ROWS() as found_rows;
+						</cfquery>
+						<cfquery name="get" dbtype="query">
+							SELECT '#count.found_rows#' __count, get.* FROM get
+						</cfquery>
+					</cfif>
 				</cfif>
 			</cfif>
 
@@ -236,6 +246,7 @@
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<!--- <cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement"> --->
 				<cfdump var="#tmpSQL#" label="parsed SQL Statement">
+				<cfdump var="#getDao()#" label="parameterized" abort>
 				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
@@ -423,7 +434,7 @@
 
 		<cfset var def = "" />
 
-		<cfquery name="def" datasource="#variables.dsn#">
+		<cfquery name="def" datasource="#getDsn()#">
 			<!--- DESCRIBE #arguments.tablename# --->
 			SHOW FULL COLUMNS FROM #arguments.tablename#
 		</cfquery>

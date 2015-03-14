@@ -71,12 +71,15 @@
 
 	  ********************************************************** --->
 
-<cfcomponent displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="true" accessors="true">
+<cfcomponent displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="false" accessors="true">
 
 	<cfproperty name="dsn" type="string">
 	<cfproperty name="dbtype" type="string">
-	<cfproperty name="dbversion" type="string">
+	<cfproperty name="dbversion">
+	<cfproperty name="conn">
 	<cfproperty name="writeTransactionLog" type="boolean">
+	<cfproperty name="transactionLogFile" type="string">
+	<cfproperty name="tableDefs" type="struct">
 	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
 
 	<cfset _resetCriteria() />
@@ -92,7 +95,14 @@
 		* @transactionLogFile Location to write the transaction log
 		* @useCFQueryParams Determines if execute queries will use cfqueryparam
 		**/
-		public DAO function init( string dsn = "", string dbtype = "", string user = "", string password ="", boolean writeTransactionLog = false, string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql", boolean useCFQueryParams = true, boolean autoParameterize = false ){
+		public DAO function init( string dsn = "",
+								  string dbtype = "",
+								  string user = "",
+								  string password ="",
+								  boolean writeTransactionLog = false,
+								  string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql",
+								  boolean useCFQueryParams = true,
+								  boolean autoParameterize = false ){
 			// If DSN wasn't supplied, see if there is a default dsn.
 			if( !len( trim( dsn ) ) ){
 				var = appMetaData = getApplicationMetadata();
@@ -103,31 +113,40 @@
 				}
 			}
 			//This is the datasource name for the system
-			variables.dsn = arguments.dsn;
-			variables.writeTransactionLog = arguments.writeTransactionLog;
+			setDsn( arguments.dsn );
+			setWriteTransactionLog( arguments.writeTransactionLog );
 
 			// auto-detect the database type.
 			if (isDefined('server') && structKeyExists(server,'railo')){
 				// Railo does things a bit different with dbinfo.
 				// We pull in railo's version of dbinfo call so ACF doesn't choke on it.
 				var railoHacks = new railoHacks( arguments.dsn );
-				variables.dbversion = railoHacks.getDBVersion();
+				var v = railoHacks.getDBVersion();
 			}else{
 				// This is Adobe CF's way to dbinfo
 				var d = new dbinfo( datasource = arguments.dsn );
-				variables.dbversion = d.version();
+				var v = d.version();
 			}
+			// normalize returned dbversion query into a struct
+			setDbVersion( {
+				'database_productname' = v.database_productname,
+				'database_version' = v.database_version,
+				'driver_name' = v.driver_name,
+				'driver_version' = v.driver_version,
+				'jdbc_major_version' = v.jdbc_major_version,
+				'jdbc_minor_version' = v.jdbc_minor_version
+			} );
 
 			if ( !len( trim( arguments.dbtype ) ) ){
 				arguments.dbtype = getConnecterType();
 			}
 			// This will define the type of database you are using (i.e. MySQL, MSSQL, etc)
-			variables.dbType = Arguments.dbType;
-			this.user=arguments.user;
-			this.password=arguments.password;
+			setDbType( dbType );
+			this.user = user;
+			this.password = password;
 
 			//This is the actual db specific connection.
-			this.conn = createObject( "component", variables.dbType );
+			var conn = createObject( "component", variables.dbType );
 
 			// hmmm... isInstanceOf requires the full path from root to the "type", so I'd have to know that
 			// IDAOConnector would always be in com.database.IDAOConnector
@@ -137,26 +156,22 @@
 			arrayDeleteAt( _interface, arrayLen( _interface ) );
 			arrayAppend( _interface, "IDAOConnector" );
 			_interface = arrayToList( _interface, '.' ) ;
-			if( !isInstanceOf(this.conn,_interface) ){
+			if( !isInstanceOf(conn,_interface) ){
 				throw( message = "Database Connector: ""#variables.dbType#"" must implement ""#_interface#"".", type = "DAO.init.InvalidConnector" );
 			}
 
-			// writeDump([this.conn, isInstanceOf(this.conn,"com.database.IDAOConnector"), isInstanceOf(this.conn,) & ".IDAOConnector"),GetComponentMetaData("IDAOConnector"),listDeleteAt(getComponentMetaData("IDAOConnector").fullName,listLen(getComponentMetaData("IDAOConnector").fullName, '.'),'.')] ); abort;
-			this.conn.init(
+			setTransactionLogFile( transactionLogFile );
+			setAutoParameterize( autoParameterize );
+			setTabledefs({});
+
+			conn.init(
 					dao = this,
-					dsn = variables.dsn,
-					user = arguments.user,
-					password = arguments.password,
-					dbtype = arguments.dbtype,
-					transactionLogFile = arguments.transactionLogFile,
-					useCFQueryParams = arguments.useCFQueryParams
+					dsn = getDsn(),
+					user = user,
+					password = password,
+					useCFQueryParams = useCFQueryParams
 					);
-
-			variables.transactionLogFile = arguments.transactionLogFile;
-			variables.useCFQueryParams = arguments.useCFQueryParams;
-			variables.autoParameterize = arguments.autoParameterize;
-			variables.tabledefs = {};
-
+			setConn( conn );
 
 			return this;
 		}
@@ -174,14 +189,14 @@
 		* I return the ID of the last inserted record.
 		**/
 		public function getLastID(){
-			return this.conn.getLastID();
+			return getConn().getLastID();
 		}
 
 		/**
 		* I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.
 		**/
 		public function write( required tabledef tabledef){
-			return this.conn.write( arguments.tabledef );
+			return getConn().write( arguments.tabledef );
 		}
 
 
@@ -217,7 +232,7 @@
 			}
 			/// insert it
 			if (!arguments.dryrun){
-				var newRecord = this.conn.write( LOCAL.table );
+				var newRecord = getConn().write( LOCAL.table );
 			}else{
 				return {
 						"Data" = arguments.data,
@@ -345,7 +360,7 @@
 			if( !len( trim( arguments.IDField ) ) ){
 				arguments.IDField = arguments.tabledef.getPrimaryKeyColumn();
 			}
-			return this.conn.update( tabledef = arguments.tabledef, columns = arguments.columns, IDField = arguments.IDField );
+			return getConn().update( tabledef = arguments.tabledef, columns = arguments.columns, IDField = arguments.IDField );
 
 		}
 
@@ -362,9 +377,9 @@
 				transaction{
 
 					if( arguments.RecordID is "*" ){
-						ret = this.conn.deleteAll( tablename = arguments.table );
+						ret = getConn().deleteAll( tablename = arguments.table );
 					}else{
-						ret = this.conn.delete( tablename = arguments.table, recordid = arguments.recordid, idField = arguments.idfield );
+						ret = getConn().delete( tablename = arguments.table, recordid = arguments.recordid, idField = arguments.idfield );
 					}
 				}
 			// } catch( any e ){
@@ -553,18 +568,18 @@
 		* I return the structure of the passed table.
 		**/
 		public query function define( required string table ) {
-			var def = this.conn.define( arguments.table );
+			var def = getConn().define( arguments.table );
 
 			return def;
 		}
 
 		public void function setUseCFQueryParams( required boolean useCFQueryParams ){
-			this.useCFQueryParams = arguments.useCFQueryParams;
-			this.conn.useCFQueryParams = arguments.useCFQueryParams;
+			// this.useCFQueryParams = arguments.useCFQueryParams;
+			getConn().setUseCFQueryParams( arguments.useCFQueryParams );
 		}
 
 		public boolean function getUseCFQueryParams(){
-			return this.conn.getUseCFQueryParams();
+			return getConn().getUseCFQueryParams();
 		}
 
 		/**
@@ -606,34 +621,34 @@
 		* I get the primary key for the given table. To do this I envoke the getPrimaryKey from the conneted database type.
 		**/
 		public function getPrimaryKey( required string table ){
-			return this.conn.getPrimaryKey( arguments.table );
+			return getConn().getPrimaryKey( arguments.table );
 		}
 		/**
 		* I take a list of columns and return it as a safe columns list with each column wrapped within the DB specific escape characters.
 		**/
 		public function getSafeColumnNames( required string cols ){
-			return this.conn.getSafeColumnNames( arguments.cols );;
+			return getConn().getSafeColumnNames( arguments.cols );;
 		}
 
 		/**
 		*I take a single column name and return it as a safe columns list with each column wrapped within the DB specific escape characters.
 		**/
 		public function getSafeColumnName( required string col ){
-			return this.conn.getSafeColumnName( arguments.col );
+			return getConn().getSafeColumnName( arguments.col );
 		}
 
 		/**
 		* I return the opening escape character for a column name.
 		**/
 		public function getSafeIdentifierStartChar(){
-			return this.conn.getSafeIdentifierStartChar();
+			return getConn().getSafeIdentifierStartChar();
 		}
 
 		/**
 		* I return the closing escape character for a column name.
 		**/
 		public function getSafeIdentifierEndChar(){
-			return this.conn.getSafeIdentifierEndChar();
+			return getConn().getSafeIdentifierEndChar();
 		}
 
 		public function addTableDef( required tabledef tabledef ){
@@ -1028,14 +1043,14 @@
 		* Delegates the creation of a "table" to the underlying persistence storage "connector"
 		**/
 		public tabledef function makeTable( required tabledef tabledef ){
-			return this.conn.makeTable( arguments.tabledef );
+			return getConn().makeTable( arguments.tabledef );
 		}
 
 		/**
 		* Delegates the dropping of a "table" to the underlying persistence storage "connector"
 		**/
 		public tabledef function dropTable( required string table ){
-			return this.conn.dropTable( arguments.table );
+			return getConn().dropTable( arguments.table );
 		}
 
 		// Entity Query API - Provides LINQ'ish style queries
@@ -1332,7 +1347,7 @@
 					<cfelse>
 						<!--- Query by table --->
 						<!--- abstract --->
-						<cfset LOCAL[arguments.name] = this.conn.select(
+						<cfset LOCAL[arguments.name] = getConn().select(
 															table = arguments.table,
 															columns = arguments.columns,
 															name = arguments.name,
@@ -1541,7 +1556,7 @@
 
 	</cffunction>
 
-	<cffunction name="renderSQLforView" hint="I retur the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages.">
+	<cffunction name="renderSQLforView" hint="I retur the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages." output="false">
 		<cfargument name="sql" type="string" required="true">
 		<cfset sql = reReplace( sql, chr(999), "}", "all")/>
 		<cfset sql = reReplace( sql, chr(998), "{", "all")/>

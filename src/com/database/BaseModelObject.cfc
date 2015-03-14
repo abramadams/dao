@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.3
+*   @version 0.1.4
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 2/22/2015
+*   @updated 3/13/2015
 *   @author Abram Adams
 **/
 
@@ -45,6 +45,9 @@ component accessors="true" output="false" {
 	property name="__cacheEntities" type="boolean" persistent="false";
 	property name="cachedWithin" type="any" persistent="false";
 	property name="__debugMode" type="boolean" persistent="false";
+	/* OData properties*/
+	property name="oDataVersion" type="numeric" persistent="false";
+	property name="oDataBaseUri" type="string" persistent="false";
 
 	/* Dependancies */
 	property name="dao" type="dao" persistent="false";
@@ -71,6 +74,8 @@ component accessors="true" output="false" {
 								boolean autoWire = true,
 								boolean cacheEntities = false, /* 2015-1-19 still experimental DO NOT USE */
 								boolean debugMode = false,
+								numeric oDataVersion = 3,
+								string oDataBaseUri = "/",
 								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
 
 		var LOCAL = {};
@@ -78,6 +83,9 @@ component accessors="true" output="false" {
 		set__cacheEntities( cacheEntities );
         // If true, will tell logIt() to actually write to log.
 		set__debugMode( debugMode );
+
+		setODataVersion( oDataVersion );
+		setODataBaseUri( oDataBaseUri );
 
 		// Make sure we have a dao (see dao.cfc)
 		if( isValid( "component", arguments.dao ) ){
@@ -493,7 +501,7 @@ component accessors="true" output="false" {
 			this[propName] = variables[propName] = v;
 
 			if( structKeyExists( variables, "$$__" & functionName ) ){
-				logIt('set called via setFunc as #functionName# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
+				// logIt('set called via setFunc as #functionName# and dirty is: #variables._isDirty#: new value: "#v#" original value: "#variables[propname]#"');
 				// Get the original setter function that we set aside in the init routine.
 				var tmpFunc = duplicate( variables[ "$$__" & functionName ] );
 				// tmpFunc is now the original setter so let's fire it.  The calling page
@@ -865,7 +873,7 @@ component accessors="true" output="false" {
 						// var tmpNewEntity = new();
 						logIt('instantiating new object for #this.getTable()# as part of a loadAll call.');
 						var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() );
-						tmpNewEntity.load( ID = qn, /* lazy = tmpLazy, */ parent = getParentTable() );
+						tmpNewEntity.load( ID = qn, lazy = tmpLazy, parent = getParentTable() );
 
 					}
 
@@ -1841,13 +1849,16 @@ component accessors="true" output="false" {
     **/
 	/* string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID,  #this.getIDField()#' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID,#this.getIDField()#' ) )#", */
 	public query function list(
-		string columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
+		string columns = "",
 		string where = "",
 		string limit = "",
 		string orderby = "",
 		string offset = "",
 		array excludeKeys = []){
 
+		if( columns == "" ){
+			columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
+		}
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
 		cols = reReplace( cols, "#this.getDao().getSafeIdentifierStartChar()##this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
@@ -1866,15 +1877,15 @@ component accessors="true" output="false" {
 	/**
 	* I return a JSON array of structs representing the records matching the specified criteria; one record per array indicie.
 	**/
-    public string function listAsJSON(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
-        return serializeJSON( listAsArray( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys ) );
+    public string function listAsJSON(string where = "", string columns = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+        return serializeJSON( listAsArray( where = where, columns = columns, limit = limit, orderby = orderby, row = row, offset = offset, excludeKeys = excludeKeys ) );
     }
     /**
     * Returns a CF array of structs representing the records matching the specified criteria; one record per array indicie.
     **/
-    public array function listAsArray(string where = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+    public array function listAsArray(string where = "", string columns = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
         var LOCAL = {};
-        var query = list( where = arguments.where, limit = arguments.limit, orderby = arguments.orderby, row = arguments.row, offset = arguments.offset, excludeKeys = arguments.excludeKeys );
+        var query = list( where = where, columns = columns, limit = limit, orderby = orderby, row = row, offset = offset, excludeKeys = excludeKeys );
 
         // Determine the indexes that we will need to loop over.
         // To do so, check to see if we are working with a given row,
@@ -2730,9 +2741,8 @@ component accessors="true" output="false" {
 	}
 
 /* *************************************************************************** */
-/* oData interface ( i.e. for BreezeJS )	*/
+/* oData interface ( i.e. for BreezeJS )									   */
 /* *************************************************************************** */
-
 	/**
 	* Public method to purge the currently cached oData Metadata.  This should
 	* be called any time there is a schema change (or to ensure the metadata)
@@ -2834,17 +2844,17 @@ component accessors="true" output="false" {
 								"role": "#child.table#_#table#_Target",
 								"entitySet": "#child.table#"
 							}
-		            ]
+						]
 					});
 				}
 			}
 			var entityType = {
 				"name" = bmo[ table ].getoDataEntityName(),
-		            "key" = {
-		                "propertyRef" = {
+				"key" = {
+					"propertyRef" = {
 						"name" = lcase( bmo[ table ].getIDField() )
-		                }
-		            },
+					}
+				},
 				"property" = bmo[ table ].generateODataProperties( excludeKeys =  excludeKeys )
 			};
 			if( arrayLen( navigationProperties ) ){
@@ -2856,7 +2866,7 @@ component accessors="true" output="false" {
 				"name" = table,
 				"entityType" = "Self.#bmo[ table ].getoDataEntityName()#"
 			});
-		            }
+		}
 
 		// Now put all the metadata together in the oData package
 		var oDataMetaData = {
@@ -2871,8 +2881,8 @@ component accessors="true" output="false" {
 				"entityContainer" : {
 					"name" : "#getDao().getDSN()#Context",
 					"entitySet" : entitySet
-		        }
-		    }
+				}
+			}
 		};
 		// Now tack on any associations (relationships)
 		if( arrayLen( associations ) ){
@@ -2892,7 +2902,7 @@ component accessors="true" output="false" {
 	/**
 	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
-	public array function listAsOData( string filter = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys ){
+	public function listAsOData( string filter = "", string select = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys, numeric version = getODataVersion()  ){
 		if( len(trim( filter ) ) ){
 			/* parse oDatajs filter operators */
 			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
@@ -2902,14 +2912,16 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$)', ' < $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$)', ' > $queryParam(value=\2)$\3', 'all' );
 			/* fuzzy operators */
-			filter = reReplaceNoCase( filter, '\s(substringof|contains)\s(.*?)(\)|$)', ' like $queryParam(value="%\2%")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(startswith)\s(.*?)(\)|$)', ' like $queryParam(value="\2%")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(endswith)\s(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*''(.*?)'',(.*?)(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\)|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
 
 		var list = listAsArray(
 								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "",
+								columns = select,
 								orderby = arguments.orderby,
 								offset = arguments.skip,
 								limit = arguments.top,
@@ -2919,30 +2931,51 @@ component accessors="true" output="false" {
 		var row = "";
 		var data = [];
 		try{
-		for( var i = 1; i LTE arrayLen( list ); i++ ){
-			row = list[ i ];
-			row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
-			row["$id"] = row[ getIDField() ];
-			arrayAppend( data, row );
-			row = "";
-		}
+			for( var i = 1; i LTE arrayLen( list ); i++ ){
+				row = list[ i ];
+				row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
+				row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
+				arrayAppend( data, row );
+				row = "";
+			}
 		}catch(any e ){
 			writeDump([list,e]);abort;
 		}
-		return data;
+		return serializeODataResponse( version, data );
 
 	}
 	/**
 	* Convenience function to return JSON representation of the current entity with additional oData keys
 	**/
-	public array function toODataJSON( array excludeKey = variables.meta.privateKeys ){
+	public struct function toODataJSON( array excludeKey = variables.meta.privateKeys, numeric version = getODataVersion() ){
 		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
 		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
-		data["$id"] = data[ getIDField() ];
+		row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
 
-		return [data];
+		return serializeODataResponse( version, data );
 	}
+	/**
+	* Serializes the OData response formatted per the given OData version
+	**/
+	public struct function serializeODataResponse( numeric version = getODataVersion(), required array data ){
+		switch(version) {
+		    case "3":
+		         return {
+						"__metadata": "#getODataBaseUri()#Metadata$metadata###getoDataEntityName()#",
+						"__count": arrayLen( data ) ? structKeyExists( data[1], '__count' ) ? data[1].__count : arrayLen( data ) : 0,
+						"results": data
+					};
+		    case "4":
+		         return {
+						"odata.metadata": "#getODataBaseUri()#Metadata$metadata###getoDataEntityName()#",
+						"odata.count": arrayLen( data ) ? structKeyExists( data[1], '__count' ) ? data[1].__count : arrayLen( data ) : 0,
+						"value": data
+					};
+		    default:
+		         throw('OData version #version# not supported.');
+		}
 
+	}
 	/**
 	*   Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
 	* 	Entities: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
@@ -3060,8 +3093,8 @@ component accessors="true" output="false" {
 				prop["maxLength"] = col.length;
 				/* arrayAppend( validators, {
 											"maxLength"= col.length,
-                        					"validatorName"= "maxLength"
-                        				});	 */
+											"validatorName"= "maxLength"
+										});	 */
 			}
 			if( prop["type"] == "Edm.String" ){
 				prop["unicode"] = "true";

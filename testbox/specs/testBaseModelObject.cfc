@@ -242,7 +242,8 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		$assert.typeOf( "array", list );
           $assert.isTrue( arrayLen( list ) >= 1 );
 		$assert.typeOf( "struct", list[1] );
-		$assert.isTrue( structKeyExists( list[1], 'event' ) );
+          $assert.isTrue( structKeyExists( list[1], 'event' ) );
+		$assert.isTrue( list[1].id != list[arrayLen(list)].id );
 
      }
 
