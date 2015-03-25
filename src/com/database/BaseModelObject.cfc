@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.4
+*   @version 0.1.5
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 3/13/2015
+*   @updated 3/25/2015
 *   @author Abram Adams
 **/
 
@@ -1911,6 +1911,12 @@ component accessors="true" output="false" {
         // Create an array to keep all the objects.
         LOCAL.dataArray = [];
 
+        // Define column types
+        var columnTypes = {};
+        for ( var col in LOCAL.columns ){
+        	columnTypes[ col ] = getTableDef().getCFSQLType( col );
+        }
+
         // Loop over the rows to create a structure for each row.
         for ( LOCAL.rowIndex = LOCAL.fromIndex ; LOCAL.rowIndex LTE LOCAL.toIndex ; LOCAL.rowIndex++ ){
 
@@ -1921,17 +1927,13 @@ component accessors="true" output="false" {
             LOCAL.dataArrayIndex = arrayLen( LOCAL.dataArray );
 
             // Loop over the columns to set the structure values.
-            for ( LOCAL.columnIndex = 1 ; LOCAL.columnIndex LTE LOCAL.columnCount ; LOCAL.columnIndex++ ){
-
-                // Get the column value.
-                LOCAL.columnName = LOCAL.columns[ LOCAL.columnIndex ];
+           	for ( var col in LOCAL.columns ){
 
                 // Set column value into the structure.
-                //writeDump( [listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) ]);
-                if ( listLast( getTableDef().getCFSQLType( LOCAL.columnName ), '_' ) == "BIT"){
-                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = val( query[ LOCAL.columnName ][ LOCAL.rowIndex ] ) ? true : false;
+                if ( listLast( columnTypes[ col ], '_' ) == "BIT"){
+                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ col ] = val( query[ col ][ LOCAL.rowIndex ] ) ? true : false;
                 }else{
-                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ LOCAL.columnName ] = query[ LOCAL.columnName ][ LOCAL.rowIndex ];
+                	LOCAL.dataArray[ LOCAL.dataArrayIndex ][ col ] = query[ col ][ LOCAL.rowIndex ];
                 }
 
             }
@@ -1967,7 +1969,7 @@ component accessors="true" output="false" {
 			var returnStruct = {};
 			var keysToExclude = "__debugMode,dynamicMappings,dynamicMappingFKConvention,__fromCache,__cacheEntities,parenttable,autowire,cachedwithin,_norm_version,_norm_updated,meta,prop,arg,arguments,tmpfunc,this,dao,idfield,idfieldtype,idfieldgenerator,table,tabledef,deleteStatusCode,dropcreate,dynamicMappings#ArrayToList(excludeKeys)#";
 			var props = duplicate( variables.meta.properties );
-			 // writeDump(this);abort;
+
 			// Iterate through each property and generate a struct representation
 			// writeDump(props);abort;
 			for ( var prop in props ){
@@ -1984,127 +1986,118 @@ component accessors="true" output="false" {
 				if( structKeyExists( prop, 'table' ) && structKeyExists( returnStruct, prop.table ) ){
 					structDelete( returnStruct, prop.table );
 				}
-				// try{
-					// We will bypass internal properties, as well as any "excludeKeys" we find.
-					if( !findNoCase( '$$_', arg )
-						&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
-						&& !listFindNoCase( keysToExclude, arg ) ){
-						// Now, append the property to the struct we will be returning
-						if( structKeyExists( variables, arg ) ){
-							returnStruct[ arg ] = variables[ arg ];
-						}
-						// else if( structKeyExists( prop, 'singularName' ) && structKeyExists( variables, prop.singularName ) ){
-						// 	returnStruct[ arg ] = variables[ prop.singularName ];
-						// }
-						// Checking to see if the property was appended to the struct. This prevents errors that sometimes occur if the variables[ arg ] is null (i.e. returned null from Java call )
-						if( structKeyExists( returnStruct, arg ) ){
-							writeLog('#repeatString(" ", nestLevel)#tostruct #prop.name# :: #arg# :: is simple value: #isSimpleValue(returnStruct[arg])#' );
-							// If it's not a simple value, we'll need to recursively call toStruct() to resolve all the nested structs.
-							if( !isSimpleValue( returnStruct[ arg ] )){
-								if(  top == 0 || nestLevel < arguments.top ){
-									if( isArray( returnStruct[ arg ] ) ){
-										writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an array' );
-										// var tmpval = duplicate(returnStruct[ arg ]);
-										// writeDump( returnStruct[arg]);
-										for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
-											if( isObject( returnStruct[arg][ i ] ) ){
-												writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
-												returnStruct[arg][ i ]['__level'] = nestLevel+1;
-												// writeLog('tostruct for #arg#: nested #nestLevel# deep');
-												returnStruct[arg][ i ] = returnStruct[ arg ][ i ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
-												// writeLog('tostruct for #arg# returned a struct with #structCount(returnStruct[ arg ][ i ] )# keys');
-												// if( !structCount( returnStruct[ arg ][ i ])){
-												// 	writeDump( [returnStruct[arg],arg] );abort;
-												// }
-													// writeDump( [returnStruct] );
-											}
-										}
-										// abort;
-										// writeDump(returnStruct[arg]);abort;
-										// writeDump( returnStruct);abort;
-									}else if( isObject( returnStruct[ arg ] ) ){
-										writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an object' );
-										// returnStruct['__level'] = nestLevel;
-										var col = structFindValue( variables.meta, arg );
-										col = arrayLen( col ) ? col[ 1 ] : {};
-										// Pull the actual column name from the metadata
-										var columnName = structKeyExists( col.owner, 'column' ) ? col.owner.column : '';
-										if(columnName == '' || columnName == arg ){
-											columnName = structKeyExists( col.owner, 'fkcolumn' ) ? col.owner.fkcolumn : '';
-										}
-										// At this point it is possible that the name of the property containing the child entity
-										// was used to set the FK value.  In this case, we'll use the child's table name to store that
-										// data.
-										param name="col.owner.table" default="#arg#";
-										// Set the FK field value to the actual value (instead of the instance of the child table object )
-										if( len( trim( columnName ) ) ){
-											// If relationship was resolved via entity CFC definition (i.e. another .cfc ) the child property may be an array.
-											returnStruct[ columnName ] = isArray( returnStruct[ arg ] ) ? arrayLen( returnStruct[ arg ] ) ? returnStruct[ arg ][1].getID() : '' : returnStruct[ arg ].getID();
-										}
-										// If the fk column name was the property's name we'll stuff the child data into the return struct
-										// under the key named after the table.  If that is also the name of the FK column, we'll suffix it with _data.
-										var tmpStruct = {};
-										if( columnName == arg ){
-											writeLog('#repeatString(" ", nestLevel+1)#tostruct from object');
-											tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
-											// prevent accidentally overwriting an existing key.
-											structAppend( returnStruct, tmpStruct, false );
-										}else{
-											writeLog('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
-											// Column name and property were not the same.  We'll still want to stuff the child data into the struct
-											returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
-										}
-									}
-								}else{
-									// The argument "top" was passed in.  This reduces the levels deep we dive into our relationships.
-									// We'll translate Child entities into FK fields and then use a placeholder in place of the actual child entity.
-									var col = structFindValue( variables.meta, arg );
-									// Pull the actual column name from the metadata
-									var columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'column' ) ? col[ 1 ].owner.column : '';
-									if(columnName == ''){
-										columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'fkcolumn' ) ? col[ 1 ].owner.fkcolumn : '';
-									}
-									var tmpStruct = {};
-									if( len( trim( columnName ) ) ){
 
+				// We will bypass internal properties, as well as any "excludeKeys" we find.
+				if( !findNoCase( '$$_', arg )
+					&& ( !structKeyExists( this, arg ) || !isCustomFunction( this[ arg ] ) )
+					&& !listFindNoCase( keysToExclude, arg ) ){
+					// Now, append the property to the struct we will be returning
+					if( structKeyExists( variables, arg ) ){
+						returnStruct[ arg ] = variables[ arg ];
+					}
+					// else if( structKeyExists( prop, 'singularName' ) && structKeyExists( variables, prop.singularName ) ){
+					// 	returnStruct[ arg ] = variables[ prop.singularName ];
+					// }
+					// Checking to see if the property was appended to the struct. This prevents errors that sometimes occur if the variables[ arg ] is null (i.e. returned null from Java call )
+					if( structKeyExists( returnStruct, arg ) ){
+						writeLog('#repeatString(" ", nestLevel)#tostruct #prop.name# :: #arg# :: is simple value: #isSimpleValue(returnStruct[arg])#' );
+						// If it's not a simple value, we'll need to recursively call toStruct() to resolve all the nested structs.
+						if( !isSimpleValue( returnStruct[ arg ] )){
+							if(  top == 0 || nestLevel < arguments.top ){
+								if( isArray( returnStruct[ arg ] ) ){
+									writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an array' );
+									// var tmpval = duplicate(returnStruct[ arg ]);
+									// writeDump( returnStruct[arg]);
+									for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
+										if( isObject( returnStruct[arg][ i ] ) ){
+											writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
+											returnStruct[arg][ i ]['__level'] = nestLevel+1;
+											// writeLog('tostruct for #arg#: nested #nestLevel# deep');
+											returnStruct[arg][ i ] = returnStruct[ arg ][ i ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+											// writeLog('tostruct for #arg# returned a struct with #structCount(returnStruct[ arg ][ i ] )# keys');
+											// if( !structCount( returnStruct[ arg ][ i ])){
+											// 	writeDump( [returnStruct[arg],arg] );abort;
+											// }
+												// writeDump( [returnStruct] );
+										}
+									}
+									// abort;
+									// writeDump(returnStruct[arg]);abort;
+									// writeDump( returnStruct);abort;
+								}else if( isObject( returnStruct[ arg ] ) ){
+									writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an object' );
+									// returnStruct['__level'] = nestLevel;
+									var col = structFindValue( variables.meta, arg );
+									col = arrayLen( col ) ? col[ 1 ] : {};
+									// Pull the actual column name from the metadata
+									var columnName = structKeyExists( col.owner, 'column' ) ? col.owner.column : '';
+									if(columnName == '' || columnName == arg ){
+										columnName = structKeyExists( col.owner, 'fkcolumn' ) ? col.owner.fkcolumn : '';
+									}
+									// At this point it is possible that the name of the property containing the child entity
+									// was used to set the FK value.  In this case, we'll use the child's table name to store that
+									// data.
+									param name="col.owner.table" default="#arg#";
+									// Set the FK field value to the actual value (instead of the instance of the child table object )
+									if( len( trim( columnName ) ) ){
 										// If relationship was resolved via entity CFC definition (i.e. another .cfc ) the child property may be an array.
 										returnStruct[ columnName ] = isArray( returnStruct[ arg ] ) ? arrayLen( returnStruct[ arg ] ) ? returnStruct[ arg ][1].getID() : '' : returnStruct[ arg ].getID();
-
 									}
-									param name="col[ 1 ].owner.table" default="#arg#";
+									// If the fk column name was the property's name we'll stuff the child data into the return struct
+									// under the key named after the table.  If that is also the name of the FK column, we'll suffix it with _data.
+									var tmpStruct = {};
 									if( columnName == arg ){
-										tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+										writeLog('#repeatString(" ", nestLevel+1)#tostruct from object');
+										tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
 										// prevent accidentally overwriting an existing key.
 										structAppend( returnStruct, tmpStruct, false );
 									}else{
+										writeLog('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
 										// Column name and property were not the same.  We'll still want to stuff the child data into the struct
-										tmpStruct[ arg ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
-										// prevent accidentally overwriting an existing key.
-										structAppend( returnStruct, tmpStruct, false );
+										returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
 									}
+								}
+							}else{
+								// The argument "top" was passed in.  This reduces the levels deep we dive into our relationships.
+								// We'll translate Child entities into FK fields and then use a placeholder in place of the actual child entity.
+								var col = structFindValue( variables.meta, arg );
+								// Pull the actual column name from the metadata
+								var columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'column' ) ? col[ 1 ].owner.column : '';
+								if(columnName == ''){
+									columnName = arrayLen( col ) && structKeyExists( col[ 1 ].owner, 'fkcolumn' ) ? col[ 1 ].owner.fkcolumn : '';
+								}
+								var tmpStruct = {};
+								if( len( trim( columnName ) ) ){
+
+									// If relationship was resolved via entity CFC definition (i.e. another .cfc ) the child property may be an array.
+									returnStruct[ columnName ] = isArray( returnStruct[ arg ] ) ? arrayLen( returnStruct[ arg ] ) ? returnStruct[ arg ][1].getID() : '' : returnStruct[ arg ].getID();
 
 								}
-							}else if( isNumeric( returnStruct[ arg ] )
-									&& listLast( returnStruct[ arg ], '.' ) GT 0 ){
-								// Since CF likes to convert our numbers to strings, let's javacast it as an int
-								// try{
-									if( findNoCase( '.', returnStruct[ arg ] ) ){
-										returnStruct[ arg ] = javaCast( 'double', returnStruct[ arg ] );
-									}else{
-										returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
-									}
-								// }catch( any e ){
-								// 	returnStruct[ arg ] = returnStruct[ arg ];
-								// }
-							// }else{
-							// 	returnStruct[ arg ] = returnStruct[ arg ];
+								param name="col[ 1 ].owner.table" default="#arg#";
+								if( columnName == arg ){
+									tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+									// prevent accidentally overwriting an existing key.
+									structAppend( returnStruct, tmpStruct, false );
+								}else{
+									// Column name and property were not the same.  We'll still want to stuff the child data into the struct
+									tmpStruct[ arg ] = isArray( returnStruct[ arg ] ) ? '[ additional array of entities excluded due to "top=#arguments.top#" nesting limit ]' : '[ additional entity properties excluded due to "top=#arguments.top#" nesting limit ]';
+									// prevent accidentally overwriting an existing key.
+									structAppend( returnStruct, tmpStruct, false );
+								}
+
 							}
+						}else if( isNumeric( returnStruct[ arg ] )
+								&& listLast( returnStruct[ arg ], '.' ) GT 0 ){
+							// Since CF likes to convert our numbers to strings, let's javacast it as an int
+							if( findNoCase( '.', returnStruct[ arg ] ) ){
+								returnStruct[ arg ] = javaCast( 'double', returnStruct[ arg ] );
+							}else{
+								returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+							}
+
 						}
 					}
-				// }
-				// catch (any e){
-				// 	throw(message='Error in toStruct method: #e.message#', detail=e.detail);
-				// }
+				}
 			}
 		return returnStruct;
 	}
@@ -2127,7 +2120,7 @@ component accessors="true" output="false" {
 
 		var tempID = this.getID();
 		var callbackArgs = { ID = this.getID(), method = 'save' };
-		// writeDUmp(['is new?', this.isNew(), 'is dirty?', this.isDirty()]);
+
 		// remove object from cache (if it exists)
 		// Removing #this.getTable()#-#this.getID()# from cache
 		if( get__cacheEntities() ){
@@ -2903,22 +2896,24 @@ component accessors="true" output="false" {
 	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
 	public function listAsOData( string filter = "", string select = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys, numeric version = getODataVersion()  ){
+		// originalFilter = filter;
 		if( len(trim( filter ) ) ){
 			/* parse oDatajs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$)', ' != $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lte|<=|LessThanOrEqual)\s(.*?)(\)|$)', ' <= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gte|>=|GreaterThanOrEqual)\s(.*?)(\)|$)', ' >= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$)', ' < $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$)', ' > $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
 			/* fuzzy operators */
-			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*''(.*?)'',(.*?)(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\)|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
-
+		// writeDump([originalFilter,filter]);abort;
+		// start = getTickCount();
 		var list = listAsArray(
 								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "",
 								columns = select,
@@ -2927,7 +2922,7 @@ component accessors="true" output="false" {
 								limit = arguments.top,
 								excludeKeys = arguments.excludeKeys
 							);
-
+		// writeDump( "query took " & (getTickCount() - start)/1000 & " seconds" );abort;
 		var row = "";
 		var data = [];
 		try{

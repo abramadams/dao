@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.68
-	   	@updated 3/13/2015
+		@version 0.0.69
+	   	@updated 3/25/2015
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -246,7 +246,7 @@
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<!--- <cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement"> --->
 				<cfdump var="#tmpSQL#" label="parsed SQL Statement">
-				<cfdump var="#getDao()#" label="parameterized" abort>
+				<cfdump var="#getDao()#" label="parameterized">
 				<cfdump var="#getDao().parameterizeSQL( arguments.where )#" label="parameterized">
 				<cfdump var="#cfcatch#" label="CFCATCH Information">
 				<!---<cfdump var="#evaluate(arguments.name)#" label="Query results">--->
