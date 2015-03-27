@@ -3,7 +3,7 @@
 		Author		: Abram Adams
 		Date		: 1/2/2007
 		@version 0.0.69
-	   	@updated 3/25/2015
+	   	@updated 3/27/2015
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -109,7 +109,7 @@
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -130,7 +130,7 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#getDsn()#">
+					<cfquery name="get" datasource="#getDsn()#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -158,47 +158,7 @@
 					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
-						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
-						#getSafeColumnNames(getDao().getColumns(arguments.table))#
-						FROM #arguments.table#
-						<cfif len( trim( arguments.where ) )>
-							<!---
-								Parse out the queryParam calls inside the where statement
-								This has to be done this way because you cannot use
-								cfqueryparam tags outside of a cfquery.
-								@TODO: refactor to use the query.cfc
-							--->
-							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
-							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-								<cfset var simpleValue =  tmpSQL.statements[idx].before />
-								#preserveSingleQuotes(simpleValue)#
-								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-									<cfqueryparam
-										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
-										value="#tmpSQL.statements[idx].value#"
-										list="#tmpSQL.statements[idx].isList#">
-								</cfif>
-							</cfloop>
-							<!--- /Parse out the queryParam calls inside the where statement --->
-						</cfif>
-						<cfif len( trim( arguments.orderby ) )>
-							ORDER BY #arguments.orderby#
-						</cfif>
-						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
-						</cfif>
-					</cfquery>
-					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-						<cfquery name="count" datasource="#variables.dsn#">
-							select FOUND_ROWS() as found_rows;
-						</cfquery>
-						<cfquery name="get" dbtype="query">
-							SELECT '#count.found_rows#' __count, get.* FROM get
-						</cfquery>
-					</cfif>
-				<cfelse>
-					<cfquery name="get" datasource="#getDsn()#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
 						#arguments.columns#
 						FROM #arguments.table#
@@ -232,10 +192,53 @@
 						</cfif>
 					</cfquery>
 					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+						<cfquery name="count" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
+							select FOUND_ROWS() as found_rows;
+						</cfquery>
+						<cfquery name="get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
+							SELECT '#count.found_rows#' __count, get.* FROM get
+						</cfquery>
+					</cfif>
+				<cfelse>
+					<cfquery name="get" datasource="#getDsn()#" result="results_#name#">
+						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
+						#arguments.columns#
+						FROM #arguments.table#
+						<cfif len( trim( arguments.where ) )>
+
+							<!---
+								Parse out the queryParam calls inside the where statement
+								This has to be done this way because you cannot use
+								cfqueryparam tags outside of a cfquery.
+								@TODO: refactor to use the query.cfc
+							--->
+							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								<cfset var simpleValue =  tmpSQL.statements[idx].before />
+								#preserveSingleQuotes(simpleValue)#
+								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+									<cfqueryparam
+										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
+										value="#tmpSQL.statements[idx].value#"
+										list="#tmpSQL.statements[idx].isList#">
+								</cfif>
+							</cfloop>
+							<!--- /Parse out the queryParam calls inside the where statement --->
+
+						</cfif>
+						<cfif len( trim( arguments.orderby ) )>
+							ORDER BY #arguments.orderby#
+						</cfif>
+						<cfif len( trim( arguments.limit ) ) && isNumeric( arguments.limit )>
+							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
+						</cfif>
+					</cfquery>
+
+					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 						<cfquery name="count" datasource="#variables.dsn#">
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
-						<cfquery name="get" dbtype="query">
+						<cfquery name="get" dbtype="query" result="results_#name#">
 							SELECT '#count.found_rows#' __count, get.* FROM get
 						</cfquery>
 					</cfif>

@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.5
+*   @version 0.1.06
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 3/25/2015
+*   @updated 3/27/2015
 *   @author Abram Adams
 **/
 
@@ -2896,24 +2896,28 @@ component accessors="true" output="false" {
 	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
 	public function listAsOData( string filter = "", string select = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys, numeric version = getODataVersion()  ){
-		// originalFilter = filter;
+
 		if( len(trim( filter ) ) ){
+			/* fuzzy operators */
+			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\))\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\)|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\))\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
+			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* parse oDatajs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value=\2,cfsqltype="varchar")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
-			/* fuzzy operators */
-			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\)|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
-			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 		}
-		// writeDump([originalFilter,filter]);abort;
-		// start = getTickCount();
 		var list = listAsArray(
 								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "",
 								columns = select,
@@ -2922,7 +2926,6 @@ component accessors="true" output="false" {
 								limit = arguments.top,
 								excludeKeys = arguments.excludeKeys
 							);
-		// writeDump( "query took " & (getTickCount() - start)/1000 & " seconds" );abort;
 		var row = "";
 		var data = [];
 		try{
