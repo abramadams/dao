@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.06
+*   @version 0.1.07
 *   @dependencies { "dao" : ">=0.0.65" }
 *   @updated 3/27/2015
 *   @author Abram Adams
@@ -1849,12 +1849,13 @@ component accessors="true" output="false" {
     **/
 	/* string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID,  #this.getIDField()#' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID,#this.getIDField()#' ) )#", */
 	public query function list(
-		string columns = "",
-		string where = "",
-		string limit = "",
-		string orderby = "",
-		string offset = "",
-		array excludeKeys = []){
+								string columns = "",
+								string where = "",
+								string limit = "",
+								string orderby = "",
+								string offset = "",
+								array excludeKeys = [],
+								any cachedWithin = "" ){
 
 		if( columns == "" ){
 			columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
@@ -1869,7 +1870,9 @@ component accessors="true" output="false" {
 				where = where,
 				orderby = orderby,
 				limit = limit,
-				offset = offset
+				offset = offset,
+				cachedWithin = cachedWithin,
+				name = hash(cols & where & orderby & limit)
 			);
 		return record;
 	}
@@ -1883,9 +1886,9 @@ component accessors="true" output="false" {
     /**
     * Returns a CF array of structs representing the records matching the specified criteria; one record per array indicie.
     **/
-    public array function listAsArray(string where = "", string columns = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [] ){
+    public array function listAsArray(string where = "", string columns = "", string limit = "", string orderby = "", numeric row = 0, string offset = "", array excludeKeys = [], any cachedWithin = "" ){
         var LOCAL = {};
-        var query = list( where = where, columns = columns, limit = limit, orderby = orderby, row = row, offset = offset, excludeKeys = excludeKeys );
+        var query = list( where = where, columns = columns, limit = limit, orderby = orderby, row = row, offset = offset, excludeKeys = excludeKeys, cachedWithin = cachedWithin );
 
         // Determine the indexes that we will need to loop over.
         // To do so, check to see if we are working with a given row,
@@ -2893,12 +2896,71 @@ component accessors="true" output="false" {
 	}
 
 	/**
+	* Returns results of arbitrary SQL query in oData format.
+	**/
+	public function queryAsOData(
+								required string sql,
+								string filter = "",
+								string select = "",
+								string orderby = "",
+								string skip = "",
+								string top = "",
+								numeric version = getODataVersion(),
+								any cachedWithin = "" ){
+		// Grab base Query
+		var results = getDao().read( sql = sql, cachedWithin = cachedWithin );
+		// Apply oData filter to query
+		var $filter = parseODataFilter( filter );
+		results = getDao().read( sql = "SELECT * FROM orig WHERE 1=1 AND #$filter#", qoq = { orig: results } );
+		// serialize and return filtered query as oData object.
+		var data = serializeODataRows( getDao().queryToArray( results ) );
+
+		return serializeODataResponse( version, data, {"base_sql": sql } );
+
+	}
+	/**
 	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
-	public function listAsOData( string filter = "", string select = "", string orderby = "", string skip = "", string top = "", array excludeKeys = variables.meta.privateKeys, numeric version = getODataVersion()  ){
+	public function listAsOData(
+								string filter = "",
+								string select = "",  // columns. using "select" to be consistent with oData naming
+								string orderby = "",
+								string skip = "",
+								string top = "",
+								array excludeKeys = variables.meta.privateKeys,
+								numeric version = getODataVersion(),
+								any cachedWithin = "" ){
 
+		var $filter = parseODataFilter( filter );
+
+		var list = listAsArray(
+								where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "",
+								columns = select,
+								orderby = orderby,
+								offset = skip,
+								limit = top,
+								excludeKeys = excludeKeys,
+								cachedWithin = cachedWithin
+							);
+		var data = serializeODataRows( list );
+
+		return serializeODataResponse( version, data );
+
+	}
+	/**
+	* Convenience function to return JSON representation of the current entity with additional oData keys
+	**/
+	public any function toODataJSON( array excludeKey = variables.meta.privateKeys, numeric version = getODataVersion() ){
+		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
+		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
+		row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
+
+		return serializeODataResponse( version, data );
+	}
+
+	public function parseODataFilter( filter ){
 		if( len(trim( filter ) ) ){
-			/* fuzzy operators */
+			/* Parse oData fuzzy filters */
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
@@ -2910,7 +2972,7 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\))\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
-			/* parse oDatajs filter operators */
+			/* Parse oDatajs filter operators */
 			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
@@ -2918,60 +2980,55 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
 		}
-		var list = listAsArray(
-								where = len( trim( filter ) ) ? "WHERE " & preserveSingleQuotes( filter ) : "",
-								columns = select,
-								orderby = arguments.orderby,
-								offset = arguments.skip,
-								limit = arguments.top,
-								excludeKeys = arguments.excludeKeys
-							);
-		var row = "";
-		var data = [];
-		try{
-			for( var i = 1; i LTE arrayLen( list ); i++ ){
-				row = list[ i ];
-				row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
-				row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
-				arrayAppend( data, row );
-				row = "";
-			}
-		}catch(any e ){
-			writeDump([list,e]);abort;
-		}
-		return serializeODataResponse( version, data );
-
+		return filter;
 	}
 	/**
-	* Convenience function to return JSON representation of the current entity with additional oData keys
+	* Takes an array of structs and converts it to an oData formatted array of structs
 	**/
-	public struct function toODataJSON( array excludeKey = variables.meta.privateKeys, numeric version = getODataVersion() ){
-		var data  = this.toStruct( excludeKeys = arguments.excludeKeys );
-		data["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
-		row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
+	public array function serializeODataRows( required array data, numeric version = getODataVersion() ){
+		var row = "";
+		var oData = [];
 
-		return serializeODataResponse( version, data );
+		for( var i = 1; i LTE arrayLen( data ); i++ ){
+			row = data[ i ];
+			row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
+			row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
+			arrayAppend( oData, row );
+			row = "";
+		}
+
+		return oData;
 	}
+
 	/**
 	* Serializes the OData response formatted per the given OData version
 	**/
-	public struct function serializeODataResponse( numeric version = getODataVersion(), required array data ){
+	public struct function serializeODataResponse( numeric version = getODataVersion(), required array data, struct additionalResponseData ){
+		var ret = {};
+		if( !isNull( additionalResponseData ) && isStruct( additionalResponseData ) ){
+			ret[ "__additional" ] = additionalResponseData;
+		}
 		switch(version) {
 		    case "3":
-		         return {
+		        structAppend( ret, {
 						"__metadata": "#getODataBaseUri()#Metadata$metadata###getoDataEntityName()#",
 						"__count": arrayLen( data ) ? structKeyExists( data[1], '__count' ) ? data[1].__count : arrayLen( data ) : 0,
 						"results": data
-					};
+					},false);
+				return ret;
 		    case "4":
-		         return {
+		    	structAppend( ret, {
 						"odata.metadata": "#getODataBaseUri()#Metadata$metadata###getoDataEntityName()#",
 						"odata.count": arrayLen( data ) ? structKeyExists( data[1], '__count' ) ? data[1].__count : arrayLen( data ) : 0,
 						"value": data
-					};
+					}, false);
+		        return ret;
 		    default:
 		         throw('OData version #version# not supported.');
 		}
+
+
+
 
 	}
 	/**

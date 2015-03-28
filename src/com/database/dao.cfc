@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.67
-	   	@updated 1/27/2015
+	  	@version 0.0.68
+	   	@updated 3/27/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1201,28 +1201,36 @@
 		**/
 		public function queryToArray( required query qry ){
 			var queryArray = [];
+		    // using getMetaData instead of columnList to preserve case.
+		    // also, notice the hack to convert to a list then back to array. This is because getMetaData doesn't return real arrays (as far as CF is concerned)
+		    if ( isDefined('server') && ( structKeyExists(server,'railo') || structKeyExists(server,'lucee') ) ){
+		    	// var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+		    	var sqlString = qry.getSQL().getSQLString();
+		    	var tableName = reReplaceNoCase( sqlString, '.*?\sFROM\s(.*?)[\s|;].*', '\1', 'all' );
+
+		    	// writeDump([tableName,getMetaData(qry),qry.getSQL().getSQLString(),qry.getSQL()]);abort;
+		    	var test = new tabledef( tablename = tableName, dsn = getDSN() );
+		    	// Check for the tabledef object for this table, if it doesn't already exist, create it
+				if( !structKeyExists( variables.tabledefs, tableName) ){
+					variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
+				}
+
+		    	var colList = listToArray( structKeyList(test.gettablemeta().columns) );
+		    }else{
+		    	var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
+		    }
+		    // If the query was an query of queries the "from" will not be a table and therefore
+		    // will not have returned any columns.  We'll just ignore the need for preserving case
+		    // and include the query columns as is assuming the source sql provides the desired case.
+		    if( !arrayLen( colList ) ){
+		    	colList = listToArray( structKeyList( qry ) );
+		    }
 			for( var i = 1; i lte qry.recordCount; i++ ){
 			    var cols = {};
-			    // using getMetaData instead of columnList to preserve case.
-			    // also, notice the hack to convert to a list then back to array. This is because getMetaData doesn't return real arrays (as far as CF is concerned)
-			    if (isDefined('server') && structKeyExists(server,'railo')){
-			    	// var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
-			    	var sqlString = qry.getSQL().getSQLString();
-			    	var tableName = reReplaceNoCase( sqlString, '.*?\sFROM\s(.*?)[\s|;].*', '\1', 'all' );
-
-			    	// writeDump([tableName,getMetaData(qry),qry.getSQL().getSQLString(),qry.getSQL()]);abort;
-			    	var test = new tabledef( tablename = tableName, dsn = getDSN() );
-			    	// Check for the tabledef object for this table, if it doesn't already exist, create it
-					if( !structKeyExists( variables.tabledefs, tableName) ){
-						variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
-					}
-
-			    	var colList = listToArray( structKeyList(test.gettablemeta().columns) );
-			    }else{
-			    	var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
-			    }
 			    for( var col in colList ){
-			        structAppend(cols, {'#col#' = qry[col][i] } );
+			    	if( structKeyExists( qry, col ) ){
+			        	structAppend(cols, {'#col#' = qry[col][i] } );
+			        }
 			    }
 			    arrayAppend( queryArray, cols );
 			}
@@ -1298,7 +1306,7 @@
 
 
 								<!--- Now we build the query --->
-								<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
+								<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#">
 									<!---
 										Parse out the queryParam calls inside the where statement
 										This has to be done this way because you cannot use
@@ -1348,14 +1356,14 @@
 						<!--- Query by table --->
 						<!--- abstract --->
 						<cfset LOCAL[arguments.name] = getConn().select(
-															table = arguments.table,
-															columns = arguments.columns,
-															name = arguments.name,
-															where = arguments.where,
-															orderby = arguments.orderby,
-															limit = arguments.limit,
-															offset = arguments.offset,
-															cachedwithin = arguments.cachedwithin
+															table = table,
+															columns = columns,
+															name = name,
+															where = where,
+															orderby = orderby,
+															limit = limit,
+															offset = offset,
+															cachedwithin = cachedwithin
 														)/>
 					</cfif>
 
