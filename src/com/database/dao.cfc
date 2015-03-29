@@ -1141,7 +1141,7 @@
 		public function run(){
 			return read( table = _criteria.from,
 						 columns = _criteria.columns,
-						 where = arrayToList( _criteria.joins ) & " " & arrayToList( _criteria.clause, ' ' ),
+						 where = arrayToList( _criteria.joins, " " ) & " " & arrayToList( _criteria.clause, ' ' ),
 						 limit = _criteria.limit,
 						 orderBy = _criteria.orderBy,
 						 returnType = _criteria.returnType );
