@@ -1,43 +1,36 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>DAO by abramadams</title>
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-    <script src="javascripts/respond.js"></script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <!--[if lt IE 8]>
-    <link rel="stylesheet" href="stylesheets/ie.css">
-    <![endif]-->
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="description" content="DAO : A ColdFusion library for easy Data Access and Object Mapping">
 
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>DAO</title>
   </head>
+
   <body>
-      <div id="header">
-        <nav>
-          <li class="fork"><a href="https://github.com/abramadams/dao">View On GitHub</a></li>
-          <li class="downloads"><a href="https://github.com/abramadams/dao/zipball/master">ZIP</a></li>
-          <li class="downloads"><a href="https://github.com/abramadams/dao/tarball/master">TAR</a></li>
-          <li class="title">DOWNLOADS</li>
-        </nav>
-      </div><!-- end header -->
 
-    <div class="wrapper">
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/abramadams/dao">View on GitHub</a>
 
-      <section>
-        <div id="title">
-          <h1>DAO</h1>
-          <p>A ColdFusion library for easy Data Access and Object Mapping</p>
-          <hr>
-          <span class="credits left">Project maintained by <a href="https://github.com/abramadams">abramadams</a></span>
-          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
-        </div>
+          <h1 id="project_title">DAO</h1>
+          <h2 id="project_tagline">A ColdFusion library for easy Data Access and Object Mapping</h2>
 
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/abramadams/dao/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/abramadams/dao/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
         <h1>
 <a id="dao---a-coldfusion-library-for-easy-data-access-and-object-mapping" class="anchor" href="#dao---a-coldfusion-library-for-easy-data-access-and-object-mapping" aria-hidden="true"><span class="octicon octicon-link"></span></a>dao - A ColdFusion library for easy Data Access and Object Mapping.</h1>
 
@@ -97,21 +90,21 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 <a id="dao-examples" class="anchor" href="#dao-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>DAO Examples:</h1>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">// create instance of DAO - must feed it a datasource name</span>
-dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.dao( dsn <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>myDatasource<span class="pl-pds">"</span></span> ); <span class="pl-c">// note: dbtype is optional and defaults to MySQL</span>
+dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.dao( dsn <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>myDatasource<span class="pl-pds">"</span></span> ); <span class="pl-c">// note: dbtype is optional and defaults to MySQL</span>
 <span class="pl-c">// Also note that if a default datasource was specified in Application.cfc you do not need to pass it in.</span>
 <span class="pl-c">// If a default datasource was defined:</span>
 dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.dao();
 
 <span class="pl-c">// Insert data (could have easily been a form scope or "rc" struct)</span>
 DATA <span class="pl-k">=</span> {
-        <span class="pl-s1"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span> <span class="pl-k">=</span> lcase(createUUID()),
-        <span class="pl-s1"><span class="pl-pds">"</span>first_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>Joe<span class="pl-pds">"</span></span> ,
-        <span class="pl-s1"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>Shmo<span class="pl-pds">"</span></span>,
-        <span class="pl-s1"><span class="pl-pds">"</span>email<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>jshmo@blahblah.com<span class="pl-pds">"</span></span>,
-        <span class="pl-s1"><span class="pl-pds">"</span>created_datetime<span class="pl-pds">"</span></span> <span class="pl-k">=</span> now()
+        <span class="pl-s"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span> <span class="pl-k">=</span> lcase(createUUID()),
+        <span class="pl-s"><span class="pl-pds">"</span>first_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Joe<span class="pl-pds">"</span></span> ,
+        <span class="pl-s"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Shmo<span class="pl-pds">"</span></span>,
+        <span class="pl-s"><span class="pl-pds">"</span>email<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>jshmo@blahblah.com<span class="pl-pds">"</span></span>,
+        <span class="pl-s"><span class="pl-pds">"</span>created_datetime<span class="pl-pds">"</span></span> <span class="pl-k">=</span> now()
     };
 
-newID <span class="pl-k">=</span> dao.insert( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, data <span class="pl-k">=</span> DATA );
+newID <span class="pl-k">=</span> dao.insert( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, data <span class="pl-k">=</span> DATA );
 <span class="pl-c">// newID would contain the record's auto-incremented PK value</span>
 
 <span class="pl-c">// DAO has a method queryParam() that wraps your values in</span>
@@ -123,16 +116,16 @@ newID <span class="pl-k">=</span> dao.insert( table <span class="pl-k">=</span> 
 <span class="pl-c">// null - true/false; will pass to the cfqueryparam null attribute</span>
 
 <span class="pl-c">// Insert data (using mysql specific replace into syntax )</span>
-newID2 <span class="pl-k">=</span> dao.execute(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)</span>
-<span class="pl-s1">    VALUES ( 1</span>
-<span class="pl-s1">            ,#dao.queryParam(lcase(createUUID()),'varchar')#</span>
-<span class="pl-s1">            ,#dao.queryParam('john')#</span>
-<span class="pl-s1">            ,#dao.queryParam('deere')#</span>
-<span class="pl-s1">            ,#dao.queryParam('jdeere@tractor.com')#</span>
-<span class="pl-s1">            ,#dao.queryParam(now(), 'timestamp')#</span>
-<span class="pl-s1">           )</span>
-<span class="pl-s1"><span class="pl-pds">"</span></span>);
+newID2 <span class="pl-k">=</span> dao.execute(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)</span>
+<span class="pl-s">    VALUES ( 1</span>
+<span class="pl-s">            ,#dao.queryParam(lcase(createUUID()),'varchar')#</span>
+<span class="pl-s">            ,#dao.queryParam('john')#</span>
+<span class="pl-s">            ,#dao.queryParam('deere')#</span>
+<span class="pl-s">            ,#dao.queryParam('jdeere@tractor.com')#</span>
+<span class="pl-s">            ,#dao.queryParam(now(), 'timestamp')#</span>
+<span class="pl-s">           )</span>
+<span class="pl-s"><span class="pl-pds">"</span></span>);
 <span class="pl-c">// newID2 would also contain the record's new PK value</span>
 <span class="pl-c">// This is true for insert and replace statements only.</span>
 
@@ -146,42 +139,42 @@ newID2 <span class="pl-k">=</span> dao.execute(<span class="pl-s1"><span class="
 <span class="pl-c">// simply do: :paramName and not supply the {...} parts.</span>
 <span class="pl-c">// Below is how the previous</span>
 <span class="pl-c">// example would look using named params (using various forms of the named param syntax):</span>
-newID2 <span class="pl-k">=</span> dao.execute(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)</span>
-<span class="pl-s1">    VALUES ( 1</span>
-<span class="pl-s1">            ,:uuid</span>
-<span class="pl-s1">            ,:firstName{type='varchar'}</span>
-<span class="pl-s1">            ,:lastName{}</span>
-<span class="pl-s1">            ,:email{null=false}</span>
-<span class="pl-s1">            ,:createDate{type='timestamp'}</span>
-<span class="pl-s1">    )<span class="pl-pds">"</span></span>,
+newID2 <span class="pl-k">=</span> dao.execute(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    REPLACE INTO users (id, `_id`, first_name, last_name, email, created_datetime)</span>
+<span class="pl-s">    VALUES ( 1</span>
+<span class="pl-s">            ,:uuid</span>
+<span class="pl-s">            ,:firstName{type='varchar'}</span>
+<span class="pl-s">            ,:lastName{}</span>
+<span class="pl-s">            ,:email{null=false}</span>
+<span class="pl-s">            ,:createDate{type='timestamp'}</span>
+<span class="pl-s">    )<span class="pl-pds">"</span></span>,
     { 
         uuid <span class="pl-k">=</span> lcase( createUUID() ), 
-        firstName <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span>, 
-        lastName <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>, 
-        email <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>, 
+        firstName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span>, 
+        lastName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>, 
+        email <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>, 
         createDate <span class="pl-k">=</span> now() }
 );
 <span class="pl-c">// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...</span>
 <span class="pl-c">// Not shown above, but you can also use the list parameter to indicate a list for IN() type statements.</span>
 
 <span class="pl-c">// Return all records in a table</span>
-users <span class="pl-k">=</span> dao.read( <span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span> );
+users <span class="pl-k">=</span> dao.read( <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span> );
 
 <span class="pl-c">// Return all records using SQL - and cache it</span>
 users <span class="pl-k">=</span> dao.read(
-    sql <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>SELECT first_name, last_name FROM users<span class="pl-pds">"</span></span>,
+    sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>SELECT first_name, last_name FROM users<span class="pl-pds">"</span></span>,
     cachedWithin <span class="pl-k">=</span> createTimeSpan(<span class="pl-c1">0</span>,<span class="pl-c1">0</span>,<span class="pl-c1">2</span>,<span class="pl-c1">0</span>)
 );
 
 <span class="pl-c">// Using named parameters</span>
-users <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    SELECT first_name, last_name </span>
-<span class="pl-s1">    FROM users</span>
-<span class="pl-s1">    WHERE last_name IN( :lastNameList )</span>
-<span class="pl-s1">    AND first_name like :firstName</span>
-<span class="pl-s1"><span class="pl-pds">"</span></span>,
-{ lastNameList <span class="pl-k">:</span> <span class="pl-s1"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s1"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> } );
+users <span class="pl-k">=</span> dao.read(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    SELECT first_name, last_name </span>
+<span class="pl-s">    FROM users</span>
+<span class="pl-s">    WHERE last_name IN( :lastNameList )</span>
+<span class="pl-s">    AND first_name like :firstName</span>
+<span class="pl-s"><span class="pl-pds">"</span></span>,
+{ lastNameList <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> } );
 <span class="pl-c">// This will return all users with the last name of either 'deere' or 'doe' and </span>
 <span class="pl-c">// where their first name starts with JO.</span>
 <span class="pl-c">// NOTE: for list parameters you can also pass in an array:</span>
@@ -193,14 +186,14 @@ users <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-p
 <p>With the DAO <code>read()</code> function you can return data as a <strong>Query</strong> object, a <strong>Array of Structs</strong> or a <strong>JSON</strong> string.
 See example below:</p>
 
-<div class="highlight highlight-javascript"><pre>users <span class="pl-k">=</span> dao.read( sql <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">        SELECT first_name, last_name </span>
-<span class="pl-s1">        FROM users</span>
-<span class="pl-s1">        WHERE last_name IN( :lastNameList )</span>
-<span class="pl-s1">        AND first_name like :firstName</span>
-<span class="pl-s1">    <span class="pl-pds">"</span></span>,
-    params <span class="pl-k">=</span> { lastNameList <span class="pl-k">:</span> <span class="pl-s1"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s1"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> }, 
-    returnType <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>JSON<span class="pl-pds">"</span></span> 
+<div class="highlight highlight-javascript"><pre>users <span class="pl-k">=</span> dao.read( sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">        SELECT first_name, last_name </span>
+<span class="pl-s">        FROM users</span>
+<span class="pl-s">        WHERE last_name IN( :lastNameList )</span>
+<span class="pl-s">        AND first_name like :firstName</span>
+<span class="pl-s">    <span class="pl-pds">"</span></span>,
+    params <span class="pl-k">=</span> { lastNameList <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> }, 
+    returnType <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>JSON<span class="pl-pds">"</span></span> 
 );
 <span class="pl-c">// This would return a string similar to:</span>
 <span class="pl-c">// [{"first_name" : "john", "last_name" : "deere" }, {"first_name" : "joe", "last_name" : "deere" }]</span>
@@ -216,10 +209,10 @@ See example below:</p>
 <li>Inline call to queryParam()</li>
 </ul>
 
-<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    SELECT * FROM users</span>
-<span class="pl-s1">    WHERE userID = #dao.queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )#</span>
-<span class="pl-s1"><span class="pl-pds">"</span></span>);</pre></div>
+<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    SELECT * FROM users</span>
+<span class="pl-s">    WHERE userID = #dao.queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )#</span>
+<span class="pl-s"><span class="pl-pds">"</span></span>);</pre></div>
 
 <p>This method evaluates the parameters at compile time, so in the above example <code>myUserIdVariable</code> must already exist.</p>
 
@@ -227,18 +220,18 @@ See example below:</p>
 <li>Inline placeholders - $queryParam()$</li>
 </ul>
 
-<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    SELECT * FROM users</span>
-<span class="pl-s1">    WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$</span>
-<span class="pl-s1"><span class="pl-pds">"</span></span>);</pre></div>
+<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    SELECT * FROM users</span>
+<span class="pl-s">    WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$</span>
+<span class="pl-s"><span class="pl-pds">"</span></span>);</pre></div>
 
 <p>This method will evaluate the parameters at runtime.  This means that in the above, <code>myUserIdVariable</code> doesn't get evaluated until the query is run.  This allows parameterized SQL to be stored in a file, or database and executed later.  It also allows building parameterized SQL strings that refer to variables that don't exist in the current context, but is then passed into a method that will have those variables.  Contrived example:</p>
 
-<div class="highlight highlight-javascript"><pre>sql <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>SELECT * FROM users </span>
-<span class="pl-s1">WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$<span class="pl-pds">"</span></span>;
+<div class="highlight highlight-javascript"><pre>sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM users </span>
+<span class="pl-s">WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$<span class="pl-pds">"</span></span>;
 someFunction( sql );
 
-<span class="pl-st">function</span> <span class="pl-en">someFunction</span>( <span class="pl-vpf">sql</span> ){
+<span class="pl-k">function</span> <span class="pl-en">someFunction</span>( <span class="pl-smi">sql</span> ){
     myUserIdVariable <span class="pl-k">=</span> <span class="pl-c1">1</span>;
     dao.read( sql );
 }</pre></div>
@@ -247,10 +240,10 @@ someFunction( sql );
 <li>Named parameters - :paramName{ options }</li>
 </ul>
 
-<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">    SELECT * FROM users</span>
-<span class="pl-s1">    WHERE userID = :userId{ type = 'int' }</span>
-<span class="pl-s1"><span class="pl-pds">"</span></span>,
+<div class="highlight highlight-javascript"><pre>user <span class="pl-k">=</span> dao.read(<span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">    SELECT * FROM users</span>
+<span class="pl-s">    WHERE userID = :userId{ type = 'int' }</span>
+<span class="pl-s"><span class="pl-pds">"</span></span>,
 { userId<span class="pl-k">:</span> myUserIdVariable }
 );
 </pre></div>
@@ -334,26 +327,26 @@ In addition to the DAO supplied argumetns, you can also pass in an argument name
 </ul>
 
 <div class="highlight highlight-javascript"><pre>DATA <span class="pl-k">=</span> {
-    <span class="pl-s1"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-c1">123</span>,
-    <span class="pl-s1"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>Bond<span class="pl-pds">"</span></span>
+    <span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-c1">123</span>,
+    <span class="pl-s"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Bond<span class="pl-pds">"</span></span>
 };
-dao.update( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, data <span class="pl-k">=</span> DATA, onFinish <span class="pl-k">=</span> afterUpdate, callbackArgs <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>modifiedBy<span class="pl-pds">"</span></span> <span class="pl-k">:</span> session.userId } );
+dao.update( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, data <span class="pl-k">=</span> DATA, onFinish <span class="pl-k">=</span> afterUpdate, callbackArgs <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>modifiedBy<span class="pl-pds">"</span></span> <span class="pl-k">:</span> session.userId } );
 
-<span class="pl-s">public</span> <span class="pl-st">function</span> <span class="pl-en">afterUpdate</span>( <span class="pl-vpf">response</span> ){
+<span class="pl-k">public</span> <span class="pl-k">function</span> <span class="pl-en">afterUpdate</span>( <span class="pl-smi">response</span> ){
     <span class="pl-c">// Simple audit logger, could get much more detailed.</span>
-    <span class="pl-s">var</span> description <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>User: #response.modifiedBy# Updated table: #response.table# ID: #response.data.ID# -- <span class="pl-pds">"</span></span>;
-    <span class="pl-k">for</span>( <span class="pl-s">var</span> change <span class="pl-k">in</span> response.changes ){
-        description <span class="pl-k">&amp;=</span> <span class="pl-s1"><span class="pl-pds">"</span>Changed #change.column# from '#change.original#' to '#change.new#'. <span class="pl-pds">"</span></span>;
+    <span class="pl-k">var</span> description <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>User: #response.modifiedBy# Updated table: #response.table# ID: #response.data.ID# -- <span class="pl-pds">"</span></span>;
+    <span class="pl-k">for</span>( <span class="pl-k">var</span> change <span class="pl-k">in</span> response.changes ){
+        description <span class="pl-k">&amp;=</span> <span class="pl-s"><span class="pl-pds">"</span>Changed #change.column# from '#change.original#' to '#change.new#'. <span class="pl-pds">"</span></span>;
     }
-    description <span class="pl-k">&amp;=</span> <span class="pl-s1"><span class="pl-pds">"</span> -- at #now()#<span class="pl-pds">"</span></span>;
-    <span class="pl-v">this</span>.execute( <span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">            INSERT INTO eventLog( event, description, eventDate )</span>
-<span class="pl-s1">            VALUES (</span>
-<span class="pl-s1">             #this.queryParam('update')#</span>
-<span class="pl-s1">            ,#this.queryParam(description)#</span>
-<span class="pl-s1">            ,#this.queryParam(now(),'timestamp')#</span>
-<span class="pl-s1">            )</span>
-<span class="pl-s1">        <span class="pl-pds">"</span></span> );
+    description <span class="pl-k">&amp;=</span> <span class="pl-s"><span class="pl-pds">"</span> -- at #now()#<span class="pl-pds">"</span></span>;
+    <span class="pl-v">this</span>.execute( <span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">            INSERT INTO eventLog( event, description, eventDate )</span>
+<span class="pl-s">            VALUES (</span>
+<span class="pl-s">             #this.queryParam('update')#</span>
+<span class="pl-s">            ,#this.queryParam(description)#</span>
+<span class="pl-s">            ,#this.queryParam(now(),'timestamp')#</span>
+<span class="pl-s">            )</span>
+<span class="pl-s">        <span class="pl-pds">"</span></span> );
 }</pre></div>
 
 <blockquote>
@@ -365,14 +358,14 @@ dao.update( table <span class="pl-k">=</span> <span class="pl-s1"><span class="p
 
 <p>With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of <code>name_to_use</code> = <code>query_name</code> ), then write your SQL as if you would normally write a query of queries.</p>
 
-<div class="highlight highlight-javascript"><pre>users <span class="pl-k">=</span> dao.read(<span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>);
-johns <span class="pl-k">=</span> dao.read( sql <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span></span>
-<span class="pl-s1">        SELECT first_name, last_name </span>
-<span class="pl-s1">        FROM userQuery</span>
-<span class="pl-s1">        WHERE lower(first_name) = :firstName</span>
-<span class="pl-s1">    <span class="pl-pds">"</span></span>,
-    params <span class="pl-k">=</span> { firstName <span class="pl-k">:</span> <span class="pl-s1"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> }, 
-    returnType <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>Array<span class="pl-pds">"</span></span>,
+<div class="highlight highlight-javascript"><pre>users <span class="pl-k">=</span> dao.read(<span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>);
+johns <span class="pl-k">=</span> dao.read( sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span></span>
+<span class="pl-s">        SELECT first_name, last_name </span>
+<span class="pl-s">        FROM userQuery</span>
+<span class="pl-s">        WHERE lower(first_name) = :firstName</span>
+<span class="pl-s">    <span class="pl-pds">"</span></span>,
+    params <span class="pl-k">=</span> { firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> }, 
+    returnType <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Array<span class="pl-pds">"</span></span>,
     QoQ <span class="pl-k">=</span> { userQuery <span class="pl-k">:</span> users}
 );</pre></div>
 
@@ -385,41 +378,101 @@ when communicating with a non-RDBMS data store (i.e. couchbase, mongoDB, etc...)
 Here's an example of how to use this new feature:</p>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">// build the query criteria</span>
-<span class="pl-s">var</span> query <span class="pl-k">=</span> request.dao.from( <span class="pl-s1"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> )
-                    .where( <span class="pl-s1"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>&lt;<span class="pl-pds">"</span></span>, now() )
-                    .andWhere( <span class="pl-s1"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>&gt;=<span class="pl-pds">"</span></span>, dateAdd( <span class="pl-s1"><span class="pl-pds">'</span>d<span class="pl-pds">'</span></span>, <span class="pl-k">-</span><span class="pl-c1">1</span>, now() ) )
-                    .beginGroup(<span class="pl-s1"><span class="pl-pds">"</span>and<span class="pl-pds">"</span></span>)
-                        .andWhere( <span class="pl-s1"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>&gt;=<span class="pl-pds">"</span></span>, <span class="pl-c1">1</span>)
-                        .beginGroup(<span class="pl-s1"><span class="pl-pds">"</span>or<span class="pl-pds">"</span></span>)
-                            .andWhere( <span class="pl-s1"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>delete<span class="pl-pds">"</span></span>)
-                            .orWhere( <span class="pl-s1"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>insert<span class="pl-pds">"</span></span>)
+<span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from( <span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> )
+                    .where( <span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>&lt;<span class="pl-pds">"</span></span>, now() )
+                    .andWhere( <span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>&gt;=<span class="pl-pds">"</span></span>, dateAdd( <span class="pl-s"><span class="pl-pds">'</span>d<span class="pl-pds">'</span></span>, <span class="pl-k">-</span><span class="pl-c1">1</span>, now() ) )
+                    .beginGroup(<span class="pl-s"><span class="pl-pds">"</span>and<span class="pl-pds">"</span></span>)
+                        .andWhere( <span class="pl-s"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>&gt;=<span class="pl-pds">"</span></span>, <span class="pl-c1">1</span>)
+                        .beginGroup(<span class="pl-s"><span class="pl-pds">"</span>or<span class="pl-pds">"</span></span>)
+                            .andWhere( <span class="pl-s"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>delete<span class="pl-pds">"</span></span>)
+                            .orWhere( <span class="pl-s"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>insert<span class="pl-pds">"</span></span>)
                         .endGroup()
                     .endGroup()
-                    .orderBy(<span class="pl-s1"><span class="pl-pds">"</span>eventDate desc<span class="pl-pds">"</span></span>)
+                    .orderBy(<span class="pl-s"><span class="pl-pds">"</span>eventDate desc<span class="pl-pds">"</span></span>)
                     .run(); <span class="pl-c">// the run() method executes the query and returns a query object.  If you don't</span>
                             <span class="pl-c">// run() then it returns the dao object, which you can later use to add to the</span>
                             <span class="pl-c">// criteria, or run at your leasure.</span>
 
-<span class="pl-k">for</span>( <span class="pl-s">var</span> rec <span class="pl-k">in</span> query ){
+<span class="pl-k">for</span>( <span class="pl-k">var</span> rec <span class="pl-k">in</span> query ){
     <span class="pl-c">//do something with the record</span>
 }</pre></div>
 
 <p>The MySQL generated from the above example would look something like:</p>
 
-<div class="highlight highlight-sql"><pre><span class="pl-k">SELECT</span> <span class="pl-s1"><span class="pl-pds">`</span>description<span class="pl-pds">`</span></span>, <span class="pl-s1"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span>, <span class="pl-s1"><span class="pl-pds">`</span>eventdate<span class="pl-pds">`</span></span>, <span class="pl-s1"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span>
+<div class="highlight highlight-sql"><pre><span class="pl-k">SELECT</span> <span class="pl-s"><span class="pl-pds">`</span>description<span class="pl-pds">`</span></span>, <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span>, <span class="pl-s"><span class="pl-pds">`</span>eventdate<span class="pl-pds">`</span></span>, <span class="pl-s"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span>
 <span class="pl-k">FROM</span> eventLog
-<span class="pl-k">WHERE</span> <span class="pl-s1"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> <span class="pl-k">&lt;</span> ?
-<span class="pl-k">AND</span> <span class="pl-s1"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> <span class="pl-k">&gt;=</span> ?
-<span class="pl-k">AND</span> ( <span class="pl-s1"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span> <span class="pl-k">&gt;=</span> ? <span class="pl-k">OR</span> ( <span class="pl-s1"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? <span class="pl-k">OR</span> <span class="pl-s1"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? ) )
+<span class="pl-k">WHERE</span> <span class="pl-s"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> <span class="pl-k">&lt;</span> ?
+<span class="pl-k">AND</span> <span class="pl-s"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> <span class="pl-k">&gt;=</span> ?
+<span class="pl-k">AND</span> ( <span class="pl-s"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span> <span class="pl-k">&gt;=</span> ? <span class="pl-k">OR</span> ( <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? <span class="pl-k">OR</span> <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? ) )
 <span class="pl-k">ORDER BY</span> eventDate <span class="pl-k">desc</span></pre></div>
 
 <p>You can also specify the desired return type (supports the same return types as <code>read()</code>: <strong>Query</strong>, <strong>Array</strong>, <strong>JSON</strong>).<br>
 To do so, simply call the .returnAs() method in the chain, like so:</p>
 
-<div class="highlight highlight-javascript"><pre><span class="pl-s">var</span> query <span class="pl-k">=</span> dao.from( <span class="pl-s1"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> )
-                .where( <span class="pl-s1"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>&lt;<span class="pl-pds">"</span></span>, now() )
-                .returnAs(<span class="pl-s1"><span class="pl-pds">'</span>array<span class="pl-pds">'</span></span>)
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> dao.from( <span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> )
+                .where( <span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>&lt;<span class="pl-pds">"</span></span>, now() )
+                .returnAs(<span class="pl-s"><span class="pl-pds">'</span>array<span class="pl-pds">'</span></span>)
                 .run();</pre></div>
+
+<h2>
+<a id="joins" class="anchor" href="#joins" aria-hidden="true"><span class="octicon octicon-link"></span></a>Joins</h2>
+
+<p>With Entity Queries there are also a couple ways to define <code>joins</code>.</p>
+
+<ul>
+<li>Directly define the join in the <code>from()</code> call:</li>
+</ul>
+
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from(
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>,
+        columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName<span class="pl-pds">"</span></span>,
+        joins <span class="pl-k">=</span> [{ type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>}] )
+    .where( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> );</pre></div>
+
+<ul>
+<li>With the <code>join()</code> function:</li>
+</ul>
+
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from( 
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
+        columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName<span class="pl-pds">"</span></span> )
+    .<span class="pl-c1">join</span>( type <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, on <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>)
+    .where( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).run();</pre></div>
+
+<p>When defining a join will want to supply the <code>columns</code> argument to properly alias your columns.  The above examples supply all of the columns in the <code>from()</code> function, however you can also supply the columns directly in the join, either as a key in the <code>joins</code> array when passing the <code>joins</code> argument to the <code>from()</code> function, or as the <code>columns</code> argument to the <code>join()</code> function.  The benefit of this method is that you can define the columns as they are joined, which may be in different parts of your code.  Here's an example:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>)
+    .<span class="pl-c1">join</span>( 
+        type <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
+        on <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
+        columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span> )
+    .where( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).run();
+
+<span class="pl-c">// OR</span>
+
+<span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from( 
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
+        joins <span class="pl-k">=</span> [{ 
+            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
+            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
+            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
+            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )    
+    .where( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).run();</pre></div>
+
+<p>The above will return every column in the <em>pets</em> table, and only the <code>ID</code> and <code>first_name</code> from the <em>users</em> table (aliased).  With either method you can also specify the <code>columns</code> in the <code>from()</code> function to limit the columns from the main table to be returned:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> request.dao.from( 
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
+        columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets.ID as petId, pets.firstName as petName<span class="pl-pds">"</span></span>
+        joins <span class="pl-k">=</span> [{ 
+            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
+            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
+            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
+            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )        
+    .where( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).run();</pre></div>
+
+<p>Which will only return pets.ID and pets.firstName (aliased) from the pets table and users.ID and users.first_name (aliased) from the users table.</p>
 
 <p>This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.</p>
@@ -432,15 +485,15 @@ dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playi
 the following examples:</p>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">// create instance of dao ( could be injected via your favorite DI library )</span>
-dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">dao</span>( dsn <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>myDatasource<span class="pl-pds">"</span></span> );
+dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">dao</span>( dsn <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>myDatasource<span class="pl-pds">"</span></span> );
 
 <span class="pl-c">// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"</span>
 user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">model.User</span>( dao );
 
 <span class="pl-c">// Create a new user named john.</span>
-user.setFirstName( <span class="pl-s1"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> );
-user.setLastName( <span class="pl-s1"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span> );
-user.setEmail(<span class="pl-s1"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>);
+user.setFirstName( <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> );
+user.setLastName( <span class="pl-s"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span> );
+user.setEmail(<span class="pl-s"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>);
 
 <span class="pl-c">// Save will insert the new record because it doesn't exist.</span>
 <span class="pl-c">// If we had loaded the entity with a user record, it would perform an update.</span>
@@ -449,15 +502,15 @@ user.save();
 <span class="pl-c">// So the entity has been persisted to the database.  If we wanted</span>
 <span class="pl-c">// to at this point, we could use the user.getID() method to get the</span>
 <span class="pl-c">// value of the newly created PK.  Or we could do another update</span>
-user.setFirstName(<span class="pl-s1"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>);
+user.setFirstName(<span class="pl-s"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>);
 user.save(); <span class="pl-c">// Now the entity has been "updated" and persisted to the databse.</span>
 
 <span class="pl-c">// Now, to load data into an entity it's as simple as:</span>
 user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">model.User</span>( dao );
-user.<span class="pl-s3">load</span>(<span class="pl-c1">1</span>);  <span class="pl-c">// assuming our record's ID == 1</span>
+user.<span class="pl-c1">load</span>(<span class="pl-c1">1</span>);  <span class="pl-c">// assuming our record's ID == 1</span>
 
 <span class="pl-c">// We can also do crazy stuff like:</span>
-user.loadByFirstNameAndLastName(<span class="pl-s1"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>, <span class="pl-s1"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>);
+user.loadByFirstNameAndLastName(<span class="pl-s"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>, <span class="pl-s"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>);
 <span class="pl-c">// Every property/field in the entity can be included in this dynamic load function</span>
 <span class="pl-c">// just prefix the function name as "loadBy" and delimit the field name criteria by "And"</span>
 user.loadByFirstNameAndLastNameAndEmailAndIDAndCreatedDate(....);
@@ -467,18 +520,18 @@ user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-e
 users <span class="pl-k">=</span> user.loadAll(); <span class="pl-c">// &lt;--- returns array of intitialized entity objects - one for each record</span>
 
 <span class="pl-c">// you can also filter using the dynamic load function</span>
-users <span class="pl-k">=</span> user.loadAllByFirstName(<span class="pl-s1"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>);
+users <span class="pl-k">=</span> user.loadAllByFirstName(<span class="pl-s"><span class="pl-pds">'</span>Johnny<span class="pl-pds">'</span></span>);
 
 <span class="pl-c">// there is also a list function that will return a query object</span>
-users <span class="pl-k">=</span> user.list( where <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
+users <span class="pl-k">=</span> user.list( where <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
 
 <span class="pl-c">// Even more coolness. We can return the entity (or collection) as an array, or JSON, or struct!</span>
 user.toStruct();
 user.toJSON(); <span class="pl-c">// &lt;--- know that this is not the ACF to JSON crap, it's real serialized JSON.</span>
 
 <span class="pl-c">// Collection return types</span>
-users <span class="pl-k">=</span> user.listAsArray( where <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
-users <span class="pl-k">=</span> user.listAsJSON( where <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
+users <span class="pl-k">=</span> user.listAsArray( where <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
+users <span class="pl-k">=</span> user.listAsJSON( where <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>FirstName = 'Johnny' <span class="pl-pds">"</span></span>);
 </pre></div>
 
 <p>That's the very basics of Entity management in DAO.  It get's real interesting when you start playing with
@@ -486,22 +539,22 @@ relationships.  By-in-large I have adopted the property syntax used by CF ORM to
 entity properties and describe relationships.  Example:</p>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">/* Pet.cfc */</span>
-component persistent<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span> <span class="pl-s">extends</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> {
+component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> {
 
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>numeric<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>increment<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>uuid<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> length<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>45<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>userID<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>numeric<span class="pl-pds">"</span></span> sqltype<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>int<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>firstName<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>first_name<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>lastName<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>createdDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>created_datetime<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>modifiedDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>modified_datetime<span class="pl-pds">"</span></span> formula<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>now()<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>numeric<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>increment<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>uuid<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> length<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>45<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>userID<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>numeric<span class="pl-pds">"</span></span> sqltype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>int<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>firstName<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>first_name<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>lastName<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>last_name<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>createdDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>created_datetime<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>modifiedDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span> column<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>modified_datetime<span class="pl-pds">"</span></span> formula<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>now()<span class="pl-pds">"</span></span>;
 
     <span class="pl-c">/* Relationships */</span>
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> inverseJoinColumn<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> cascade<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>save-update<span class="pl-pds">"</span></span> fieldType<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>one-to-one<span class="pl-pds">"</span></span> fkcolumn<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>userID<span class="pl-pds">"</span></span> cfc<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>model.User<span class="pl-pds">"</span></span>;
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>offspring<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>array<span class="pl-pds">"</span></span> fieldType<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>one-to-many<span class="pl-pds">"</span></span> singularname<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>kid<span class="pl-pds">"</span></span> fkcolumn<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>offspringID<span class="pl-pds">"</span></span> cfc<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>model.Offspring<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> inverseJoinColumn<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> cascade<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>save-update<span class="pl-pds">"</span></span> fieldType<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>one-to-one<span class="pl-pds">"</span></span> fkcolumn<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>userID<span class="pl-pds">"</span></span> cfc<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>model.User<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>offspring<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>array<span class="pl-pds">"</span></span> fieldType<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>one-to-many<span class="pl-pds">"</span></span> singularname<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>kid<span class="pl-pds">"</span></span> fkcolumn<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>offspringID<span class="pl-pds">"</span></span> cfc<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>model.Offspring<span class="pl-pds">"</span></span>;
 
-    <span class="pl-s">public</span> string <span class="pl-st">function</span> <span class="pl-en">getFullName</span>(){
-        <span class="pl-k">return</span> variables.firstName <span class="pl-k">&amp;</span> <span class="pl-s1"><span class="pl-pds">"</span> <span class="pl-pds">"</span></span> <span class="pl-k">&amp;</span> variables.lastName;
+    <span class="pl-k">public</span> string <span class="pl-k">function</span> <span class="pl-en">getFullName</span>(){
+        <span class="pl-k">return</span> variables.firstName <span class="pl-k">&amp;</span> <span class="pl-s"><span class="pl-pds">"</span> <span class="pl-pds">"</span></span> <span class="pl-k">&amp;</span> variables.lastName;
     }
 }</pre></div>
 
@@ -552,9 +605,9 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
 <p>These can be defined within a CFC, or injected after the fact.  Examples:</p>
 
 <div class="highlight highlight-javascript"><pre>    <span class="pl-c">// Entity CFC</span>
-    component <span class="pl-s">extends</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
+    component <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
         ...
-        <span class="pl-st">function</span> <span class="pl-en">preInsert</span>( <span class="pl-vpf">entity</span> ){
+        <span class="pl-k">function</span> <span class="pl-en">preInsert</span>( <span class="pl-smi">entity</span> ){
             <span class="pl-c">//do something.</span>
             <span class="pl-k">if</span>(  entity.getSomeKey() <span class="pl-k">==</span> <span class="pl-c1">false</span> ){
                 <span class="pl-k">return</span> <span class="pl-c1">false</span>;
@@ -562,8 +615,8 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
         }
     }
     <span class="pl-c">// Alternative: Inject Event Handler</span>
-    user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( <span class="pl-s1"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> );
-    <span class="pl-s3">user</span>.<span class="pl-en">preInsert</span> <span class="pl-k">=</span> <span class="pl-st">function</span>( <span class="pl-vpf">entity</span> ){
+    user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( <span class="pl-s"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> );
+    <span class="pl-c1">user</span>.<span class="pl-en">preInsert</span> <span class="pl-k">=</span> <span class="pl-k">function</span>( <span class="pl-smi">entity</span> ){
         <span class="pl-k">if</span>( entity.getSomeKey() <span class="pl-k">==</span> <span class="pl-c1">false</span> ){
             <span class="pl-k">return</span> <span class="pl-c1">false</span>;
         }
@@ -575,17 +628,17 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
 <p>Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:</p>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">/* EventLog.cfc */</span>
-component persistent<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-s">extends</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
+component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
 }</pre></div>
 
 <p>That's all we <em>need</em>.  Now say I created a table named eventLog in my databse with the following:</p>
 
 <div class="highlight highlight-sql"><pre><span class="pl-k">CREATE</span> <span class="pl-k">TABLE</span> `<span class="pl-en">eventLog</span>` (
-  <span class="pl-s1"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span> <span class="pl-st">int</span>(<span class="pl-c1">11</span>) <span class="pl-k">NOT NULL</span> AUTO_INCREMENT,
-  <span class="pl-s1"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-st">varchar</span>(<span class="pl-c1">100</span>) DEFAULT <span class="pl-k">NULL</span>,
-  <span class="pl-s1"><span class="pl-pds">`</span>description<span class="pl-pds">`</span></span> <span class="pl-st">text</span>,
-  <span class="pl-s1"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> datetime DEFAULT <span class="pl-k">NULL</span>,
-  <span class="pl-s">PRIMARY KEY</span> (<span class="pl-s1"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span>)
+  <span class="pl-s"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span> <span class="pl-k">int</span>(<span class="pl-c1">11</span>) <span class="pl-k">NOT NULL</span> AUTO_INCREMENT,
+  <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">varchar</span>(<span class="pl-c1">100</span>) DEFAULT <span class="pl-k">NULL</span>,
+  <span class="pl-s"><span class="pl-pds">`</span>description<span class="pl-pds">`</span></span> <span class="pl-k">text</span>,
+  <span class="pl-s"><span class="pl-pds">`</span>eventDate<span class="pl-pds">`</span></span> datetime DEFAULT <span class="pl-k">NULL</span>,
+  <span class="pl-k">PRIMARY KEY</span> (<span class="pl-s"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span>)
 );</pre></div>
 
 <p>When I instantiate the EventLog.cfc with:</p>
@@ -594,17 +647,17 @@ component persistent<span class="pl-k">=</span><span class="pl-s1"><span class="
 
 <p>I'll get an instance of EventLog as if the CFC had included the following properties:</p>
 
-<div class="highlight highlight-javascript"><pre>property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>increment<span class="pl-pds">"</span></span>;
-property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
-property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
-property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span>;</pre></div>
+<div class="highlight highlight-javascript"><pre>property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>increment<span class="pl-pds">"</span></span>;
+property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>event<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
+property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
+property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span>;</pre></div>
 
 <p>To make this work, just make sure you set the table attribute to point to the actual table in the database, extend BaseModelObject and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.</p>
 
 <p>You can also mix and match.  You can statically define properties:</p>
 
-<div class="highlight highlight-javascript"><pre>component persistent<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-s">extends</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>{
-    property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
+<div class="highlight highlight-javascript"><pre>component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>{
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
 }</pre></div>
 
 <p>And DAO will just inject the rest of the columns.  This is handy in cases where your table definition has been altered (i.e. new fields) as they will automatically be included.  For anything more than straight table entities (i.e. you need many-to-many relationships, formulas, custom validation, etc...) you still need to declare those properties in the CFC.  You also must statically define properties where you want the property name to be different than the table's column name. (NOTE: the DAO is smart enough to check for both when injecting properties)</p>
@@ -614,13 +667,13 @@ property name<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds"
 
 <p>In some cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:</p>
 
-<div class="highlight highlight-javascript"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
+<div class="highlight highlight-javascript"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
 
 <p>That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends BaseModelObject : See more below about dynamic relationships ).</p>
 
 <p>Now, if you are on CF10+ or Railo 4.x and you have a default datasource setup in Application.cfc (this.datasource) you can omit the dao argument:</p>
 
-<div class="highlight highlight-javascript"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( <span class="pl-s1"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
+<div class="highlight highlight-javascript"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
 
 <p>However, doing so will create a new instance of DAO for each instance of BaseModelObject.  It is often more peformant to create a singleton instance and store it in a global scope, then pass that in.</p>
 
@@ -643,17 +696,17 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 <h3>
 <a id="many-to-one-relationship" class="anchor" href="#many-to-one-relationship" aria-hidden="true"><span class="octicon octicon-link"></span></a>MANY-TO-ONE Relationship</h3>
 
-<div class="highlight highlight-javascript"><pre><span class="pl-s">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>);
-order.<span class="pl-s3">load</span>(<span class="pl-c1">123</span>); <span class="pl-c">// load order with ID of 123</span>
+<div class="highlight highlight-javascript"><pre><span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>);
+order.<span class="pl-c1">load</span>(<span class="pl-c1">123</span>); <span class="pl-c">// load order with ID of 123</span>
 writeDump( order.getCustomers().getName() );
 <span class="pl-c">// ^ If the customers table has a field named "name" this writeDump will</span>
 <span class="pl-c">// output the customer name associated with order 123</span>
 
 <span class="pl-c">// If the naming convention is tableId instead of table_ID you can specify this as:</span>
-order.setDynamicMappingFKConvention(<span class="pl-s1"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);
+order.setDynamicMappingFKConvention(<span class="pl-s"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);
 <span class="pl-c">// The keyword {table} will be replaced at runtime to reflect the actual table name.</span>
 <span class="pl-c">// This could also be set during init as"</span>
-<span class="pl-s">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappingFKConvention <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);</pre></div>
+<span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappingFKConvention <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);</pre></div>
 
 <h3>
 <a id="one-to-many-relationship" class="anchor" href="#one-to-many-relationship" aria-hidden="true"><span class="octicon octicon-link"></span></a>ONE-TO-MANY Relationship</h3>
@@ -672,24 +725,24 @@ order.setDynamicMappingFKConvention(<span class="pl-s1"><span class="pl-pds">'</
 
 <p>There you have it.  A JSON representation of your data.  Ok, now say you just want to retrieve order 123 and return it, and all of it's related data as a struct.  This is a little trickier since the dynamic relationships need to know something about your related data.  We achieved that above by using the table name and return types in the method call ( get <code>Order_Items</code> as <code>JSON</code> ).  If you just want to load the data and return it with all child data, you need to define what you want back:</p>
 
-<div class="highlight highlight-javascript"><pre>order.hasMany( <span class="pl-s1"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span> );
+<div class="highlight highlight-javascript"><pre>order.hasMany( <span class="pl-s"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span> );
 order.toStruct();<span class="pl-c">// or order.toJSON();</span></pre></div>
 
 <p>The <code>hasMany</code> method can also specify the primary key ( if other than <code>&lt;table&gt;_ID</code> ), and an alias for the property that is injected into the parent.  So if you wanted to reference the <code>order_items</code> as say, <code>orderItem</code> you could do this:</p>
 
-<div class="highlight highlight-javascript"><pre>order.hasMany( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orderItems<span class="pl-pds">'</span></span> );
+<div class="highlight highlight-javascript"><pre>order.hasMany( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orderItems<span class="pl-pds">'</span></span> );
 order.getOrderItems().toStruct();</pre></div>
 
 <p>In addition, the <code>hasMany</code> method can take a <code>where</code> argument that is used to filter the child entities.  For instance, if you have a column in your order_items table called <code>status</code>, in which the value 1 means it's active and 99 means it's deleted you could define your hasMany relationship like:</p>
 
-<div class="highlight highlight-javascript"><pre>order.hasMany( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orderItems<span class="pl-pds">'</span></span>, where <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>status != 99<span class="pl-pds">'</span></span> );
+<div class="highlight highlight-javascript"><pre>order.hasMany( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>order_items<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orderItems<span class="pl-pds">'</span></span>, where <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>status != 99<span class="pl-pds">'</span></span> );
 order.getOrderItems().toStruct();</pre></div>
 
 <p>This would only return "active" order_items.</p>
 
 <p>The <code>hasMany</code> method is great for defining one-to-many relationships that can't be/aren't defined by naming conventions, but there's also a way to define many-to-one relationships in this manner; the <code>belongsTo</code> method.</p>
 
-<div class="highlight highlight-javascript"><pre>order.belongsTo( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>customers<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>company<span class="pl-pds">'</span></span>, fkField <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>customerID<span class="pl-pds">'</span></span> );
+<div class="highlight highlight-javascript"><pre>order.belongsTo( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>customers<span class="pl-pds">'</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>company<span class="pl-pds">'</span></span>, fkField <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>customerID<span class="pl-pds">'</span></span> );
 writeDump( order.getCompany() );</pre></div>
 
 <p>This may not be as useful as the <code>hasMany</code> method, as these many-to-one relationships can easily be defined using dynamicMappings (discussed below), but it can bind these relationships after the entity has been loaded, where dynamicMappings occur during load.</p>
@@ -701,25 +754,25 @@ writeDump( order.getCompany() );</pre></div>
 
 <p>So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.</p>
 
-<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span> };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
-order.<span class="pl-s3">load</span>( <span class="pl-c1">123</span> );
+<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span> };
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 writeDump( order.getOrderItems() );</pre></div>
 
 <p>That would dump an array of entities representing the <code>order_items</code> records that are related to the order #123</p>
 
 <p>The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named <code>&lt;table&gt;_ID</code>.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a <code>customers</code> table which has a <code>default_payment_terms</code> field that is a FK to a table called <code>payment_terms</code>, here's how we could handle that with simple dynamicMappings:</p>
 
-<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span> };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
-order.<span class="pl-s3">load</span>( <span class="pl-c1">123</span> );
+<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span> };
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 writeDump( order.getDefault_Payment_Terms() );</pre></div>
 
 <p>There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the <code>value</code> part of the mapping.  The struct consists of two keys: <code>table</code> and <code>property</code>.  So, if we wanted the <code>defualt_payment_terms</code> to be <code>defaultPaymentTerms</code> all we'd have to do is:</p>
 
-<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>defaultPaymentTerms<span class="pl-pds">"</span></span> } };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
-order.<span class="pl-s3">load</span>( <span class="pl-c1">123</span> );
+<div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>defaultPaymentTerms<span class="pl-pds">"</span></span> } };
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 writeDump( order.getDefaultPaymentTerms() );</pre></div>
 
 <p>This will dump the exact same as the previous example.  This is only necessary on many-to-one relationships.</p>
@@ -728,15 +781,15 @@ writeDump( order.getDefaultPaymentTerms() );</pre></div>
 Here's an example of a more real-world dynamicMapping:</p>
 
 <div class="highlight highlight-javascript"><pre>dynamicMappings <span class="pl-k">=</span> {
-    <span class="pl-s1"><span class="pl-pds">"</span>company<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>customers<span class="pl-pds">"</span></span>,
-    <span class="pl-s1"><span class="pl-pds">"</span>users_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>User<span class="pl-pds">"</span></span> },
-    <span class="pl-s1"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>,
-    <span class="pl-s1"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>,
-    <span class="pl-s1"><span class="pl-pds">"</span>default_locations_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>locations<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>defaultLocation<span class="pl-pds">"</span></span> },
-    <span class="pl-s1"><span class="pl-pds">"</span>primary_contact<span class="pl-pds">"</span></span> <span class="pl-k">=</span>  { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>contacts<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>primaryContact<span class="pl-pds">"</span></span> }
+    <span class="pl-s"><span class="pl-pds">"</span>company<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>customers<span class="pl-pds">"</span></span>,
+    <span class="pl-s"><span class="pl-pds">"</span>users_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>User<span class="pl-pds">"</span></span> },
+    <span class="pl-s"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>,
+    <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>,
+    <span class="pl-s"><span class="pl-pds">"</span>default_locations_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>locations<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>defaultLocation<span class="pl-pds">"</span></span> },
+    <span class="pl-s"><span class="pl-pds">"</span>primary_contact<span class="pl-pds">"</span></span> <span class="pl-k">=</span>  { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>contacts<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>primaryContact<span class="pl-pds">"</span></span> }
 };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
-order.<span class="pl-s3">load</span>( <span class="pl-c1">123</span> );
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 writeDump( order.getCompany().getUser() );</pre></div>
 
 <h3>
@@ -749,28 +802,28 @@ writeDump( order.getCompany().getUser() );</pre></div>
 <div class="highlight highlight-javascript"><pre><span class="pl-c">/**</span>
 <span class="pl-c">* I define relationships and preset defaults for the orders entity</span>
 <span class="pl-c">**/</span>
-component accessors<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> output<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>orders<span class="pl-pds">"</span></span> <span class="pl-s">extends</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> {
+component accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> output<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>orders<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> {
 
-    <span class="pl-s">public</span> any <span class="pl-st">function</span> <span class="pl-en">load</span>(){
+    <span class="pl-k">public</span> any <span class="pl-k">function</span> <span class="pl-en">load</span>(){
         <span class="pl-c">// For convenience, we'll just pump in the dao here (pretend it lives in the application scope)</span>
         setDAO( application.dao );
 
         <span class="pl-c">// Define alias mappings.  This needs to happen before the entity is loaded, because the</span>
         <span class="pl-c">// load method needs this mapping to build the entity relationships.</span>
         setDynamicMappings({
-            <span class="pl-s1"><span class="pl-pds">"</span>company<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>customers<span class="pl-pds">"</span></span>,
-            <span class="pl-s1"><span class="pl-pds">"</span>users_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>User<span class="pl-pds">"</span></span> },
-            <span class="pl-s1"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>,
-            <span class="pl-s1"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>,
-            <span class="pl-s1"><span class="pl-pds">"</span>default_locations_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>locations<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>defaultLocation<span class="pl-pds">"</span></span> },
-            <span class="pl-s1"><span class="pl-pds">"</span>primary_contact<span class="pl-pds">"</span></span> <span class="pl-k">=</span>  { <span class="pl-s1"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>contacts<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>primaryContact<span class="pl-pds">"</span></span>
+            <span class="pl-s"><span class="pl-pds">"</span>company<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>customers<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>users_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>User<span class="pl-pds">"</span></span> },
+            <span class="pl-s"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>default_locations_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>locations<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>defaultLocation<span class="pl-pds">"</span></span> },
+            <span class="pl-s"><span class="pl-pds">"</span>primary_contact<span class="pl-pds">"</span></span> <span class="pl-k">=</span>  { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>contacts<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>primaryContact<span class="pl-pds">"</span></span>
         });
 
         <span class="pl-c">// Now load the entity, passing any args that we were given</span>
-        <span class="pl-v">super</span>.<span class="pl-s3">load</span>( argumentCollection <span class="pl-k">=</span> arguments );
+        <span class="pl-v">super</span>.<span class="pl-c1">load</span>( argumentCollection <span class="pl-k">=</span> arguments );
 
         <span class="pl-c">// Now that the entity is loaded, we can identify any many-to-one relationships with the hasMany function</span>
-        <span class="pl-v">this</span>.hasMany( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>, fkcolumn <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>orders_ID<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span>, where <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>status != 99<span class="pl-pds">"</span></span> );
+        <span class="pl-v">this</span>.hasMany( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span>, fkcolumn <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>orders_ID<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span>, where <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>status != 99<span class="pl-pds">"</span></span> );
 
         <span class="pl-k">return</span> <span class="pl-v">this</span>;
     }
@@ -810,8 +863,8 @@ ownerName <span class="pl-k">=</span> pet[<span class="pl-c1">2</span>].getFirst
 </ul>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">// FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria</span>
-remote <span class="pl-st">function</span> <span class="pl-en">get</span>(<span class="pl-vpf">string</span> $filter = "" ,<span class="pl-vpf">string</span> $orderby = "", <span class="pl-vpf">string</span> $skip = "", <span class="pl-vpf">string</span> $top = ""){
-    <span class="pl-s">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
+remote <span class="pl-k">function</span> <span class="pl-en">get</span>(<span class="pl-smi">string</span> $filter = "" ,<span class="pl-smi">string</span> $orderby = "", <span class="pl-smi">string</span> $skip = "", <span class="pl-smi">string</span> $top = ""){
+    <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
 
     <span class="pl-k">return</span> representationOf(
         <span class="pl-c">//returns an oData object containing all of the matching entities in our DB</span>
@@ -820,7 +873,7 @@ remote <span class="pl-st">function</span> <span class="pl-en">get</span>(<span 
                 orderby <span class="pl-k">=</span> arguments.$orderby,
                 skip <span class="pl-k">=</span> arguments.$skip,
                 top <span class="pl-k">=</span> arguments.$top,
-                excludeKeys <span class="pl-k">=</span> [ <span class="pl-s1"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span>, <span class="pl-s1"><span class="pl-pds">"</span>other_field_you_want_to_hide<span class="pl-pds">"</span></span> ]
+                excludeKeys <span class="pl-k">=</span> [ <span class="pl-s"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>other_field_you_want_to_hide<span class="pl-pds">"</span></span> ]
             )
         ).withStatus(<span class="pl-c1">200</span>);
 
@@ -839,9 +892,9 @@ remote <span class="pl-st">function</span> <span class="pl-en">get</span>(<span 
 </ul>
 
 <div class="highlight highlight-javascript"><pre><span class="pl-c">// FROM BREEZEJS SAMPLE: Taffy Resource for "post" verb to save one or more "TodoItem" records.</span>
-  remote <span class="pl-st">function</span> <span class="pl-en">post</span>(){
-      <span class="pl-s">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( table <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
-      <span class="pl-s">var</span> ret <span class="pl-k">=</span> todo.oDataSave( arguments.<span class="pl-sc">entities</span> );
+  remote <span class="pl-k">function</span> <span class="pl-en">post</span>(){
+      <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.BaseModelObject( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
+      <span class="pl-k">var</span> ret <span class="pl-k">=</span> todo.oDataSave( arguments.<span class="pl-c1">entities</span> );
       <span class="pl-k">return</span> representationOf( ret ).withStatus(<span class="pl-c1">200</span>);
   }</pre></div>
 </li>
@@ -858,7 +911,7 @@ remote <span class="pl-st">function</span> <span class="pl-en">get</span>(<span 
 <p>In order to use the DAO caching options with Railo you'll need to enable a default cache in the Railo Administrator.  Otherwise you'll end up with an error like: <code>there is no default object cache defined, you need to define this default cache in the Railo Administrator</code>
 Simply create a <em>"RamCache"</em> (for some reason EHCache throws NPE) type Cache service under <code>Services &gt; Cache</code> and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:</p>
 
-<div class="highlight highlight-javascript"><pre><span class="pl-v">this</span>.cache.<span class="pl-sc">object</span> <span class="pl-k">=</span> <span class="pl-s1"><span class="pl-pds">"</span>your_cache_name_here<span class="pl-pds">"</span></span>;</pre></div>
+<div class="highlight highlight-javascript"><pre><span class="pl-v">this</span>.cache.<span class="pl-c1">object</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>your_cache_name_here<span class="pl-pds">"</span></span>;</pre></div>
 
 <blockquote>
 <p>NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.</p>
@@ -866,9 +919,17 @@ Simply create a <em>"RamCache"</em> (for some reason EHCache throws NPE) type Ca
 
 <p>Also, the "Preserve single quotes" setting must be checked in the Railo admin.  DAO specifically passes the SQL strings through <code>preserveSingleQuotes()</code>, but this doesn't seem to work unless you have that setting checked under <code>Services &gt; Datasources</code>.</p>
       </section>
-
     </div>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">DAO maintained by <a href="https://github.com/abramadams">abramadams</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
     
+
   </body>
 </html>
