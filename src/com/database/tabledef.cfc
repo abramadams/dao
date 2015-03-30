@@ -2,8 +2,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.64
-	   	@updated 1/21/2015
+	  	@version 0.0.65
+	   	@updated 3/29/2015
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the
@@ -157,7 +157,7 @@
 
 		var prefixedColumnList = columns;
 		if( len( trim( prefix ) ) ){
-			prefixedColumnList = listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
+			prefixedColumnList = "#prefix#." & listChangeDelims( prefixedColumnList, ",#prefix#.", ',' );
 		}
 		return prefixedColumnList;
 	}

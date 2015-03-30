@@ -181,6 +181,72 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 	}
 
+
+	function simpleJoin() test{
+
+		var query = request.dao.from( table = "pets", columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName" )
+					.join( type = "LEFT", table = "users", on = "users.id = pets.userId")
+					.where( "pets.ID", "=", 93 );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		$assert.typeOf( "array", query.getCriteria().joins );
+		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
+
+		var results = query.run();
+		$assert.isTrue( results.recordCount != 0 );
+		$assert.isTrue( results.ownerName  eq 'james' );
+
+	}
+
+	function shorthandJoin() test{
+		var query = request.dao.from(
+						table = "pets",
+						columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName",
+						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId"}] )
+					.where( "pets.ID", "=", 93 );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		$assert.typeOf( "array", query.getCriteria().joins );
+		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
+
+		var results = query.run();
+		$assert.isTrue( results.recordCount != 0 );
+		$assert.isTrue( results.ownerName  eq 'james' );
+
+	}
+
+	function joinWithColumns() test{
+		var query = request.dao.from( table = "pets")
+					.join( type = "LEFT", table = "users", on = "users.id = pets.userId", columns = "users.ID as userID, users.first_name as ownerName" )
+					.where( "pets.ID", "=", 93 );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		$assert.typeOf( "array", query.getCriteria().joins );
+		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
+
+		var results = query.run();
+		$assert.isTrue( results.recordCount != 0 );
+		$assert.isTrue( results.ownerName  eq 'james' );
+
+	}
+
+	function shorthandJoinWithColumns() test{
+		var query = request.dao.from(
+						table = "pets",
+						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.ID as userID, users.first_name as ownerName"}] )
+					.where( "pets.ID", "=", 93 );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		$assert.typeOf( "array", query.getCriteria().joins );
+		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
+
+		var results = query.run();
+		$assert.isTrue( results.recordCount != 0 );
+		$assert.isTrue( results.ownerName  eq 'james' );
+
+	}
+
+
 	// executes after all tests
 	function afterTests(){
 

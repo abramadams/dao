@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.68
-	   	@updated 3/27/2015
+	  	@version 0.0.69
+	   	@updated 3/29/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -862,7 +862,7 @@
 
 			// This function wll parse the passed SQL string to replace $queryParam()$ with the evaluated
 			// <cfqueryparam> tag before passing the SQL statement to cfquery (dao.read(),execute()).  If the
-			// SQL is generated in-page, you can use dao.queryParam() directly to create query parameters.
+			// SQL is generated in-page, you can use dao.queryParam()$ directly to create query parameters.
 			// the $queryParam()$ will delay evaluation of its arguments until query is executed. This is an old
 			// approach, and should be avoided.  The new approach is to use the named params as described below:
 			//*******
@@ -883,7 +883,7 @@
 			//		OR ( first_name LIKE :firstName{ type="varchar" }
 			//			AND email = :email
 			// 			)
-			//		OR ID IN :userIds{ type="int", list=true }
+			//		OR ID IN (:userIds{ type="int", list=true })
 			//		",
 			//		{ firstName = 'Jim%', email = session.user.email isAdmin = session.user.isAdmin, userIds = "1,2,4,77" }
 			// );
@@ -1054,15 +1054,17 @@
 		}
 
 		// Entity Query API - Provides LINQ'ish style queries
-		public function from( required string from, any joins = [] ){
+		public function from( required string table, any joins = [], string columns = getColumns( arguments.table ) ){
 			_resetCriteria();
-			_criteria.from = arguments.from;
-			_criteria.columns = getColumns( arguments.from );
-			_criteria.callStack = [ { from = from, joins = joins } ];
+			_criteria.from = table;
+			_criteria.columns = columns;
+			_criteria.callStack = [ { from = table, joins = joins } ];
 			if( arrayLen( joins ) ){
 				for( var table in joins ){
 					join( type = table.type, table = table.table, on = table.on );
-					_criteria.columns = listAppend( _criteria.columns, table.columns );
+					if( !isNull( table.columns ) ){
+						_criteria.columns = listAppend( _criteria.columns, table.columns );
+					}
 				}
 			}
 
@@ -1109,10 +1111,12 @@
 			return this;
 		}
 
-		public function join( string type = "LEFT", required string table, required string on, string alias = arguments.table ){
+		public function join( string type = "LEFT", required string table, required string on, string alias = arguments.table, string columns ){
 			arrayAppend( _criteria.joins, "#type# JOIN #_getSafeColumnName( table )# #alias# on #on#" );
 			arrayAppend(_criteria.callStack, { join = { type = type, table = table, on = on, alias = alias } } );
-
+			if( !isNull( columns ) ){
+				_criteria.columns = listAppend( _criteria.columns, columns );
+			}
 			return this;
 		}
 
@@ -1141,7 +1145,7 @@
 		public function run(){
 			return read( table = _criteria.from,
 						 columns = _criteria.columns,
-						 where = arrayToList( _criteria.joins, " " ) & " " & arrayToList( _criteria.clause, ' ' ),
+						 where = arrayToList( _criteria.joins, " " ) & " " & arrayToList( _criteria.clause, " " ),
 						 limit = _criteria.limit,
 						 orderBy = _criteria.orderBy,
 						 returnType = _criteria.returnType );
