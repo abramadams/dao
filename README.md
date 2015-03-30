@@ -321,6 +321,7 @@ var query = dao.from( "eventLog" )
 				.returnAs('array')
 				.run();
 ```
+## Joins
 With Entity Queries there are also a couple ways to define `joins`.
 * Directly define the join in the `from()` call:
 ```javascript
