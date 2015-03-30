@@ -321,6 +321,57 @@ var query = dao.from( "eventLog" )
 				.returnAs('array')
 				.run();
 ```
+With Entity Queries there are also a couple ways to define `joins`.
+* Directly define the join in the `from()` call:
+```javascript
+var query = request.dao.from(
+		table = "pets",
+		columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName",
+		joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId"}] )
+	.where( "pets.ID", "=", 93 );
+```
+* With the `join()` function:
+```javascript
+var query = request.dao.from( 
+		table = "pets", 
+		columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName" )
+	.join( type = "LEFT", table = "users", on = "users.id = pets.userId")
+	.where( "pets.ID", "=", 93 ).run();
+```
+When defining a join will want to supply the `columns` argument to properly alias your columns.  The above examples supply all of the columns in the `from()` function, however you can also supply the columns directly in the join, either as a key in the `joins` array when passing the `joins` argument to the `from()` function, or as the `columns` argument to the `join()` function.  The benefit of this method is that you can define the columns as they are joined, which may be in different parts of your code.  Here's an example:
+```javascript
+var query = request.dao.from( table = "pets")
+	.join( 
+		type = "LEFT", 
+		table = "users", 
+		on = "users.id = pets.userId", 
+		columns = "users.ID as userID, users.first_name as ownerName" )
+	.where( "pets.ID", "=", 93 ).run();
+
+// OR
+
+var query = request.dao.from( 
+		table = "pets", 
+		joins = [{ 
+			type: "LEFT", 
+			table: "users", 
+			on: "users.id = pets.userId", 
+			columns: "users.ID as userID, users.first_name as ownerName"}] )	
+	.where( "pets.ID", "=", 93 ).run();
+```
+The above will return every column in the _pets_ table, and only the `ID` and `first_name` from the _users_ table (aliased).  With either method you can also specify the `columns` in the `from()` function to limit the columns from the main table to be returned:
+```javascript
+var query = request.dao.from( 
+		table = "pets", 
+		columns = "pets.ID as petId, pets.firstName as petName"
+		joins = [{ 
+			type: "LEFT", 
+			table: "users", 
+			on: "users.id = pets.userId", 
+			columns: "users.ID as userID, users.first_name as ownerName"}] )		
+	.where( "pets.ID", "=", 93 ).run();
+```
+Which will only return pets.ID and pets.firstName (aliased) from the pets table and users.ID and users.first_name (aliased) from the users table.
 
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
