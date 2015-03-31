@@ -163,7 +163,9 @@
 						#arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-
+							<cfif left( trim( arguments.where ), 5 ) != "where" >
+								<cfset arguments.where = "WHERE " & arguments.where/>
+							</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -205,7 +207,9 @@
 						#arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-
+							<cfif left( trim( arguments.where ), 5 ) != "where" >
+								<cfset arguments.where = "WHERE " & arguments.where/>
+							</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -432,7 +436,7 @@
 
 	<!--- GETTERS --->
 <!--- Data Definition Functions --->
-	<cffunction name="define" hint="I return the structure of the passed table.  I am MySQL specific." returntype="query" access="public" output="false">
+	<cffunction name="define" hint="I return the structure of the passed table.  I am MySQL specific." returntype="any" access="public" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to define.">
 
 		<cfset var def = "" />

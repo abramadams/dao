@@ -162,6 +162,9 @@
 							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
+								<cfif left( trim( arguments.where ), 5 ) != "where" >
+									<cfset arguments.where = "WHERE " & arguments.where/>
+								</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -195,6 +198,9 @@
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 								FROM #arguments.table#
 								<cfif len( trim( arguments.where ) )>
+									<cfif left( trim( arguments.where ), 5 ) != "where" >
+										<cfset arguments.where = "WHERE " & arguments.where/>
+									</cfif>
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
@@ -407,7 +413,7 @@
 	</cffunction>
 
 <!--- Data Definition Functions --->
-	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="struct" output="false">
+	<cffunction name="define" hint="I return the structure of the passed table.  I am MSSQL specific." returntype="any" output="false">
 		<cfargument name="TableName" required="true" type="string" hint="Table to define.">
 
 		<cfset var table = new tabledef( dsn = getDao().getDSN(), tableName = arguments.TableName )>
@@ -427,6 +433,26 @@
 
 	</cffunction>
 
+	<cffunction name="getPrimaryKeys" hint="I return the primary keys column name and type for the passed in table.  I am MSSQL specific." returntype="array" access="public" output="false">
+		<cfargument name="TableName" required="true" type="string" hint="Table to return primary key.">
+
+		<cfset var def = define(arguments.tablename) />
+		<cfset var ret = [] />
+		<cfset var get = "" />
+
+		<cfquery name="get" dbtype="query">
+			SELECT [Field],[Type] from def
+			WHERE [Key] = 'PRI'
+		</cfquery>
+		<cfoutput query="get">
+			<cfset arrayAppend(ret, structNew())/>
+			<cfset ret[arrayLen(ret)].field = get.field>
+			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
+		</cfoutput>
+
+		<cfreturn ret />
+
+	</cffunction>
 	<!--- GETTERS --->
 
 	<cfscript>
@@ -466,7 +492,7 @@
 		/**
 	    * @hint I create a table based on the passed in tabledef object's properties.
 	    **/
-		package tabledef function makeTable( required tabledef tabledef ){
+		public tabledef function makeTable( required tabledef tabledef ) output = false {
 
 			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
@@ -544,7 +570,7 @@
 		/**
 	    * I drop a table based on the passed in table name.
 	    **/
-		package tabledef function dropTable( required string table ){
+		public tabledef function dropTable( required string table ) output = false{
 			getDao().execute( "
 				IF OBJECT_ID('#this.getTable()#', 'U') IS NOT NULL
   				DROP TABLE [#this.getTable()#]

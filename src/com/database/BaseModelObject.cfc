@@ -1861,7 +1861,7 @@ component accessors="true" output="false" {
 			columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
 		}
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
-		cols = reReplace( cols, "#this.getDao().getSafeIdentifierStartChar()##this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
+		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
 
 		var record = variables.dao.read(
@@ -2897,25 +2897,47 @@ component accessors="true" output="false" {
 
 	/**
 	* Returns results of arbitrary SQL query in oData format.
+	* NOTE: Pagination is only supported when passing in the table
+	* argument, not with an SQL statement. This is because the various
+	* DBMS have different methods for pagination and so needs to be
+	* abstracted and deferred to the connectors for pagination/sorting.
 	**/
 	public function queryAsOData(
-								required string sql,
+								string sql,
+								string table = sql,
+								string where = "",
 								string filter = "",
-								string select = "",
+								string columns = "*",
 								string orderby = "",
 								string skip = "",
 								string top = "",
-								numeric version = getODataVersion(),
-								any cachedWithin = "" ){
+								numeric version = getODataVersion() ){
+
+		if( isNull( sql ) && isNull( table ) ){
+			throw( message = "You must pass in the SQL argument or Table argument." );
+		}
+
 		// Grab base Query
-		var results = getDao().read( sql = sql, cachedWithin = cachedWithin );
+		var baseResults = getDao().read(
+							sql = table,
+							where = where,
+							columns = columns,
+							orderBy = orderby,
+							limit = top,
+							offset = skip );
+
 		// Apply oData filter to query
 		var $filter = parseODataFilter( filter );
-		results = getDao().read( sql = "SELECT * FROM orig WHERE 1=1 AND #$filter#", qoq = { orig: results } );
+		var results = getDao().read(
+					sql = "SELECT * FROM orig WHERE 1=1#len( trim( $filter ) ) ? ' AND #$filter#':''#",
+					qoq = { orig: baseResults } );
 		// serialize and return filtered query as oData object.
 		var data = serializeODataRows( getDao().queryToArray( results ) );
-
-		return serializeODataResponse( version, data, {"base_sql": sql } );
+		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
+		if( len(trim( where ) ) ){
+			meta[ "where" ] = where;
+		}
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
@@ -2924,6 +2946,7 @@ component accessors="true" output="false" {
 	public function listAsOData(
 								string filter = "",
 								string select = "",  // columns. using "select" to be consistent with oData naming
+								string columns = select,
 								string orderby = "",
 								string skip = "",
 								string top = "",
@@ -2935,7 +2958,7 @@ component accessors="true" output="false" {
 
 		var list = listAsArray(
 								where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "",
-								columns = select,
+								columns = columns,
 								orderby = orderby,
 								offset = skip,
 								limit = top,
@@ -2943,8 +2966,8 @@ component accessors="true" output="false" {
 								cachedWithin = cachedWithin
 							);
 		var data = serializeODataRows( list );
-
-		return serializeODataResponse( version, data );
+		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
@@ -3006,7 +3029,7 @@ component accessors="true" output="false" {
 	public struct function serializeODataResponse( numeric version = getODataVersion(), required array data, struct additionalResponseData ){
 		var ret = {};
 		if( !isNull( additionalResponseData ) && isStruct( additionalResponseData ) ){
-			ret[ "__additional" ] = additionalResponseData;
+			ret[ "__metadata" ] = additionalResponseData;
 		}
 		switch(version) {
 		    case "3":
