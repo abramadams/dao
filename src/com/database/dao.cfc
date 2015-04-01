@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2014, Abram Adams
+*	Copyright (c) 2007-2015, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.69
-	   	@updated 3/29/2015
+	  	@version 0.0.70
+	   	@updated 3/31/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -183,7 +183,15 @@
 			}
 		}
 
-
+		/**
+		* Returns a new instance of DAO.  A simple convenience method
+		* to get a fully initialized dao.
+		**/
+		public function new(){
+			var copy = duplicate( this );
+			copy._resetCriteria();
+			return copy;
+		}
 
 		/**
 		* I return the ID of the last inserted record.
@@ -1053,32 +1061,36 @@
 			return getConn().dropTable( arguments.table );
 		}
 
-		// Entity Query API - Provides LINQ'ish style queries
+		/**
+		* Entity Query API - Provides LINQ'ish style queries
+		* Returns a duplicate copy of DAO with an empty Entity Query criteria
+		* (except the args passed in).  This allows multiple entity queries to co-exist
+		**/
 		public function from( required string table, any joins = [], string columns = getColumns( arguments.table ) ){
-			_resetCriteria();
-			_criteria.from = table;
-			_criteria.columns = columns;
-			_criteria.callStack = [ { from = table, joins = joins } ];
+			var newDao = new();
+			newDao._criteria.from = table;
+			newDao._criteria.columns = columns;
+			newDao._criteria.callStack = [ { from = table, joins = joins } ];
 			if( arrayLen( joins ) ){
 				for( var table in joins ){
-					join( type = table.type, table = table.table, on = table.on );
+					newDao.join( type = table.type, table = table.table, on = table.on );
 					if( !isNull( table.columns ) ){
-						_criteria.columns = listAppend( _criteria.columns, table.columns );
+						newDao._criteria.columns = listAppend( newDao._criteria.columns, table.columns );
 					}
 				}
 			}
 
-			return this;
+			return newDao;
 		}
 
 		public function where( required string column, required string operator, required string value ){
 			// There can be only one where.
-			if ( arrayLen( _criteria.clause ) && left( _criteria.clause[ 1 ] , 5 ) != "WHERE" ){
-				arrayPrepend( _criteria.clause, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			if ( arrayLen( this._criteria.clause ) && left( this._criteria.clause[ 1 ] , 5 ) != "WHERE" ){
+				arrayPrepend( this._criteria.clause, "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}else{
-				_criteria.clause[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
+				this._criteria.clause[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
 			}
-			arrayAppend(_criteria.callStack, { where = { column = column, operator = operator, value = value } } );
+			arrayAppend(this._criteria.callStack, { where = { column = column, operator = operator, value = value } } );
 			return this;
 		}
 		public function andWhere( required string column, required string operator, required string value ){
@@ -1096,8 +1108,8 @@
 		**/
 		public function beginGroup( string operator = "AND"){
 
-			arrayAppend( _criteria.clause, "#operator# ( " );
-			arrayAppend(_criteria.callStack, { beginGroup = { operator = operator } } );
+			arrayAppend( this._criteria.clause, "#operator# ( " );
+			arrayAppend( this._criteria.callStack, { beginGroup = { operator = operator } } );
 			return this;
 		}
 		/**
@@ -1106,78 +1118,80 @@
 		**/
 		public function endGroup(){
 
-			arrayAppend( _criteria.clause, " )" );
-			arrayAppend(_criteria.callStack, { endGroup = "" });
+			arrayAppend( this._criteria.clause, " )" );
+			arrayAppend( this._criteria.callStack, { endGroup = "" });
 			return this;
 		}
 
 		public function join( string type = "LEFT", required string table, required string on, string alias = arguments.table, string columns ){
-			arrayAppend( _criteria.joins, "#type# JOIN #_getSafeColumnName( table )# #alias# on #on#" );
-			arrayAppend(_criteria.callStack, { join = { type = type, table = table, on = on, alias = alias } } );
+			arrayAppend( this._criteria.joins, "#type# JOIN #_getSafeColumnName( table )# #alias# on #on#" );
+			arrayAppend( this._criteria.callStack, { join = { type = type, table = table, on = on, alias = alias } } );
 			if( !isNull( columns ) ){
-				_criteria.columns = listAppend( _criteria.columns, columns );
+				this._criteria.columns = listAppend( this._criteria.columns, columns );
 			}
 			return this;
 		}
 
 		public function orderBy( required string orderBy ){
 
-			_criteria.orderBy = orderBy;
-			arrayAppend(_criteria.callStack, { orderBy = { orderBy = orderBy } } );
+			this._criteria.orderBy = orderBy;
+			arrayAppend( this._criteria.callStack, { orderBy = { orderBy = orderBy } } );
 			return this;
 		}
 
 		public function limit( required any limit ){
 
-			_criteria.limit = arguments.limit;
-			arrayAppend(_criteria.callStack, { limit = { limit = limit } } );
+			this._criteria.limit = arguments.limit;
+			arrayAppend( this._criteria.callStack, { limit = { limit = limit } } );
 			return this;
 		}
 
 		public function returnAs( string returnType = "Query" ){
 
-			_criteria.returnType = arguments.returnType;
-			arrayAppend(_criteria.callStack, { returnType = { returnType = returnType } } );
+			this._criteria.returnType = arguments.returnType;
+			arrayAppend( this._criteria.callStack, { returnType = { returnType = returnType } } );
 
 			return this;
 		}
 
 		public function run(){
-			return read( table = _criteria.from,
-						 columns = _criteria.columns,
-						 where = arrayToList( _criteria.joins, " " ) & " " & arrayToList( _criteria.clause, " " ),
-						 limit = _criteria.limit,
-						 orderBy = _criteria.orderBy,
-						 returnType = _criteria.returnType );
+			return read( table = this._criteria.from,
+						 columns = this._criteria.columns,
+						 where = arrayToList( this._criteria.joins, " " ) & " " & arrayToList( this._criteria.clause, " " ),
+						 limit = this._criteria.limit,
+						 orderBy = this._criteria.orderBy,
+						 returnType = this._criteria.returnType );
 		}
 
-
-
 		public function getCriteria(){
-			return _criteria;
+			return this._criteria;
+		}
+
+		public function setCriteria( required criteria ){
+			this._criteria = criteria;
 		}
 
 		public function getCriteriaAsJSON(){
-			var ret = _criteria;
-			structDelete( _criteria, 'callStack' );
+			var ret = this._criteria;
+			structDelete( this._criteria, 'callStack' );
 
 			return serializeJSON( ret );
 		}
 
 		// EntityQuery "helper" functions
 		private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
-			if ( arrayLen( _criteria.clause )
-				&& ( left( _criteria.clause[ arrayLen( _criteria.clause ) ] , 5 ) != "AND ("
-				&& left( _criteria.clause[ arrayLen( _criteria.clause ) ] , 4 ) != "OR (" ) ){
-				arrayAppend( _criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+			if ( arrayLen( this._criteria.clause )
+				&& ( left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 5 ) != "AND ("
+				&& left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 4 ) != "OR (" ) ){
+				arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}else{
-				arrayAppend( _criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
 			}
-			arrayAppend(_criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
+			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
 			return this;
 		}
 		private function _resetCriteria(){
-			_criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [], returnType = "Query" };
+			this._criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [], returnType = "Query" };
 		}
 
 		/**
@@ -1257,7 +1271,7 @@
 		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
-		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
+		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
 		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
@@ -1363,7 +1377,7 @@
 															table = table,
 															columns = columns,
 															name = name,
-															where = where,
+															where = arguments.where,
 															orderby = orderby,
 															limit = limit,
 															offset = offset,

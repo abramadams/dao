@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MSSQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.67
-	   	@updated 2/25/2015
+		@version 0.0.68
+	   	@updated 3/31/2015
 		Description	: Targeted database access object that will
 		controll all MSSQL specific database interaction.
 		This component will use MSSQL syntax to perform general
@@ -162,9 +162,6 @@
 							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
-								<cfif left( trim( arguments.where ), 5 ) != "where" >
-									<cfset arguments.where = "WHERE " & arguments.where/>
-								</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -198,9 +195,6 @@
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as RowNr, #arguments.columns#
 								FROM #arguments.table#
 								<cfif len( trim( arguments.where ) )>
-									<cfif left( trim( arguments.where ), 5 ) != "where" >
-										<cfset arguments.where = "WHERE " & arguments.where/>
-									</cfif>
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use

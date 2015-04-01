@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.07
+*   @version 0.1.08
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 3/27/2015
+*   @updated 3/31/2015
 *   @author Abram Adams
 **/
 
@@ -105,11 +105,9 @@ component accessors="true" output="false" {
 			}
 
 		}
-
 		variables.dropcreate = arguments.dropcreate;
 		// used to introspect the given table.
         variables.meta =_getMetaData();
-
         // Convenience properties so developers can find out which version they are using.
         if( structKeyExists( variables.meta.extends, 'version' ) ){
 	        set_Norm_Version( variables.meta.extends.version );
@@ -118,7 +116,6 @@ component accessors="true" output="false" {
 	        set_Norm_Version( variables.meta.version );
 	        set_Norm_Updated( variables.meta.updated );
         }
-
 
 		if( !len( trim( arguments.table ) ) ){
 			// If the table name was not passed in, see if the table property was set on the component
@@ -137,6 +134,7 @@ component accessors="true" output="false" {
 		}else{
 			setTable( arguments.table );
 		}
+
 		// rewrite table to meta in case the name changed above.
 		variables.meta.table = getTable();
 
@@ -144,7 +142,6 @@ component accessors="true" output="false" {
 		setcachedWithin( arguments.cachedWithin );
 		setDynamicMappings( arguments.dynamicMappings );
 		setDynamicMappingFKConvention( arguments.dynamicMappingFKConvention );
-
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
 		if( variables.dropcreate ){
@@ -177,7 +174,6 @@ component accessors="true" output="false" {
 				}
 			}
 		}
-
 		// Setup the ID (primary key) field.  This can be used to generate id values, etc..
 		setIDField( variables.tabledef.hasColumn( arguments.IDField ) ? arguments.IDField : variables.tabledef.getPrimaryKeyColumn() );
 		setIDFieldType( variables.tabledef.getDummyType( variables.tabledef.getColumnType( getIDField() ) ) );
@@ -186,16 +182,15 @@ component accessors="true" output="false" {
         variables.dao.addTableDef( variables.tabledef );
 
         variables.meta.properties =  structKeyExists( variables.meta, 'properties' ) ? variables.meta.properties : [];
-
 		// If there are more columns in the table than there are properties, let's dynamically add them
 		// This will allow us to dynamically stub out the entity "class".  So one could just create a
 		// CFC without any properties, then point it to a table and get a fully instantiated entity, or they
 		// could directly instantiate BaseModelObject and pass it a table name and get a fully instantiated entity.
 
 		var found = false;
-		// if( structCount( variables.tabledef.instance.tablemeta.columns ) NEQ arrayLen( variables.meta.properties ) ){
-			// We'll loop through each column in the table definition and see if we have a property, if not, create one.
-			// @TODO when CF9 support is no longer needed, use an arrayFind with an anonymous function to do the search.
+
+		// We'll loop through each column in the table definition and see if we have a property, if not, create one.
+		// @TODO when CF9 support is no longer needed, use an arrayFind with an anonymous function to do the search.
 		for( var col in variables.tabledef.instance.tablemeta.columns ){
 			for ( var existingProp in variables.meta.properties ){
 				if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col )
@@ -211,7 +206,7 @@ component accessors="true" output="false" {
 				variables[ col ] = this[ col ] = "";
 				variables["set" & col] = this["set" & col] = this.methods["set" & col] = setFunc;
 				variables["get" & col] = this["get" & col] = this.methods["get" & col] = getFunc;
-				var mapping = _getMapping( col );
+				var mapping = getAutoWire() ? _getMapping( col ) : structKeyExists( getDynamicMappings(), col ) ? getDynamicMappings()[ col ] : { property: col, table: col };
 				var newProp = {
 					"name" = mapping.property,
 					"column" = col,
@@ -248,7 +243,6 @@ component accessors="true" output="false" {
 			}
 		}
 		// }
-
 
        /**
        * This will hijack all of the setters and inject a function that will set the
@@ -310,6 +304,7 @@ component accessors="true" output="false" {
 		if( tableDef.getIsTable() ){
 			variables._tableDefs[ table ] = tableDef;
 		}
+
 		return tableDef;
 	}
 	/**
@@ -2737,7 +2732,7 @@ component accessors="true" output="false" {
 	}
 
 /* *************************************************************************** */
-/* oData interface ( i.e. for BreezeJS )									   */
+/* oData interface ( i.e. for BreezeJS or Kendo UI datasources )			   */
 /* *************************************************************************** */
 	/**
 	* Public method to purge the currently cached oData Metadata.  This should
@@ -2896,15 +2891,14 @@ component accessors="true" output="false" {
 	}
 
 	/**
-	* Returns results of arbitrary SQL query in oData format.
-	* NOTE: Pagination is only supported when passing in the table
-	* argument, not with an SQL statement. This is because the various
-	* DBMS have different methods for pagination and so needs to be
-	* abstracted and deferred to the connectors for pagination/sorting.
+	* Returns results of arbitrary SQL query in oData format.  This
+	* essentially does what listAsOData does, except it allows the
+	* "table" and "where" arguments to build the source query that will
+	* then be filtered by the oData filter criteria; as apposed to using
+	* BaseModelObject's defined table as the source.
 	**/
 	public function queryAsOData(
-								string sql,
-								string table = sql,
+								string table,
 								string where = "",
 								string filter = "",
 								string columns = "*",
@@ -2913,29 +2907,29 @@ component accessors="true" output="false" {
 								string top = "",
 								numeric version = getODataVersion() ){
 
-		if( isNull( sql ) && isNull( table ) ){
-			throw( message = "You must pass in the SQL argument or Table argument." );
+		// Apply oData filter to query
+		var $filter = parseODataFilter( filter );
+		if( len( trim( where ) ) ){
+			where = "#reReplaceNoCase(where, 'where ', 'WHERE ( ' )#)";
+		}else{
+			where = "(1=1)";
 		}
-
+		var sqlWhere = (len( trim( $filter ) )) ? ' AND #$filter#' : '';
+		sqlWhere = where & sqlWhere;
 		// Grab base Query
-		var baseResults = getDao().read(
+		var results = getDao().read(
 							sql = table,
-							where = where,
+							where = sqlWhere,
 							columns = columns,
 							orderBy = orderby,
 							limit = top,
 							offset = skip );
 
-		// Apply oData filter to query
-		var $filter = parseODataFilter( filter );
-		var results = getDao().read(
-					sql = "SELECT * FROM orig WHERE 1=1#len( trim( $filter ) ) ? ' AND #$filter#':''#",
-					qoq = { orig: baseResults } );
 		// serialize and return filtered query as oData object.
 		var data = serializeODataRows( getDao().queryToArray( results ) );
-		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
+		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
-			meta[ "where" ] = where;
+			meta[ "base" ] &= ":" & where;
 		}
 		return serializeODataResponse( version, data, meta );
 
@@ -2984,15 +2978,15 @@ component accessors="true" output="false" {
 	public function parseODataFilter( filter ){
 		if( len(trim( filter ) ) ){
 			/* Parse oData fuzzy filters */
-			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*?(\w*?)\s*,\s*''(\w*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\indexof\b\(\s*?(\w*?)\s*,\s*''(\w*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\))\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(\w*?)''\s*,\s*(\w*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)'',(.*?)(\)|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(\w*?)\s*,\s*''(\w*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\))\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\))\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(\w*?)\s*,\s*''(\w*?)''\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* Parse oDatajs filter operators */

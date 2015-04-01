@@ -163,9 +163,6 @@
 						#arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-							<cfif left( trim( arguments.where ), 5 ) != "where" >
-								<cfset arguments.where = "WHERE " & arguments.where/>
-							</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -207,9 +204,6 @@
 						#arguments.columns#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
-							<cfif left( trim( arguments.where ), 5 ) != "where" >
-								<cfset arguments.where = "WHERE " & arguments.where/>
-							</cfif>
 							<!---
 								Parse out the queryParam calls inside the where statement
 								This has to be done this way because you cannot use
@@ -237,7 +231,6 @@
 							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
 						</cfif>
 					</cfquery>
-
 					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
 						<cfquery name="count" datasource="#variables.dsn#">
 							select FOUND_ROWS() as found_rows;
