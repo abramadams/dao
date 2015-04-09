@@ -2541,7 +2541,7 @@ component accessors="true" output="false" {
 	/**
 	* I validate a single field and return an error (or "true" if no errors)
 	**/
-	public any function validateProperty( required string property, any value ){
+	public struct function validateProperty( required string property, any value ){
 		var val = structKeyExists( arguments, value ) ? arguments.value : ( structKeyExists( variables, property ) ) ? variables[ property ] : '';
 		var start = getTickCount();
 		var error = { valid = false, message = "Property '#property#' was not found" };
@@ -2551,6 +2551,7 @@ component accessors="true" output="false" {
 		if( exists ){
 			var prop = variables.meta.properties[ exists ];
 			error = _validate( prop, value );
+			error = { valid = len( error ), message = error };
 		}
 		return error;
 	}
