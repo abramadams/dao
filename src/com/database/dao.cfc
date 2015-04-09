@@ -1072,10 +1072,10 @@
 			newDao._criteria.columns = columns;
 			newDao._criteria.callStack = [ { from = table, joins = joins } ];
 			if( arrayLen( joins ) ){
-				for( var table in joins ){
-					newDao.join( type = table.type, table = table.table, on = table.on );
-					if( !isNull( table.columns ) ){
-						newDao._criteria.columns = listAppend( newDao._criteria.columns, table.columns );
+				for( var _table in joins ){
+					newDao.join( type = _table.type, table = _table.table, on = _table.on );
+					if( !isNull( _table.columns ) ){
+						newDao._criteria.columns = listAppend( newDao._criteria.columns, _table.columns );
 					}
 				}
 			}
@@ -1179,7 +1179,7 @@
 		}
 
 		// EntityQuery "helper" functions
-		private function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
+		public function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
 			if ( arrayLen( this._criteria.clause )
 				&& ( left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 5 ) != "AND ("
 				&& left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 4 ) != "OR (" ) ){
@@ -1190,7 +1190,7 @@
 			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
 			return this;
 		}
-		private function _resetCriteria(){
+		public function _resetCriteria(){
 			this._criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [], returnType = "Query" };
 		}
 
@@ -1200,7 +1200,7 @@
 		* However, if the column name not a valid column name (i.e. a number) I will
 		* just return the column name unchanged
 		**/
-		private function _getSafeColumnName( required string column ){
+		public function _getSafeColumnName( required string column ){
 
 			if( isValid( "variableName", column ) ){
 				if( listLen( arguments.column, '.' ) GT 1 ){
@@ -1285,6 +1285,8 @@
 		<cfset var tmpName = "" />
 		<cfset var idx = "" />
 		<cfset var LOCAL = {} />
+		<!--- where is also a function name in this cfc, so let's localize the arg --->
+		<cfset var _where = isNull( arguments.where ) ? "" : arguments.where/>
 
 		<cfif !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) )>
 			<cfthrow message="You must pass in either a table name or sql statement." />
@@ -1377,7 +1379,7 @@
 															table = table,
 															columns = columns,
 															name = name,
-															where = arguments.where,
+															where = _where,
 															orderby = orderby,
 															limit = limit,
 															offset = offset,

@@ -38,12 +38,12 @@
 
 	<cffunction name="getLastID" hint="I return the ID of the last inserted record.  I am MySQL specific." returntype="any" output="false">
 
-		<cfset var get = "" />
+		<cfset var __get = "" />
 
-		<cfquery name="get" datasource="#getDsn()#">
+		<cfquery name="__get" datasource="#getDsn()#">
 			Select LAST_INSERT_ID() as thekey
 		</cfquery>
-		<cfreturn get.thekey />
+		<cfreturn __get.thekey />
 	</cffunction>
 
 	<cffunction name="delete" hint="I delete records from the database.  I am MySQL specific." returntype="boolean" output="false">
@@ -100,7 +100,7 @@
 		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
-		<cfset var get = "" />
+		<cfset var __get = "" />
 		<cfset var tmpSQL = "" />
 		<cfset var idx = 1 />
 		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
@@ -109,7 +109,7 @@
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
+					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -130,7 +130,7 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#getDsn()#" result="results_#name#">
+					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -158,7 +158,7 @@
 					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
+					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
 						#arguments.columns#
 						FROM #arguments.table#
@@ -194,12 +194,12 @@
 						<cfquery name="count" datasource="#variables.dsn#" cachedwithin="#arguments.cachedwithin#">
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
-						<cfquery name="get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
-							SELECT '#count.found_rows#' __count, get.* FROM get
+						<cfquery name="__get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
+							SELECT '#count.found_rows#' __count, * FROM __get
 						</cfquery>
 					</cfif>
 				<cfelse>
-					<cfquery name="get" datasource="#getDsn()#" result="results_#name#">
+					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
 						#arguments.columns#
 						FROM #arguments.table#
@@ -235,14 +235,16 @@
 						<cfquery name="count" datasource="#variables.dsn#">
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
-						<cfquery name="get" dbtype="query" result="results_#name#">
-							SELECT '#count.found_rows#' __count, get.* FROM get
+						<cfquery name="__get" dbtype="query" result="results_#name#">
+							SELECT '#count.found_rows#' __count, * FROM __get
 						</cfquery>
 					</cfif>
 				</cfif>
 			</cfif>
 
 			<cfcatch type="any">
+				<cfrethrow/>
+
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<!--- <cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement"> --->
 				<cfdump var="#tmpSQL#" label="parsed SQL Statement">
@@ -259,7 +261,7 @@
 				</cfif>
 			</cfcatch>
 		</cftry>
-		<cfreturn get />
+		<cfreturn __get />
 	</cffunction>
 
 	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
@@ -447,14 +449,14 @@
 
 		<cfset var def = define(arguments.tablename) />
 		<cfset var ret = structnew() />
-		<cfset var get = "" />
+		<cfset var __get = "" />
 		<cftry>
-			<cfquery name="get" dbtype="query" maxrows="1">
+			<cfquery name="__get" dbtype="query" maxrows="1">
 				SELECT [Field],[Type] from def
 				WHERE [Key] = 'PRI'
 			</cfquery>
 			<cfcatch type="any">
-				<cfquery name="get" dbtype="query" maxrows="1">
+				<cfquery name="__get" dbtype="query" maxrows="1">
 					SELECT [column_name] as [field],[column_type] as [type] from def
 					WHERE [column_key] = 'PRI'
 				</cfquery>
@@ -472,13 +474,13 @@
 
 		<cfset var def = define(arguments.tablename) />
 		<cfset var ret = [] />
-		<cfset var get = "" />
+		<cfset var __get = "" />
 
-		<cfquery name="get" dbtype="query">
+		<cfquery name="__get" dbtype="query">
 			SELECT [Field],[Type] from def
 			WHERE [Key] = 'PRI'
 		</cfquery>
-		<cfoutput query="get">
+		<cfoutput query="__get">
 			<cfset arrayAppend(ret, structNew())/>
 			<cfset ret[arrayLen(ret)].field = get.field>
 			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>

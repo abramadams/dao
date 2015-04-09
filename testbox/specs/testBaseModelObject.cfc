@@ -591,7 +591,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           data.modifiedDate = now();
           data.createdDate = now();
 
-          var testEntity2 = testEntity.new( data );
+          var testEntity2 = testEntity.$new( data );
           // writeDump( [data, testEntity2 ] );abort;
           $assert.isTrue( testEntity2.isNew() );
           testEntity2.save();
@@ -605,7 +605,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           testEntity.load( 93 );
           $assert.isTrue( testEntity.getId() == 93 );
 
-          var testEntity2 = testEntity.new();
+          var testEntity2 = testEntity.$new();
 
           $assert.isTrue( testEntity2.isNew() );
           testEntity2.save();
