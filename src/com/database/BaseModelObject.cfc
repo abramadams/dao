@@ -2543,13 +2543,16 @@ component accessors="true" output="false" {
 	**/
 	public any function validateProperty( required string property, any value ){
 		var val = structKeyExists( arguments, value ) ? arguments.value : ( structKeyExists( variables, property ) ) ? variables[ property ] : '';
-		var ret = { valid = false, message = "Property '#property#' was not found" };
-		var error = "";
-		if( isDefined( 'variables.meta.properties' ) && structKeyExists( variables.meta.properties, property ) ){
-			error = _validate( property, val );
-			return { valid = len( error ), message = error };
+		var start = getTickCount();
+		var error = { valid = false, message = "Property '#property#' was not found" };
+		var exists = ArrayFind(variables.meta.properties, function(struct){
+		   return struct.name == property ;
+		});
+		if( exists ){
+			var prop = variables.meta.properties[ exists ];
+			error = _validate( prop, value );
 		}
-		return ret;
+		return error;
 	}
 	/**
 	* Private helper to validate that the given value is legal for the the given property.
