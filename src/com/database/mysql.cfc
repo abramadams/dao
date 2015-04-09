@@ -243,6 +243,8 @@
 			</cfif>
 
 			<cfcatch type="any">
+				<cfrethrow/>
+
 				<cfdump var="#arguments#" label="Arguments passed to select()">
 				<!--- <cfdump var="#getDAO().renderSQLforView(tmpSQL)#" label="parsed SQL Statement"> --->
 				<cfdump var="#tmpSQL#" label="parsed SQL Statement">

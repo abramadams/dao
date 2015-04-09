@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.08
+*   @version 0.1.09
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 3/31/2015
+*   @updated 4/8/2015
 *   @author Abram Adams
 **/
 
@@ -77,7 +77,6 @@ component accessors="true" output="false" {
 								numeric oDataVersion = 3,
 								string oDataBaseUri = "/",
 								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
-
 		var LOCAL = {};
 		set__FromCache( false );
 		set__cacheEntities( cacheEntities );
@@ -275,7 +274,6 @@ component accessors="true" output="false" {
 				}
 			}
 		}
-
 	    return this;
 	}
 
@@ -296,14 +294,22 @@ component accessors="true" output="false" {
 	/**
 	* Convenience "factory" function to grab an instance of tabledef for the given table (or create one of one doesn't exist)
 	**/
-	private function _loadTableDef( table ){
+	private function _loadTableDef( table, ignoreCache = false ){
+		// if( !ignoreCache ){
+		// 	var tableDef = cacheGet( "tabledef-#table#" );
+		// 	if( !isNull( tableDef ) ){
+		// 		return tableDef;
+		// 	}
+		// }
 		if( structKeyExists( variables._tableDefs, table ) ){
+			cachePut( "tabledef-#table#", duplicate( variables._tableDefs[ table ] ), createTimeSpan( 0, 0, 30, 0 ) );
 			return variables._tableDefs[ table ];
 		}
 		var tableDef = new tabledef( tableName = table, dsn = getDao().getDSN() );
 		if( tableDef.getIsTable() ){
 			variables._tableDefs[ table ] = tableDef;
 		}
+		cachePut( "tabledef-#table#", duplicate( tableDef ), createTimeSpan( 0, 0, 30, 0 ) );
 
 		return tableDef;
 	}
@@ -819,16 +825,16 @@ component accessors="true" output="false" {
 			}
 
 			var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
-
+			try{
 			record = variables.dao.read(
 				table = this.getTable(),
 				columns = columns,
 				where = "WHERE #where# #recordSQL#",
 				orderby = orderby,
 				limit = limit,
-				name = "model_load_by_handler"
+				name = "model_load_by_handler_#arguments.missingMethodName#"
 			);
-
+}catch(any e){writeDump([arguments,e,where,this]);abort;}
 
 
 			variables._isNew = record.recordCount EQ 0;
@@ -865,7 +871,7 @@ component accessors="true" output="false" {
 
 						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
 						// does not appear to be thread safe and ends up causing concurrency issues.
-						// var tmpNewEntity = new();
+						// var tmpNewEntity = $new();
 						logIt('instantiating new object for #this.getTable()# as part of a loadAll call.');
 						var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() );
 						tmpNewEntity.load( ID = qn, lazy = tmpLazy, parent = getParentTable() );
@@ -922,7 +928,7 @@ component accessors="true" output="false" {
 	* with new primary key/generated ID values.  Use this when creating several records of the same entity
 	* type to save on the instantiation costs. (i.e. reuse instance instead of doing 'entity = new BaseModelObject('....')')
 	**/
-	public function copy(){
+	public function $copy(){
 		variables._isNew = true;
 		variables[ getIDField() ] = '';
 	}
@@ -930,10 +936,10 @@ component accessors="true" output="false" {
 	* Creates a new empty instance of the entity.  If properties are passed in the new instance will
 	* be loaded with these properties.
 	**/
-	public function new( struct properties = {}, string table = getTable(), dao dao = getDao(), string IDField = getIDField(), boolean autoWire = getAutoWire(), debugMode = get__debugMode(), string cfc = "" ){
+	public function $new( struct properties = {}, string table = getTable(), dao dao = getDao(), string IDField = getIDField(), boolean autoWire = getAutoWire(), debugMode = get__debugMode(), string cfc = "" ){
 		// Pull from cache if it exists
 		var cacheName = "empty-bmo-#table#";
-		logIt('newObj new() called for table: #table#');
+		logIt('newObj $new() called for table: #table#');
 		var tableDef = _loadTableDef( table );
 		if( !tableDef.getIsTable() ){
 			if( len( trim( cfc ) ) && structKeyExists( getComponentMetadata( cfc ), 'table' ) ){
@@ -1011,7 +1017,7 @@ component accessors="true" output="false" {
 	/**
 	* Resets the current instance (empty all data). This way the object can be re-used without having to be completely re-instantiated.
 	**/
-	public function reset(){
+	public function $reset(){
 		// Could just load(0), but properties dynamically added will persist in the variables scope
 		// and the variables.properties is readonly.
 		for ( var prop in variables.meta.properties ){
@@ -1445,7 +1451,7 @@ component accessors="true" output="false" {
 				}
 			}
 			logIt( 'newObj for table: #mapping.table#, cfc #childCFC#... ' );
-			var newObj = new( table = mapping.table, dao = this.getDao(), cfc = childCFC );
+			var newObj = $new( table = mapping.table, dao = this.getDao(), cfc = childCFC );
 			logIt( 'newObj created for table: #newObj.getTable()#, cfc #childCFC#... ' );
 		}catch( any e ){
 			throw( message = "Table #propertyName# does not exist", type="BMO", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
@@ -1459,8 +1465,8 @@ component accessors="true" output="false" {
 			// return false;
 		}
 
-		newObj.setTable( mapping.table );
-		newObj.setParentTable( getTable() );
+		newObj.setTable( isNull( mapping.name ) ? mapping.property : mapping.name );
+		newObj.setParentTable( mapping.table );
 
 		// Append the relationship propertyName to the meta properties
 		var newProp = {
@@ -1468,7 +1474,7 @@ component accessors="true" output="false" {
 						"name" = propertyName,
 						"dynamic" = true,
 						"cfc" = len( trim( childCFC ) ) ? childCFC : "BaseModelObject",
-						"table" = newObj.getTable(),
+						"table" =  newObj.getTable(),
 						"fkcolumn" = fkColumn,
 						"fieldType" = "one-to-many"
 					};
@@ -1516,6 +1522,7 @@ component accessors="true" output="false" {
 				return [];
 			}
 			logIt('newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
+			// writeDump([newObj.getTable(),this.getTable(),arguments,fkcolumn,pkvalue,where, mapping, newprop]);
 			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
 			logIt('done with newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
 			if( isArray( this[ propertyName ] ) ){
@@ -1604,7 +1611,7 @@ component accessors="true" output="false" {
 			var newObj = fkValue;
 			fkValue = newObj.getID();
 		}else{
-			var newObj = new( table = mapping.table, dao = this.getDao(), idField = mapping.idField );
+			var newObj = $new( table = mapping.table, dao = this.getDao(), idField = mapping.idField );
 		}
 
 		if( !isObject( newObj ) ){
@@ -2496,7 +2503,7 @@ component accessors="true" output="false" {
 		}else{
 			this.postDelete( this );
 		}
-		reset();
+		$reset();
 		// Fire callback function (if provided). Could be used for AOP
 		if( structKeyExists( arguments, 'callback' ) && isCustomFunction( arguments.callback ) ){
 			callback( this, callbackArgs );
@@ -2533,14 +2540,9 @@ component accessors="true" output="false" {
 		var val = structKeyExists( arguments, value ) ? arguments.value : ( structKeyExists( variables, property ) ) ? variables[ property ] : '';
 		var ret = { valid = false, message = "Property '#property#' was not found" };
 		var error = "";
-		for( var prop in variables.meta.properties ){
-			if( prop.name == property ){
-				error = _validate( prop, val );
-				// if (len(error)){
-				// 	logIt( error);
-				// }
-				return { valid = len( error ), message = error };
-			}
+		if( structKeyExists( variables.meta.properties, property ) ){
+			error = _validate( property, val );
+			return { valid = len( error ), message = error };
 		}
 		return ret;
 	}
@@ -2773,7 +2775,7 @@ component accessors="true" output="false" {
 		var associations = [];
 		for( table in tables ){
 			var tabledef = _loadTableDef( table );
-			var bmo[ table ] = new( table = table, autoWire = true );
+			var bmo[ table ] = $new( table = table, autoWire = true );
 
 			arrayAppend( cSpaceOSpaceMapping, [
 						"#getoDataNameSpace()#.#bmo[ table ].getoDataEntityName()#",

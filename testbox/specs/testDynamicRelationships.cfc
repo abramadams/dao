@@ -70,6 +70,7 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
 
           $assert.isTrue( product.getName() == 'ABRAM' );
           // Now see if the child entities were loaded (dynamically by <table>_ID pattern)
+          // writeDump(product.getProductClass().getID());abort;
           $assert.isTrue( product.getProductClass().getID() == 1 );
 
      }
