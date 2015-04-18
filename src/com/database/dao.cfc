@@ -1219,14 +1219,14 @@
 		**/
 		public function queryToArray( required query qry ){
 			var queryArray = [];
+
 		    // using getMetaData instead of columnList to preserve case.
 		    // also, notice the hack to convert to a list then back to array. This is because getMetaData doesn't return real arrays (as far as CF is concerned)
 		    if ( isDefined('server') && ( structKeyExists(server,'railo') || structKeyExists(server,'lucee') ) ){
-		    	// var colList = listToArray( arrayToList( qry.getMetaData().getColumnLabels() ) );
 		    	var sqlString = qry.getSQL().getSQLString();
-		    	var tableName = reReplaceNoCase( sqlString, '.*?\sFROM\s(.*?)[\s|;].*', '\1', 'all' );
+		    	var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
+		    	var tableName = listLast( tablesInQry[ arrayLen( tablesInQry ) ], ' ' );
 
-		    	// writeDump([tableName,getMetaData(qry),qry.getSQL().getSQLString(),qry.getSQL()]);abort;
 		    	var test = new tabledef( tablename = tableName, dsn = getDSN() );
 		    	// Check for the tabledef object for this table, if it doesn't already exist, create it
 				if( !structKeyExists( variables.tabledefs, tableName) ){
