@@ -37,7 +37,7 @@ interface {
 	any function update( required any tabledef, string columns = "", required string IDField ) output = false
 		description="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.";
 
-	query function define( required string tableName ) output = false
+	any function define( required string tableName ) output = false
 		description="I return the structure of the passed table.";
 
 	struct function getPrimaryKey( required string tableName ) output = false

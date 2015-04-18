@@ -5,19 +5,35 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		request.dao = new com.database.dao( dsn = "dao" );
 
      }
+     function beforeEach(){
+          // Some setup data
+          request.dao.execute("delete from eventLog where event = 'test insert'");
+          request.dao.execute("
+               INSERT INTO eventLog (event,description,eventDate)
+               VALUES
+               ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
+               ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
+               ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
+               ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#)
+
+               ");
+     }
 
      function createNewEntityInstance() test{
+          beforeEach();
           var testEntity = new model.EventLog( dao = request.dao );
 
           $assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
      }
 
      function createNewEntityInstanceWithoutProvidingDAO() test{
+          beforeEach();
           var testEntity = new com.database.BaseModelObject( table = "users" );
 
           $assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
      }
      function createNewEntityInstanceWithoutProvidingDAOOrTable() test{
+          beforeEach();
 
      	var testEntity = createObject("component", "com.database.BaseModelObject");
           $assert.throws( target = function(){ testEntity.init();} , type = "BMO.setTable" );
@@ -25,6 +41,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadRecordByID() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.load(208);
@@ -35,6 +52,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
     function getRecordByIDZero() test{
+     beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	var qry = testEntity.getRecord( 0 );
@@ -44,6 +62,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 	}
 
     function getRecordSingleID() test{
+     beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
      	// call getRecord with ID
      	qry = testEntity.getRecord( 208 );
@@ -53,6 +72,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 	}
 
     function getRecordSingleFromInstantiatedObject() test{
+     beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
      	// call getRecord on instantiated object without ID
      	testEntity.load( 208 );
@@ -65,6 +85,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadRecordByIDAndEvent() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.loadByIDAndEvent(208,'delete');
@@ -73,6 +94,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function populateNewEntityWithStruct() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
      	var testStruct = { event = 'test', eventdate = now() };
 
@@ -82,6 +104,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function populateExistingEntityWithStruct() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
      	var testStruct = { event = 'delete', id = 208 };
 
@@ -91,6 +114,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadChangeAndSaveEntity() test{
+          beforeEach();
           // var testEntity = new model.EventLog( dao = request.dao );
      	var testEntity = new com.database.BaseModelObject( table = "eventLog", dao = request.dao );
 
@@ -114,6 +138,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSave() test{
+          beforeEach();
           var testEntity = new model.EventLog( dao = request.dao );
 
           // loaded blank entity
@@ -129,7 +154,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSaveThenChangeAndSaveAgain() test {
-     	var testEntity = new model.EventLog( dao = request.dao, cacheEntities = true );
+     	var testEntity = new model.EventLog( dao = request.dao );
 
      	// loaded blank entity
      	$assert.isTrue( testEntity.isNew() );
@@ -154,6 +179,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadBlankEntityChangeAndSaveThenDelete() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	// loaded blank entity
@@ -176,6 +202,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadExistingEntityThenDelete() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	// change event to 'test'
@@ -193,13 +220,16 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadExistingEntityToStruct() test{
+          beforeEach();
           var testEntity = new model.EventLog( dao = request.dao );
 
           // change event to 'test'
           testEntity.loadFirstByEvent( 'test insert' );
 
           // now entity's getEvent should return 'test'
-          $assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' );
+          $assert.isTrue(  testEntity.getID() gt 0 );
+
           // isNew should be false now
           $assert.isFalse( testEntity.isNew() );
 
@@ -207,6 +237,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      }
      function loadExistingEntityWithChildrenToStruct() test{
+          beforeEach();
      	var testEntity = new model.Pet( dao = request.dao );
 
      	// change event to 'test'
@@ -219,6 +250,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function loadExistingEntityToJSON() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	// change event to 'test'
@@ -233,21 +265,27 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function listAsArray() test{
-     	var testEntity = new model.EventLog( dao = request.dao );
+          beforeEach();
+          var testEntity = new model.EventLog( dao = request.dao );
 
      	// change event to 'test'
-     	var list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
+     	var list = testEntity.listAsArray( where = "where 1=1" );
 
      	// now list should contain an array of records (structs)
 		$assert.typeOf( "array", list );
           $assert.isTrue( arrayLen( list ) >= 1 );
 		$assert.typeOf( "struct", list[1] );
           $assert.isTrue( structKeyExists( list[1], 'event' ) );
+          if( list[1].id == list[arrayLen(list)].id ){
+               writeDump(list);abort;
+          }
 		$assert.isTrue( list[1].id != list[arrayLen(list)].id );
+
 
      }
 
      function listRecords() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	// change event to 'test'
@@ -261,6 +299,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function getSingleRecordByID() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	// change event to 'test'
@@ -274,6 +313,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function getRecordFromCurrentEntityInstance() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.load( 208 );
@@ -288,6 +328,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function validateEntityState() test{
+          beforeEach();
      	var testEntity = new model.EventLog( dao = request.dao );
 
      	testEntity.load( 208 );
@@ -307,12 +348,14 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 ///////////// Implicit Invocation
      function createImplicitEntity() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	$assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
      }
 
 	function ImplicitloadRecordByID() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	testEntity.load(208);
@@ -321,6 +364,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
     function ImplicitgetRecordByIDZero() test{
+     beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	var qry = testEntity.getRecord( 0 );
@@ -330,6 +374,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 	}
 
     function ImplicitgetRecordSingleID() test{
+     beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
      	// call getRecord with ID
      	qry = testEntity.getRecord( 208 );
@@ -339,6 +384,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 	}
 
     function ImplicitgetRecordSingleFromInstantiatedObject() test{
+     beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
      	// call getRecord on instantiated object without ID
      	testEntity.load( 208 );
@@ -349,6 +395,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadRecordByIDAndEvent() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	testEntity.loadByIDAndEvent(208,'delete');
@@ -357,6 +404,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitpopulateNewEntityWithStruct() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog", debugMode = false );
      	var testStruct = { event = 'test', eventdate = now() };
 
@@ -366,6 +414,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitpopulateExistingEntityWithStruct() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
      	var testStruct = { event = 'delete', id = 208 };
 
@@ -375,6 +424,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadChangeAndSaveEntity() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	testEntity.load( 208 );
@@ -396,6 +446,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadBlankEntityChangeAndSave() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// loaded record ID 208
@@ -411,6 +462,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadBlankEntityChangeAndSaveThenDelete() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// loaded blank entity
@@ -433,6 +485,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadExistingEntityThenDelete() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
@@ -450,6 +503,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadExistingEntityToStruct() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
@@ -465,13 +519,16 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitloadExistingEntityToJSON() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
      	testEntity.loadFirstByEvent( 'test insert' );
 
      	// now entity's getEvent should return 'test'
-		$assert.isTrue( testEntity.getEvent() eq 'test insert' && testEntity.getID() gt 0 );
+          $assert.isTrue( testEntity.getEvent() eq 'test insert' );
+		$assert.isTrue( testEntity.getID() gt 0 );
+
 		// isNew should be false now
 		$assert.isFalse( testEntity.isNew() );
 
@@ -480,6 +537,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitlistAsArray() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
@@ -487,13 +545,14 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	// now list should contain an array of records (structs)
 		$assert.typeOf( "array", list );
-
+          $assert.isTrue( arrayLen( list ) );
 		$assert.typeOf( "struct", list[1] );
 		$assert.isTrue( structKeyExists( list[1], 'event' ) );
 
      }
 
      function ImplicitlistRecords() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
@@ -507,6 +566,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitgetSingleRecordByID() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	// change event to 'test'
@@ -520,6 +580,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitgetRecordFromCurrentEntityInstance() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	testEntity.load( 208 );
@@ -536,6 +597,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function ImplicitvalidateEntityState() test{
+          beforeEach();
      	var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
 
      	testEntity.load( 208 );
@@ -559,6 +621,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 
      function testDynamicHasRelatedEntities() test{
+          beforeEach();
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets", autowire = true );
 
           testEntity.load( 93 );
@@ -573,6 +636,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 
      function testInjectProperty() test{
+          beforeEach();
            var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
 
            testEntity.setFakeProperty( 'test' );
@@ -581,6 +645,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 
      function testNewWithData() test{
+          beforeEach();
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
 
           testEntity.load( 93 );
@@ -591,7 +656,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           data.modifiedDate = now();
           data.createdDate = now();
 
-          var testEntity2 = testEntity.new( data );
+          var testEntity2 = testEntity.$new( data );
           // writeDump( [data, testEntity2 ] );abort;
           $assert.isTrue( testEntity2.isNew() );
           testEntity2.save();
@@ -600,12 +665,13 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      }
      function testNewWithoutData() test{
+          beforeEach();
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
 
           testEntity.load( 93 );
           $assert.isTrue( testEntity.getId() == 93 );
 
-          var testEntity2 = testEntity.new();
+          var testEntity2 = testEntity.$new();
 
           $assert.isTrue( testEntity2.isNew() );
           testEntity2.save();
@@ -616,6 +682,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 
      function testInjectedPreLoadEvent() test{
+          beforeEach();
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
           testEntity.preLoad = function( entity ){
                entity.setId( 99999 );

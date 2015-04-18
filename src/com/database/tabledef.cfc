@@ -433,6 +433,10 @@
 			var generator = "";
 			var LOCAL = {};
 
+			if( !len( trim( getTableName() ) ) ){
+				return false;
+			}
+
 			// get the columns for the table for any schema
 			// auto-detect the database type.
 			if (isDefined('server') && ( structKeyExists(server,'railo') || structKeyExists(server,'lucee') ) ){
@@ -451,12 +455,23 @@
 
 			}else{
 				var d = new dbinfo( datasource = this.getDsn() );
-				var tables = d.tables( pattern = this.getTableName() );
-				if( !tables.recordCount ){
+				// NOTE: In CF11 the "pattern" argument is now case sensitive, so we can no longer do:
+				// var tables = d.tables( pattern = this.getTableName() );
+				// Rather, whe have to do all this crap:
+				var tables = d.tables();
+				var qry = new Query();
+				qry.addParam( name = "tableName", value = lcase( this.getTableName() ), cfsqltype = "cf_sql_varchar" );
+				qry.setAttributes( tableQuery = tables );
+				var tablesFiltered = qry.execute(
+					sql = "SELECT * FROM tableQuery WHERE LOWER(table_name) = :tableName",
+					dbtype = "query"
+				).getResult();
+
+				if( !tablesFiltered.recordCount ){
 					return false;
 				}
 				// In case the table name is case sensitive we'll make sure we set it to what dbinfo says it is
-				setTableName( tables.table_name );
+				setTableName( tablesFiltered.table_name );
 				var columns = d.columns( table = this.getTableName() );
 				// get a full indexes query for the table
 				var indexqryfull = d.index( table = this.getTableName() );
