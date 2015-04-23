@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.09
+*   @version 0.1.10
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 4/8/2015
+*   @updated 4/23/2015
 *   @author Abram Adams
 **/
 
@@ -2101,7 +2101,7 @@ component accessors="true" output="false" {
 							// Since CF likes to convert our numbers to strings, let's javacast it as an int
 							if( findNoCase( '.', returnStruct[ arg ] ) ){
 								returnStruct[ arg ] = javaCast( 'double', returnStruct[ arg ] );
-							}else{
+							}else if( left( returnStruct[ arg ], 1 ) != 0 ) { // protect zero-padded numbers.
 								returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
 							}
 
@@ -2731,6 +2731,9 @@ component accessors="true" output="false" {
 	* @TODO Make this better :)
 	**/
 	private date function convertHttpDate( required string httpDate ){
+		if( isNull( httpDate ) ){
+			throw(message="HTTP Date required but not provided");
+		}
 		return parseDateTime( listFirst( httpDate, 'T' ) & ' ' & listFirst( listLast( httpDate, 'T' ), 'Z' ) );
 	}
 	/**
