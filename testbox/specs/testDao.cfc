@@ -179,14 +179,13 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var test = request.dao.queryToArray( records, function( row, index, cols ){
                var formattedRow = {};
                for( var col in cols ){
-                    formattedRow[col] = ucase( row[col] );
+                    formattedRow[col] =  row[col] & "test";
                }
-               
                return formattedRow;
           } );
-          
           $assert.typeOf( "array", test );
           $assert.isTrue( records.recordCount == arrayLen( test ) );
+          $assert.isTrue( records["first_name"][1] & "test" == test[1]["first_name"] );
      }
 
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{

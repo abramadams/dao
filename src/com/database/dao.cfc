@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.71
-		@updated 4/23/2015
+		@version 0.0.72
+		@updated 4/30/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1254,7 +1254,7 @@
 				}
 				for( var col in colList ){
 					if( structKeyExists( rec, col ) ){
-						structAppend(cols, {'#col#' = rec } );
+						structAppend(cols, {'#col#' = rec[col] } );
 					}
 				}
 				arrayAppend( queryArray, cols );
