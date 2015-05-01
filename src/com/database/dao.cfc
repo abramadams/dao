@@ -1218,7 +1218,7 @@
 		* I return the query as an array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToArray( required query qry ){
+		public function queryToArray( required query qry, any map ){
 			var queryArray = [];
 
 			// using getMetaData instead of columnList to preserve case.
@@ -1244,11 +1244,17 @@
 			if( !arrayLen( colList ) ){
 				colList = listToArray( structKeyList( qry ) );
 			}
-			for( var i = 1; i lte qry.recordCount; i++ ){
+			var i = 0;
+			for( var rec in qry ){
+				i++;
 				var cols = {};
+				// if supplied, run query through map closure for custom processing
+				if( !isNull( map ) && isclosure( map ) ){
+					rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
+				}
 				for( var col in colList ){
-					if( structKeyExists( qry, col ) ){
-						structAppend(cols, {'#col#' = qry[col][i] } );
+					if( structKeyExists( rec, col ) ){
+						structAppend(cols, {'#col#' = rec } );
 					}
 				}
 				arrayAppend( queryArray, cols );
@@ -1259,8 +1265,8 @@
 		* I return the query as an JSON array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToJSON( required query qry ){
-			return serializeJSON( queryToArray( qry ) );
+		public function queryToJSON( required query qry, any map ){
+			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
 	</cfscript>
 	<!--- @TODO: convert to using new Query() --->

@@ -167,6 +167,28 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.typeOf( "array", deserializeJSON(johns) );
 
      }
+
+     function queryToArray() test{
+          var records = request.dao.read( sql = "SELECT * FROM eventLog WHERE ID IN(1,20,3,5,6,7)");
+          var test = request.dao.queryToArray( records );
+          $assert.typeOf( "array", test );
+     }
+
+     function queryToArrayWithMap() test{
+          var records = request.dao.read( sql = "SELECT first_name, last_name from users");
+          var test = request.dao.queryToArray( records, function( row, index, cols ){
+               var formattedRow = {};
+               for( var col in cols ){
+                    formattedRow[col] = ucase( row[col] );
+               }
+               
+               return formattedRow;
+          } );
+          
+          $assert.typeOf( "array", test );
+          $assert.isTrue( records.recordCount == arrayLen( test ) );
+     }
+
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
