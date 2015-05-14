@@ -2,8 +2,8 @@
 		Component	: dao.cfc (MySQL Specific)
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.69
-	   	@updated 3/27/2015
+		@version 0.0.70
+	   	@updated 5/14/2015
 		Description	: Targeted database access object that will
 		control all MySQL specific database interaction.
 		This component will use MySQL syntax to perform general
@@ -376,7 +376,7 @@
 								<!--- No need to update th PK field --->
 								<cfif col NEQ pk AND arguments.tabledef.getColumnIsDirty(col)>
 									<cfset performUpdate = true/>
-									<cfset isnull = "false">
+									<cfset isnull = false>
 									<cfset curRow = curRow +1>
 
 
@@ -385,7 +385,7 @@
 
 									<cfif not len(trim(value))>
 										<cfif cfsqltype neq "cf_sql_boolean">
-											<cfset isnull = "true">
+											<cfset isnull = true>
 										</cfif>
 										<cfset value = arguments.tabledef.getColumnNullValue(col)>
 										<cfif not arguments.tabledef.isColumnNullable(col)>
@@ -399,9 +399,12 @@
 										<cfset isNull = true/>
 									</cfif>
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
-									<cfif !isNull>
-										<cfif curRow GT 1>, </cfif>#getSafeColumnName(col)# = #getDao().queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
+									<!--- <cfif isNull>
+										<cfset curRow--/>
 									</cfif>
+									<cfif !isNull> --->
+										<cfif curRow GT 1>, </cfif>#getSafeColumnName(col)# = #getDao().queryParam(value=value,cfsqltype=cfsqltype,list='false',null=isnull)#
+									<!--- </cfif> --->
 									<cfset value = "">
 									<cfset cfsqltype = "">
 								</cfif>
