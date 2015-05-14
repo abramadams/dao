@@ -1293,7 +1293,8 @@ component accessors="true" output="false" {
 						dropcreate = this.getDropCreate(),
 						dynamicMappings = getDynamicMappings(),
 						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-						autoWire = getAutoWire()
+						autoWire = getAutoWire(),
+						lazy = lazy
 					);
 
 				// Skip if setter doesn't exist (happens on dynamic child properties)
@@ -1311,27 +1312,37 @@ component accessors="true" output="false" {
 
 				if( structKeyExists( col, 'fieldType' )
 					&& col.fieldType == 'one-to-many'
-					&& structKeyExists( col, 'cfc' ) ){
+					&& ( structKeyExists( col, 'cfc' ) && col.cfc != 'BaseModelObject' ) ){
 					// load child records here....
 					col.fkcolumn = structKeyExists( col, 'fkcolumn' ) ? col.fkcolumn : col.name & this.getIDField();
 					col.inverseJoinColumn = structKeyExists( col, 'inverseJoinColumn' ) ? col.inverseJoinColumn : this.getIDField();
-					var colName = structKeyExists( col, 'singularName') ? col.singularName : col.name;
+					var colName = col.name;
+
+					logIt('is loading onetomany for #getComponentMetadata( col.cfc ).table#');
+					var tmpFunc = this[ "get" & col.name ] =
+								  variables[ "get" & col.name ] = _closure_getOneToMany(
+							table = getComponentMetadata( col.cfc ).table,
+							property = col.name,
+							pkColumn = this.getIDField(),
+							fkColumn = col.fkColumn,
+							pkValue = this[ col.inverseJoinColumn ],
+							where = childWhere,
+							cfc = col.cfc
+						);
+					// this[ col.name ] = variables[ col.name ] = this[ col.name ] = variables[ col.name ] = tmpFunc();
+					// logIt('is done loading onetomany for #getComponentMetadata( col.cfc ).table#');
 					// If lazy == false we will aggressively load all child entities (this is expensive, so use sparingly)
 					if( !lazy ){
-						// Using evaluate because the onMissingMethod doesn't exist when using the dynamic function method (i.e.: func = this['getsomething']; func())
-						this[ col.name ] = variables[ col.name ] = this[ colName ] = variables[ colName ] = evaluate("tmp.loadAllBy#col.fkcolumn#asArray( '#this[col.inverseJoinColumn]#', childWhere )");
-						logIt('is loading onetomany for #getComponentMetadata( col.cfc ).table#');
-						var tmpFunc = this[ "get" & col.name ] = variables[ "get" & col.name ] = this[ "get" & colName ] = variables[ "get" & colName ] = _closure_getOneToMany( table = getComponentMetadata( col.cfc ).table, property = colName, pkColumn = this.getIDField(), fkColumn = col.fkColumn, pkValue = this[ col.inverseJoinColumn ], where = childWhere, cfc = col.cfc );
-						this[ col.name ] = variables[ col.name ] = this[ colName ] = variables[ colName ] = tmpFunc();
+						this[ col.name ] = variables[ col.name ] = tmpFunc();
 						logIt('is done loading onetomany for #getComponentMetadata( col.cfc ).table#');
 
 					//If lazy == true, we will just overload the "getter" method with an anonymous method that will instantiate the child entity when called.
 					}else{
+						//
 						// CF10+/Railo4+ way
-						this[ "get" & col.name ] = variables[ "get" & col.name ] = this[ "get" & colName ] = variables[ "get" & colName ] = _closure_getOneToMany( table = getComponentMetadata( col.cfc ).table, property = colName, pkColumn = this.getIDField(), fkColumn = col.fkColumn, pkValue = this[ col.inverseJoinColumn ], where = childWhere, cfc = col.cfc );
+						this[ col.name ] = variables[ col.name ] = tmpFunc;
 						// CF9 Way
 						// setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
-
 					}
 
 				}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' && structKeyExists( col, 'cfc' ) ){
@@ -1508,16 +1519,16 @@ component accessors="true" output="false" {
 
 		// Update Cache
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-		}
+			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			}
 		}
 
 		logIt("newobject table: #newObj.getTable()#");
 		logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
-			return this[ propertyName ];
+			return isArray( this[ propertyName ] ) ? this[ propertyName ] : [this[ propertyName ]];
 
 		}else{
 			// Return an array of child objects.
@@ -1983,6 +1994,13 @@ component accessors="true" output="false" {
 			// Iterate through each property and generate a struct representation
 			// writeDump(props);abort;
 			for ( var prop in props ){
+				// First thing we need to do is load any "lazy" loaded properties.  This will populate
+				// the property with the correct object/data so that we can traverse it's structure and
+				// produce the serialized struct
+				if( structKeyExists(variables, prop.name) && isClosure( variables[ prop.name ] ) ){
+					var tmpRun = variables[ prop.name ];
+					variables[ prop.name ] = tmpRun();
+				}
 				// Somehow empty props make their way in with MSSQL connectors... this will weed'm out.
 				if( structIsEmpty( prop ) ){
 					continue;
@@ -1994,7 +2012,7 @@ component accessors="true" output="false" {
 				// twice - once with the table name and once with the alias.  This will remove the table name
 				// property so that the alias name will be used instead
 				if( structKeyExists( prop, 'table' ) && structKeyExists( returnStruct, prop.table ) ){
-					structDelete( returnStruct, prop.table );
+					// structDelete( returnStruct, prop.table );
 				}
 
 				// We will bypass internal properties, as well as any "excludeKeys" we find.
@@ -2005,37 +2023,27 @@ component accessors="true" output="false" {
 					if( structKeyExists( variables, arg ) ){
 						returnStruct[ arg ] = variables[ arg ];
 					}
-					// else if( structKeyExists( prop, 'singularName' ) && structKeyExists( variables, prop.singularName ) ){
-					// 	returnStruct[ arg ] = variables[ prop.singularName ];
-					// }
 					// Checking to see if the property was appended to the struct. This prevents errors that sometimes occur if the variables[ arg ] is null (i.e. returned null from Java call )
 					if( structKeyExists( returnStruct, arg ) ){
-						writeLog('#repeatString(" ", nestLevel)#tostruct #prop.name# :: #arg# :: is simple value: #isSimpleValue(returnStruct[arg])#' );
+
+						logIt('#repeatString(" ", nestLevel)#tostruct #prop.name# :: #arg# :: is simple value: #isSimpleValue(returnStruct[arg])#' );
 						// If it's not a simple value, we'll need to recursively call toStruct() to resolve all the nested structs.
 						if( !isSimpleValue( returnStruct[ arg ] )){
 							if(  top == 0 || nestLevel < arguments.top ){
 								if( isArray( returnStruct[ arg ] ) ){
-									writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an array' );
-									// var tmpval = duplicate(returnStruct[ arg ]);
-									// writeDump( returnStruct[arg]);
-									for( var i = 1; i LTE arrayLen( returnStruct[ arg ] ); i++ ){
-										if( isObject( returnStruct[arg][ i ] ) ){
-											writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
-											returnStruct[arg][ i ]['__level'] = nestLevel+1;
-											// writeLog('tostruct for #arg#: nested #nestLevel# deep');
-											returnStruct[arg][ i ] = returnStruct[ arg ][ i ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
-											// writeLog('tostruct for #arg# returned a struct with #structCount(returnStruct[ arg ][ i ] )# keys');
-											// if( !structCount( returnStruct[ arg ][ i ])){
-											// 	writeDump( [returnStruct[arg],arg] );abort;
-											// }
-												// writeDump( [returnStruct] );
+									logIt('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an array' );
+									var newArr = returnStruct[ arg ].map(function(e){
+										if( isObject( e ) ){
+											var d = e.toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
+											d['__level'] = nestLevel+1;
 										}
-									}
-									// abort;
-									// writeDump(returnStruct[arg]);abort;
-									// writeDump( returnStruct);abort;
+										return d;
+									});
+									returnStruct[ arg ] = newArr;
+
 								}else if( isObject( returnStruct[ arg ] ) ){
-									writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an object' );
+
+									logIt('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: was an object' );
 									// returnStruct['__level'] = nestLevel;
 									var col = structFindValue( variables.meta, arg );
 									col = arrayLen( col ) ? col[ 1 ] : {};
@@ -2057,12 +2065,12 @@ component accessors="true" output="false" {
 									// under the key named after the table.  If that is also the name of the FK column, we'll suffix it with _data.
 									var tmpStruct = {};
 									if( columnName == arg ){
-										writeLog('#repeatString(" ", nestLevel+1)#tostruct from object');
+										logIt('#repeatString(" ", nestLevel+1)#tostruct from object');
 										tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
 										// prevent accidentally overwriting an existing key.
 										structAppend( returnStruct, tmpStruct, false );
 									}else{
-										writeLog('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
+										logIt('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
 										// Column name and property were not the same.  We'll still want to stuff the child data into the struct
 										returnStruct[ arg ] = returnStruct[ arg ].toStruct( excludeKeys = excludeKeys, preserveCase = preserveCase, nestLevel = nestLevel+1 );
 									}
