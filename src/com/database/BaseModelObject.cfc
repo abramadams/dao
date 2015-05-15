@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.11
+*   @version 0.1.12
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 5/14/2015
+*   @updated 5/15/2015
 *   @author Abram Adams
 **/
 
@@ -1344,6 +1344,17 @@ component accessors="true" output="false" {
 						// CF9 Way
 						// setterFunc( evaluate("tmp.lazyLoadAllBy#col.fkcolumn#( this.get#col.inverseJoinColumn#(), childWhere )") );
 					}
+				}else if( structKeyExists( col, 'fieldType' )
+					&& col.fieldType == 'many-to-one'
+					&& ( structKeyExists( col, 'cfc' ) && col.cfc != 'BaseModelObject' ) ){
+					// load child records here....
+					col.fkcolumn = structKeyExists( col, 'fkcolumn' ) ? col.fkcolumn : col.name & this.getIDField();
+					col.inverseJoinColumn = structKeyExists( col, 'inverseJoinColumn' ) ? col.inverseJoinColumn : this.getIDField();
+					var colName = col.name;
+
+					logIt('is loading many to one for #getComponentMetadata( col.cfc ).table#');
+					this[ col.name ] = variables[ col.name ] = tmp.load( this[ col.fkcolumn ] );
+					// writeDump([col,this[ col.fkcolumn ], tmp ]);abort;
 
 				}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' && structKeyExists( col, 'cfc' ) ){
 					if( !lazy ){
