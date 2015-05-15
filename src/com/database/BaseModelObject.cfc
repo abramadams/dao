@@ -2110,7 +2110,9 @@ component accessors="true" output="false" {
 							if( findNoCase( '.', returnStruct[ arg ] ) ){
 								returnStruct[ arg ] = javaCast( 'double', returnStruct[ arg ] );
 							}else if( left( returnStruct[ arg ], 1 ) != 0 ) { // protect zero-padded numbers.
-								returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+								try{
+									returnStruct[ arg ] = javaCast( 'int', returnStruct[ arg ] );
+								}catch(any e){}
 							}
 
 						}
