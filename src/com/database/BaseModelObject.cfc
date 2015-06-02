@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.12
+*   @version 0.1.13
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 5/15/2015
+*   @updated 6/2/2015
 *   @author Abram Adams
 **/
 
@@ -848,16 +848,23 @@ component accessors="true" output="false" {
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
 			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
-				//logIt('lazy load all #this.getTable()# - [#originalMethodName# | #getParentTable()#]');
+				logIt('lazy load all #this.getTable()# - [#originalMethodName# | #getParentTable()#]');
 				var recordArray = [];
 				var recCount = record.recordCount;
-
+				// If there are a bunch of child records, this can bring down the server. We'll short circuit that and
+				// just return the query results as an array.
+				if( recCount > 20 ){
+					return variables.dao.read( sql = "SELECT * FROM rec", QoQ = {rec:record}, returnType = "Array");
+				}
+				logIt('loading #recCount# records');
 				for ( var rec = 1; rec LTE recCount; rec++ ){
+					logIt('iterating #rec# of #recCount# records');
 					var qn = queryNew( record.columnList );
 					queryAddRow( qn, 1 );
 					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
 					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-					for( var col in listToArray( record.columnList ) ){
+					var colList = listToArray( record.columnList );
+					for( var col in colList ){
 						querySetCell( qn, col, record[ col ][ rec ] );
 					}
 					var tmpLazy = left( originalMethodName , 4 ) is "lazy" || record.recordCount GTE 100 || this.getParentTable() != "";
@@ -876,7 +883,7 @@ component accessors="true" output="false" {
 						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
 						// does not appear to be thread safe and ends up causing concurrency issues.
 						// var tmpNewEntity = $new();
-						logIt('instantiating new object for #this.getTable()# as part of a loadAll call.');
+						logIt('instantiating new object for #this.getTable()# as part of a loadAll call. [#arguments.missingMethodName# : #serializeJSON(arguments.missingMethodArguments)#');
 						var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable() );
 						tmpNewEntity.load( ID = qn, lazy = tmpLazy, parent = getParentTable() );
 
@@ -1131,7 +1138,9 @@ component accessors="true" output="false" {
 				// the object from scratch.  If this didn't happen, we'll return the cached object.
 				if( len( trim( this.getID() ) ) ){
 					// Save the pristine state of this entity instance
-					variables._pristine = duplicate( cachedObject );
+					lock name="#this.getTable()#-#ID#-pristine" type="exclusive" timeout="3"{
+						variables._pristine = duplicate( cachedObject );
+					}
 					// Fire the postLoad the event handler
 					logIt( 'Executing postLoad event for #getTable()#' );
 					postLoad();
@@ -1167,12 +1176,14 @@ component accessors="true" output="false" {
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
 				// First let's put this guy in our cache for faster retrieval.
 				if( get__cacheEntities() ){
-				lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-					cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-				}
+					lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
+						cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+					}
 				}
 				// Save the pristine state of this entity instance
-				variables._pristine = duplicate( this );
+				lock name="#this.getTable()#-#ID#-pristine" type="exclusive" timeout="3"{
+					variables._pristine = duplicate( this );
+				}
 				// Fire the postLoad the event handler
 				logIt( 'Executing postLoad event for #getTable()#' );
 				postLoad();
