@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.13
+*   @version 0.1.14
 *   @dependencies { "dao" : ">=0.0.65" }
 *   @updated 6/2/2015
 *   @author Abram Adams
@@ -1181,7 +1181,7 @@ component accessors="true" output="false" {
 					}
 				}
 				// Save the pristine state of this entity instance
-				lock name="#this.getTable()#-#ID#-pristine" type="exclusive" timeout="3"{
+				lock name="#this.getTable()#-#this.getID()#-pristine" type="exclusive" timeout="3"{
 					variables._pristine = duplicate( this );
 				}
 				// Fire the postLoad the event handler

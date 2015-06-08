@@ -20,7 +20,7 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.72
+		@version 0.0.73
 		@updated 4/30/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
@@ -846,7 +846,7 @@
 					if( isArray( eval_string ) ){
 						eval_string = arrayToList( eval_string );
 					}
-					returnString = tmpStartString & eval_string & tmpEndString;
+					var returnString = tmpStartString & eval_string & tmpEndString;
 					return parseNamedParamValues( returnString, params );
 				}else{
 					return str;
