@@ -21,7 +21,7 @@
 		Author		: Abram Adams
 		Date		: 1/2/2007
 		@version 0.0.73
-		@updated 4/30/2015
+		@updated 6/8/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform

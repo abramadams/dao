@@ -18,7 +18,7 @@
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
 *   @version 0.1.14
 *   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 6/2/2015
+*   @updated 6/8/2015
 *   @author Abram Adams
 **/
 
