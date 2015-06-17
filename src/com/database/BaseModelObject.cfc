@@ -698,7 +698,14 @@ component accessors="true" output="false" {
 			}
 
 		}else if( left( arguments.missingMethodName, 3 ) is "set" ){
-
+			if( structKeyExists( this, missingMethodName ) ){
+				// Handles cases when the onMissingMethod was called directly
+				// but a setter exists.
+				this.__tmpFunc = this[ missingMethodName ];
+				this.__tmpFunc( missingMethodArguments[ 1 ] );
+				structDelete( this, '__tmpFunc' );
+				return this;
+			}
 			// Handle setters that may not have been assigned to dynamic properties
 			var tableName = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 			var mapping = _getMapping( tableName );
@@ -967,54 +974,50 @@ component accessors="true" output="false" {
 
 		var newEntity = cacheGet( cacheName );
 		// If not in cache, create a new instance.
-		// if( isNull( newEntity ) ){
-			if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
-					logIt('newObj : initializing #variables.meta.name# as #table#');
-					newEntity = new BaseModelObject(
-						dao = dao,
-						table = table,
-						// dynamicMappings = getDynamicMappings(),
-						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-						cacheEntities = get__cacheEntities(),
-						cachedWithin = getcachedWithin(),
-						IDField = IDField,
-						autoWire = autoWire,
-						debugMode = debugMode );
-			}else{
-				// If the current entity was loaded from an entity cfc it is important to also load the new entity using the same cfc. The reason
-				// is that the cfc may have defined relationships and/or other custom properties that would be lost if using the generic BaseModelObject
-				// entity to load the new instance.
-				try{
-					var cfcName = len( trim( cfc ) ) ? cfc : listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & uCase(left(table,1)) & lCase(mid(table,2,len(table)));
-					logIt('newObj : initializing #cfcName# [#table# instead of #getComponentMetadata( cfcName ).table#] ---- #listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table#');
-					newEntity = createObject( "component", cfcName ).init(
-						dao = dao,
-						table = table,
-						// dynamicMappings = getDynamicMappings(),
-						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-						cacheEntities = get__cacheEntities(),
-						cachedWithin = getcachedWithin(),
-						IDField = IDField,
-						autoWire = autoWire,
-						debugMode = debugMode );
-				}catch( any e ){
-					logIt('newObj : initializing #cfcName# FAILED #e.message#');
-					newEntity = new BaseModelObject(
-						dao = dao,
-						table = table,
-						// dynamicMappings = getDynamicMappings(),
-						dynamicMappingFKConvention = getDynamicMappingFKConvention(),
-						cacheEntities = get__cacheEntities(),
-						cachedWithin = getcachedWithin(),
-						IDField = IDField,
-						autoWire = autoWire,
-						debugMode = debugMode );
-					// return createObject( "component", variables.meta.fullName ).init( dao = dao );
-				}
+		if( listLast( variables.meta.name , '.' ) == "BaseModelObject"){
+				logIt('newObj : initializing #variables.meta.name# as #table#');
+				newEntity = new BaseModelObject(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = autoWire,
+					debugMode = debugMode );
+		}else{
+			// If the current entity was loaded from an entity cfc it is important to also load the new entity using the same cfc. The reason
+			// is that the cfc may have defined relationships and/or other custom properties that would be lost if using the generic BaseModelObject
+			// entity to load the new instance.
+			try{
+				var cfcName = len( trim( cfc ) ) ? cfc : listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & uCase(left(table,1)) & lCase(mid(table,2,len(table)));
+				logIt('newObj : initializing #cfcName# [#table# instead of #getComponentMetadata( cfcName ).table#] ---- #listDeleteAt( variables.meta.fullName, listLen( variables.meta.fullName, '.' ), '.' ) & '.' & table#');
+				newEntity = createObject( "component", cfcName ).init(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = autoWire,
+					debugMode = debugMode );
+			}catch( any e ){
+				logIt('newObj : initializing #cfcName# FAILED #e.message#');
+				newEntity = new BaseModelObject(
+					dao = dao,
+					table = table,
+					// dynamicMappings = getDynamicMappings(),
+					dynamicMappingFKConvention = getDynamicMappingFKConvention(),
+					cacheEntities = get__cacheEntities(),
+					cachedWithin = getcachedWithin(),
+					IDField = IDField,
+					autoWire = autoWire,
+					debugMode = debugMode );
+				// return createObject( "component", variables.meta.fullName ).init( dao = dao );
 			}
-		// }else{
-		// 	logIt('new()''ing #table# from cache');
-		// }
+		}
 		newEntity._setIsNew( true );
 		// Cache the empty instance for later retrieval
 		lock type="exclusive" name="#cacheName#" timeout="1"{
@@ -1118,7 +1121,6 @@ component accessors="true" output="false" {
 				for( var prop in cachedObject ){
 					if(!isCustomFunction( cachedObject[prop] ) && prop != "METHODS" ){
 						var mapping = _getMapping( prop );
-						// var newProp = structKeyExists( getDynamicMappings(), prop ) ? getDynamicMappings()[ prop ] : prop;
 						var cachedPropName = structKeyExists( cachedObject, mapping.property ) ? mapping.property : prop;
 
 						this[ mapping.property ] = cachedObject[ cachedPropName ];
@@ -1202,21 +1204,11 @@ component accessors="true" output="false" {
 				var record = this.getRecord( ID = arguments.ID );
 			}
 			for ( var fld in listToArray( record.columnList ) ){
-				// var setterFunc = this["set" & fld ];
-				// setterFunc(record[ fld ][ 1 ]);
-				// // or set directly - doesn't work in cf9
-				// variables[ fld ] = record[ fld ][ 1 ];
-
-				// Using evaluate is the only way in cfscript (cf9) to retain context when calling methods
-				// on a nested object otherwise I'd use the above to set the fk col value
 				try{
 					this[ fld ] = record[ fld ][ 1 ];
 					variables[ fld ] = record[ fld ][ 1 ];
 					if( validateProperty( fld, record[ fld ][ 1 ] ).valid  ){
-						this.__tmpFunc = this['set#fld#'];
-						this.__tmpFunc( record[ fld ][ 1 ] );
-						structDelete( this, '__tmpFunc' );
-						// evaluate("set#fld#(record[ fld ][ 1 ])");
+						this.onMissingMethod( 'set#fld#', { 1:record[ fld ][ 1 ] } );
 					}
 
 				}catch( any e ){
@@ -1379,15 +1371,8 @@ component accessors="true" output="false" {
 					if( !lazy ){
 						//logIt('aggressively loading one-to-one object: #col.cfc# [#col.name#]');
 						setterFunc( tmp.load( structKeyExists( variables, col.fkcolumn ) ? variables[ col.fkcolumn ] : 0 ) );
-						// var tmpID = len( trim( evaluate("this.get#col.fkcolumn#()") ) ) ? variables[ col.fkcolumn ] : '0';
-						// setterFunc( tmp.load( tmpID ) );
-
 					}else{
-
 						setterFunc( function(){ return tmp.load( structKeyExists( variables, col.fkcolumn ) ? variables[ col.fkcolumn ] : 0 ); } );
-						// setterFunc( tmp.load( this.onMissingMethod( 'get#col.fkcolumn#', {} ) ) );
-						// setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
-
 					}
 				}
 			}
@@ -1561,7 +1546,6 @@ component accessors="true" output="false" {
 		logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
 			this[ propertyName ] = variables[ propertyName ] = newObj.onMissingMethod( 'lazyLoadAllBy#fkColumn#As#returnType#', {1:pkValue, 2:where} );
-			// this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
 			return isArray( this[ propertyName ] ) ? this[ propertyName ] : [this[ propertyName ]];
 
 		}else{
@@ -1573,7 +1557,6 @@ component accessors="true" output="false" {
 			}
 			logIt('newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
 			this[ propertyName ] = variables[ propertyName ] = newObj.onMissingMethod( 'lazyLoadAllBy#fkColumn#',  {1:pkValue, 2:where}  );
-			// this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
 			logIt('done with newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
 			if( isArray( this[ propertyName ] ) ){
 				if( returnFirst ){
@@ -1874,7 +1857,6 @@ component accessors="true" output="false" {
 			logIt("columns in #this.getTable()#: " & this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ) );
 			var record = this.getDAO().read(
 					table = this.getTable(),
-					// columns = "#this.getIDField()##this.getIDField() neq 'ID' ? ' as ID, #this.getIDField()#' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID,#this.getIDField()#' ) )#",
 					columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
 					where = "WHERE #this.getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
 					name = "#this.getTable()#_getRecord"
@@ -1899,7 +1881,6 @@ component accessors="true" output="false" {
     /**
     * The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
     **/
-	/* string columns = "#this.getDAO().getSafeColumnName( this.getIDField() )##this.getIDField() NEQ 'ID' ? ' as ID,  #this.getIDField()#' : ''#, #this.getDAO().getSafeColumnNames( this.getTableDef().getColumns( exclude = 'ID,#this.getIDField()#' ) )#", */
 	public query function list(
 								string columns = "",
 								string where = "",
@@ -2412,9 +2393,8 @@ component accessors="true" output="false" {
 				for ( var child in variables[ col.name ] ){
 					logIt('_savethechildren: saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 					try{
-						// evaluate retains the scope where anonymous methods don't
+						// Call the "set" method for the foreign key on the child object
 						child.onMissingMethod( 'set#col.fkcolumn#', {1:tempID} );
-						// evaluate("child.set#col.fkcolumn#( #tempID# )");
 					}catch (any e){
 						writeDump(['Error in setFunc',e,child, arguments, variables[ col.name ] ]);abort;
 
@@ -2442,11 +2422,9 @@ component accessors="true" output="false" {
 				//**************************************************************************************************
 				try{
 					/* Set the object's FK to the value of the new parent record  */
-					/* TODO: when we no longer need to support ACF9, change this to use invoke() */
 					if( structKeyExists( variables, col.name ) ){
 						var tmp = variables[col.name];
 						this.onMissingMethod( 'set#col.fkcolumn#', { 1:tmp.onMissingMethod( 'get#col.inverseJoinColumn#', {} ) } );
-						// evaluate("this.set#col.fkcolumn#( tmp.get#col.inverseJoinColumn#() )");
 					}
 
 				}catch (any e){

@@ -695,6 +695,17 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      }
 
+     function testIsDirty() test{
+          beforeEach();
+          var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
+
+          testEntity.loadByIDAndEvent(208,'delete');
+          $assert.isFalse( testEntity.isDirty() );
+          testEntity.setEvent('this is a new value');
+          $assert.isTrue( testEntity.isDirty() );
+
+     }
+
      // executes after all tests
      function afterTests(){
 
