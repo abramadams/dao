@@ -20,7 +20,7 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.73
+		@version 0.0.74
 		@updated 6/8/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
@@ -1342,7 +1342,7 @@
 									--->
 									<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 									<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-										<cfset SqlPart = tmpSQL.statements[idx].before />
+										<cfset var SqlPart = tmpSQL.statements[idx].before />
 										#preserveSingleQuotes( SqlPart )#
 										<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 											<cfqueryparam
@@ -1366,7 +1366,7 @@
 									--->
 									<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 									<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-										<cfset SqlPart = tmpSQL.statements[idx].before />
+										<cfset var SqlPart = tmpSQL.statements[idx].before />
 										#preserveSingleQuotes( SqlPart )#
 										<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 											<cfqueryparam
@@ -1400,7 +1400,7 @@
 						<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 						<cfset structAppend( variables, arguments.QoQ )/>
 						<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
-							<cfset SqlPart = tmpSQL.statements[idx].before />
+							<cfset var SqlPart = tmpSQL.statements[idx].before />
 							#preserveSingleQuotes( SqlPart )#
 							<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
 								<cfqueryparam

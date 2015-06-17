@@ -593,11 +593,6 @@ component accessors="true" output="false" {
 		var limit = arguments.missingMethodName is "loadTop" ? arguments.missingMethodArguments[ 1 ] : "";
 		var orderby = arguments.missingMethodName is "loadTop" ? "ORDER BY " & arguments.missingMethodArguments[2] : '';
 		var where = "1=1";
-		// Hack until I figure out what's changing the table name in certain circumstances
-		// if( structKeyExists( variables.meta, 'table' ) ){
-		// 	this.setTable( variables.meta.table );
-		// 	logIt('Handling missing method #missingMethodName# on #this.getTable()# (#variables.meta.table#)');
-		// }
 		// ReturnType allows us to return a different representation of the object if loading an entity or getting related entities.
 		var returnType = "object";
 		if( right( arguments.missingMethodName, 7 ) == "asArray" ){
@@ -611,7 +606,6 @@ component accessors="true" output="false" {
 			arguments.missingMethodName = mid( arguments.missingMethodName, 1, len( arguments.missingMethodName ) - 6 );
 		}
 
-		// writeDump([missingMethodName,left( arguments.missingMethodName, 3 ),mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) ), missingMethodName contains "By"]);abort;
 		// Handle dynamic getters for relationhsip entities
 		if( left( arguments.missingMethodName, 3 ) is "get"){
 			var getterInstructions = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
@@ -649,7 +643,6 @@ component accessors="true" output="false" {
 						// Let's try to find a table matching the getterInstructions and load all records matching the
 						// current entity's ID value.
 
-						// newTableName = structKeyExists( getDynamicMappings(), newTableName ) ? getDynamicMappings()[ newTableName ] : newTableName;
 						// logIt('CALLING _getOneToMany() for #newTableName# (#propertyName#) #returnType# (dynamically called via #arguments.missingMethodName# on #this.getTable()# for #this.getID()# [ #mapping.table# : #mapping.property#])');
 						var ret =  _getOneToMany( table = lcase( mapping.table ), property = propertyName, returnType = returnType );
 						// logIt('And that returned an object? #isObject( ret )#');
@@ -659,10 +652,11 @@ component accessors="true" output="false" {
 
 				} catch ( any e ){
 					if( e.type != 'BMO' ){
-						// throw(e.detail);
-						writeDump([e,mapping]);abort;
+						throw(e.detail);
+						// writeDump(["test",e,mapping]);abort;
 					}
-					writeDump([e,mapping]);abort;
+					rethrow;
+					// writeDump(["another test",arguments,e,mapping,variables]);abort;
 				}
 			}else if( getterInstructions contains "By"){
 				try{
@@ -697,8 +691,8 @@ component accessors="true" output="false" {
 
 				} catch ( any e ){
 					if( e.type != 'BMO' ){
-						// throw(e.detail);
-						writeDump([e]);abort;
+						throw(e.detail);
+						// writeDump([e]);abort;
 					}
 				}
 			}
@@ -709,8 +703,6 @@ component accessors="true" output="false" {
 			var tableName = mid( arguments.missingMethodName, 4, len( arguments.missingMethodName ) );
 			var mapping = _getMapping( tableName );
 			_injectProperty( mapping.property, arguments.missingMethodArguments[ 1 ] );
-			// this[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
-			// variables[ mapping.property ] = arguments.missingMethodArguments[ 1 ];
 			this._setIsDirty( true );
 			logIt('#arguments.missingMethodName# :: #isDirty()#');
 
@@ -730,7 +722,6 @@ component accessors="true" output="false" {
 			var newTableName = mid( arguments.missingMethodName, findNoCase( "belongsTo", arguments.missingMethodName ) - 1, len( arguments.missingMethodName ) );
 			// Using defined naming convention to create a potential fk column name to check for.
 			var potentialFkColumn = getPotentialFKColumnName(  newTableName );
-			// variables[ newTableName ] = this[ newTableName ] = _getManyToOne( table = lcase( newTableName ), fkColumn = potentialFkColumn, returnType = returnType );
 			var tableDef = _loadTableDef( newTableName );
 			logIt('is #table# a table? #tableDef.getIsTable()#');
 			if( tableDef.getIsTable() ){
@@ -775,8 +766,6 @@ component accessors="true" output="false" {
 		// record returned per the "By" criteria
 		if( left( arguments.missingMethodName, 9 ) is "loadFirst" ){
 			limit = 1;
-			abortlater = true;
-			// arguments.missingMethodName = "load" & mid( arguments.missingMethodName, 10, len( arguments.missingMethodName ) );
 			arguments.missingMethodName = reReplaceNoCase( arguments.missingMethodName, "loadFirst", "load", "one" );
 		}
 
@@ -816,7 +805,20 @@ component accessors="true" output="false" {
 
 					//Setup defaults
 					try{
-						evaluate("this.set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
+						// Dynamically calling a function is not supported very well on ACF.
+						// so one cannot just this["set#queryArguments[ i ]#"]( value )
+						// There are a few ways to do this, we can inject a temporary function
+						// to the object"
+						//   this.__tmpFunc = this['set#queryArguments[ i ]#'];
+						//   this.__tmpFunc( arguments.missingMethodArguments[ i ] );
+						//   structDelete( this, '__tmpFunc' );
+						// We can use the dreaded evaluate:
+						//   evaluate("this.set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
+						// We could use a wrapper function (i.e. call( funcName, args ) )
+						// We could use invoke (though not portable between engines/versions)
+						// Or we can directly invoke the onMissingMethod:
+						this.onMissingMethod( "set#queryArguments[ i ]#", { 1:arguments.missingMethodArguments[ i ] } );
+
 					} catch ( any err ){
 						throw("Error Loading data into #this.getTable()# object.");
 					}
@@ -824,7 +826,7 @@ component accessors="true" output="false" {
 
 			}
 
-			if( structCount( missingMethodArguments ) GT arrayLen( queryArguments ) ){
+			if( structCount( missingMethodArguments ) > arrayLen( queryArguments ) ){
 				where = missingMethodArguments[ arrayLen( queryArguments ) + 1 ];
 				where = len( trim( where ) ) ? where : '1=1';
 			}
@@ -844,10 +846,10 @@ component accessors="true" output="false" {
 			variables._isNew = record.recordCount EQ 0;
 
 			//If a record existed, load it
-			if( record.recordCount == 1 && !left( originalMethodName, 7 ) is "loadAll" && !left( originalMethodName, 11 ) is "lazyLoadAll"){
+			if( record.recordCount == 1 && !left( originalMethodName, 7 ) == "loadAll" && !left( originalMethodName, 11 ) == "lazyLoadAll"){
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
-			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) is "loadAll" || left( originalMethodName , 11 ) is "lazyLoadAll" ) {
+			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) == "loadAll" || left( originalMethodName , 11 ) == "lazyLoadAll" ) {
 				logIt('lazy load all #this.getTable()# - [#originalMethodName# | #getParentTable()#]');
 				var recordArray = [];
 				var recCount = record.recordCount;
@@ -910,12 +912,15 @@ component accessors="true" output="false" {
 			//Otherwise, set the passed in arguments and return the new entity
 			}else{
 
-
 				for ( i = 1; i LTE arrayLen(queryArguments); i++ ){
 					//Setup defaults
 					 try{
 						if( validateProperty( queryArguments[ i ], arguments.missingMethodArguments[ i ] ).valid ){
-							evaluate("set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
+							// this.__tmpFunc = this['set#queryArguments[ i ]#'];
+							// this.__tmpFunc( arguments.missingMethodArguments[ i ] );
+							// structDelete( this, '__tmpFunc' );
+							// evaluate("set#queryArguments[ i ]#(arguments.missingMethodArguments[ i ])");
+							this.onMissingMethod( 'set#queryArguments[ i ]#', { 1:arguments.missingMethodArguments[ i ] } );
 						}
 						this._setIsDirty( false );
 					} catch ( any err ){
@@ -1208,7 +1213,10 @@ component accessors="true" output="false" {
 					this[ fld ] = record[ fld ][ 1 ];
 					variables[ fld ] = record[ fld ][ 1 ];
 					if( validateProperty( fld, record[ fld ][ 1 ] ).valid  ){
-						evaluate("set#fld#(record[ fld ][ 1 ])");
+						this.__tmpFunc = this['set#fld#'];
+						this.__tmpFunc( record[ fld ][ 1 ] );
+						structDelete( this, '__tmpFunc' );
+						// evaluate("set#fld#(record[ fld ][ 1 ])");
 					}
 
 				}catch( any e ){
@@ -1370,12 +1378,15 @@ component accessors="true" output="false" {
 				}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' && structKeyExists( col, 'cfc' ) ){
 					if( !lazy ){
 						//logIt('aggressively loading one-to-one object: #col.cfc# [#col.name#]');
-						var tmpID = len( trim( evaluate("this.get#col.fkcolumn#()") ) ) ? variables[ col.fkcolumn ] : '0';
-						setterFunc( tmp.load( tmpID ) );
+						setterFunc( tmp.load( structKeyExists( variables, col.fkcolumn ) ? variables[ col.fkcolumn ] : 0 ) );
+						// var tmpID = len( trim( evaluate("this.get#col.fkcolumn#()") ) ) ? variables[ col.fkcolumn ] : '0';
+						// setterFunc( tmp.load( tmpID ) );
 
 					}else{
 
-						setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
+						setterFunc( function(){ return tmp.load( structKeyExists( variables, col.fkcolumn ) ? variables[ col.fkcolumn ] : 0 ); } );
+						// setterFunc( tmp.load( this.onMissingMethod( 'get#col.fkcolumn#', {} ) ) );
+						// setterFunc( evaluate("tmp.load( this.get#col.fkcolumn#() )") );
 
 					}
 				}
@@ -1549,7 +1560,8 @@ component accessors="true" output="false" {
 		logIt("newobject table: #newObj.getTable()#");
 		logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
-			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
+			this[ propertyName ] = variables[ propertyName ] = newObj.onMissingMethod( 'lazyLoadAllBy#fkColumn#As#returnType#', {1:pkValue, 2:where} );
+			// this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#As#returnType#(#pkValue#,'#where#')");
 			return isArray( this[ propertyName ] ) ? this[ propertyName ] : [this[ propertyName ]];
 
 		}else{
@@ -1560,8 +1572,8 @@ component accessors="true" output="false" {
 				return [];
 			}
 			logIt('newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
-			// writeDump([newObj.getTable(),this.getTable(),arguments,fkcolumn,pkvalue,where, mapping, newprop]);
-			this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
+			this[ propertyName ] = variables[ propertyName ] = newObj.onMissingMethod( 'lazyLoadAllBy#fkColumn#',  {1:pkValue, 2:where}  );
+			// this[ propertyName ] = variables[ propertyName ] = evaluate("newObj.lazyLoadAllBy#fkColumn#(#pkValue#,'#where#')");
 			logIt('done with newObj.lazyLoadAllBy#fkColumn#(#pkValue#,''#where#'')');
 			if( isArray( this[ propertyName ] ) ){
 				if( returnFirst ){
@@ -2401,7 +2413,8 @@ component accessors="true" output="false" {
 					logIt('_savethechildren: saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 					try{
 						// evaluate retains the scope where anonymous methods don't
-						evaluate("child.set#col.fkcolumn#( #tempID# )");
+						child.onMissingMethod( 'set#col.fkcolumn#', {1:tempID} );
+						// evaluate("child.set#col.fkcolumn#( #tempID# )");
 					}catch (any e){
 						writeDump(['Error in setFunc',e,child, arguments, variables[ col.name ] ]);abort;
 
@@ -2432,7 +2445,8 @@ component accessors="true" output="false" {
 					/* TODO: when we no longer need to support ACF9, change this to use invoke() */
 					if( structKeyExists( variables, col.name ) ){
 						var tmp = variables[col.name];
-						evaluate("this.set#col.fkcolumn#( tmp.get#col.inverseJoinColumn#() )");
+						this.onMissingMethod( 'set#col.fkcolumn#', { 1:tmp.onMissingMethod( 'get#col.inverseJoinColumn#', {} ) } );
+						// evaluate("this.set#col.fkcolumn#( tmp.get#col.inverseJoinColumn#() )");
 					}
 
 				}catch (any e){
