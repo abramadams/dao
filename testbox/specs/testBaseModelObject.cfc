@@ -684,14 +684,17 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      function testInjectedPreLoadEvent() test{
           beforeEach();
           var testEntity = new com.database.BaseModelObject( dao = request.dao, table = "pets" );
-          testEntity.preLoad = function( entity ){
+          var truthy = false;
+          testEntity.beforeLoad = function( entity ){
                entity.setId( 99999 );
                writeLog('testInjectedPreLoadEvent has access to the entity''s getID():: #entity.getId()#');
                $assert.isTrue( entity.getId() == 99999 );
+               truthy = true;
           };
           // testEntity.preLoad = preLoad;
           testEntity.load( 93 );
           $assert.isTrue( testEntity.getId() == 93 );
+          $assert.isTrue( truthy );
 
      }
 

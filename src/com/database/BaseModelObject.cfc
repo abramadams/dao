@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.1.15
+*   @version 0.2.0
 *   @dependencies { "dao" : ">=0.0.65" }
 *   @updated 6/17/2015
 *   @author Abram Adams
@@ -199,13 +199,18 @@ component accessors="true" output="false" {
 					break;
 				}
 			}
-
+			// table column didn't exist as a property, let's add it.
 			if ( !found ){
 
 				variables[ col ] = this[ col ] = "";
+				// setFunc/getFunc are generic setters/getters that allow us to do things like dirty checking
 				variables["set" & col] = this["set" & col] = this.methods["set" & col] = setFunc;
 				variables["get" & col] = this["get" & col] = this.methods["get" & col] = getFunc;
-				var mapping = getAutoWire() ? _getMapping( col ) : structKeyExists( getDynamicMappings(), col ) ? getDynamicMappings()[ col ] : { property: col, table: col };
+				// if set to autowire, we'll check for any entity mappings and set those up now.
+				var mapping = getAutoWire()
+					? _getMapping( col ) :
+						structKeyExists( getDynamicMappings(), col )
+						? getDynamicMappings()[ col ] : { property: col, table: col };
 				var newProp = {
 					"name" = mapping.property,
 					"column" = col,
@@ -247,9 +252,10 @@ component accessors="true" output="false" {
        * This will hijack all of the setters and inject a function that will set the
        * isDirty flag to true anytime data changes
        **/
-		var setter = setFunc;
+		// var setter = setFunc;
 		for ( var prop in variables.meta.properties ){
-			if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
+			if( ( !structKeyExists( prop, 'setter' ) || prop.setter )
+					&& ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 
 				// copy the real setter function to a temp variable.
 				if( structKeyExists( this, "set" & prop.name ) ){
@@ -265,7 +271,8 @@ component accessors="true" output="false" {
 		/* Now if the model was extended, include those properties as well */
 		if( structKeyExists( variables.meta, 'extends' ) && structKeyExists( variables.meta.extends, 'properties' )){
 			for ( var prop in variables.meta.extends.properties ){
-				if( ( !structKeyExists( prop, 'setter' ) || prop.setter ) && ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
+				if( ( !structKeyExists( prop, 'setter' ) || prop.setter )
+						&& ( !structKeyExists( prop, 'fieldType' ) ||  prop.fieldType does not contain '-to-' ) ){
 					// copy the real setter function to a temp variable.
 					variables[ "$$__set" & prop.name ] = this[ "set" & prop.name ];
 					// now override the setter with the new function that will set the dirty flag.
@@ -350,12 +357,15 @@ component accessors="true" output="false" {
 	private function _getMetaData(){
 		var metadata = deSerializeJSON( serializeJSON( getMetadata( this ) ) );
 		var privateKeys = [];
-		for( var prop in metadata.properties ){
-			// privateKeys will be used as a default excludeKeys argument for returning
-			// the entity as a struct or json.  We only need to return persistent properties in those cases.
-			if( ( !structKeyExists( prop, 'persistent' ) || prop.persistent == false )
-				  && !structKeyExists( prop, 'cfc') ){
-				arrayAppend( privateKeys, prop.name );
+		// writeDump( metadata );abort;
+		if( structKeyExists( metadata, 'properties' ) ){
+			for( var prop in metadata.properties ){
+				// privateKeys will be used as a default excludeKeys argument for returning
+				// the entity as a struct or json.  We only need to return persistent properties in those cases.
+				if( ( !structKeyExists( prop, 'persistent' ) || prop.persistent == false )
+					  && !structKeyExists( prop, 'cfc') ){
+					arrayAppend( privateKeys, prop.name );
+				}
 			}
 		}
 		metadata["privateKeys"] = privateKeys;
@@ -1084,12 +1094,12 @@ component accessors="true" output="false" {
 	**/
 	public any function load( required any ID, boolean lazy = false, string parentTable = getParentTable() ){
 		var props = variables.meta.properties;
-		// Fire the preLoad the event handler
-		logIt( 'Executing preLoad event for #getTable()#' );
-		if( isNull( this.preLoad ) ){
-			preLoad( this );
+		// Fire the beforeLoad the event handler
+		logIt( 'Executing beforeLoad event for #getTable()#' );
+		if( isNull( this.beforeLoad ) ){
+			beforeLoad( this );
 		}else{
-			this.preLoad( this );
+			this.beforeLoad( this );
 		}
 		// If the ID was a simple value, chances are we may have the object already cached, let's try to load it.
 		// Typically we'd only use a short lived cache to help resolve circular dependancies and loading the same
@@ -1148,9 +1158,9 @@ component accessors="true" output="false" {
 					lock name="#this.getTable()#-#ID#-pristine" type="exclusive" timeout="3"{
 						variables._pristine = duplicate( cachedObject );
 					}
-					// Fire the postLoad the event handler
-					logIt( 'Executing postLoad event for #getTable()#' );
-					postLoad();
+					// Fire the afterLoad the event handler
+					logIt( 'Executing afterLoad event for #getTable()#' );
+					afterLoad();
 					return cachedObject;
 				}
 			}
@@ -1191,9 +1201,9 @@ component accessors="true" output="false" {
 				lock name="#this.getTable()#-#this.getID()#-pristine" type="exclusive" timeout="3"{
 					variables._pristine = duplicate( this );
 				}
-				// Fire the postLoad the event handler
-				logIt( 'Executing postLoad event for #getTable()#' );
-				postLoad();
+				// Fire the afterLoad the event handler
+				logIt( 'Executing afterLoad event for #getTable()#' );
+				afterLoad();
 				return this;
 			}
 		}else{
@@ -1386,12 +1396,12 @@ component accessors="true" output="false" {
 		}
 		// Save the pristine state of this entity instance
 		variables._pristine = duplicate( this );
-		// Fire the postLoad the event handler
-		logIt( 'Executing postLoad event for #getTable()#' );
-		if( isNull( this.postLoad ) ){
-			postLoad( this );
+		// Fire the afterLoad the event handler
+		logIt( 'Executing afterLoad event for #getTable()#' );
+		if( isNull( this.afterLoad ) ){
+			afterLoad( this );
 		}else{
-			this.postLoad( this );
+			this.afterLoad( this );
 		}
 
 		return this;
@@ -2167,17 +2177,17 @@ component accessors="true" output="false" {
 		// Either insert or update the record
 		if ( isNew() ){
 
-			// Run preinsert function.  If it returns anything we'll
+			// Run beforeInsert function.  If it returns anything we'll
 			// abort the insert.
-			logIt( 'Executing preInsert event for #getTable()#' );
-			if( isNull( this.preInsert ) ){
-				if( !isNull( preInsert() ) ){
-					logIt( 'Aborting insert due to preInsert' );
+			logIt( 'Executing beforeInsert event for #getTable()#' );
+			if( isNull( this.beforeInsert ) ){
+				if( !isNull( beforeInsert() ) ){
+					logIt( 'Aborting insert due to beforeInsert' );
 					return;
 				}
 			}else{
-				if( !isNull( this.preInsert( this ) ) ){
-					logIt( 'Aborting insert due to preInsert' );
+				if( !isNull( this.beforeInsert( this ) ) ){
+					logIt( 'Aborting insert due to beforeInsert' );
 					return;
 				}
 			}
@@ -2259,29 +2269,29 @@ component accessors="true" output="false" {
             // persist the data with the new parent ID (this parent)
 			_saveTheChildren( tempID );
 
-			// Run postInsert function.
-			logIt( 'Executing postInsert event for #getTable()#' );
-			if( isNull( this.postInsert ) ){
-				postInsert( this );
+			// Run afterInsert function.
+			logIt( 'Executing afterInsert event for #getTable()#' );
+			if( isNull( this.afterInsert ) ){
+				afterInsert( this );
 			}else{
-				this.postInsert( this );
+				this.afterInsert( this );
 			}
 
 		}else if( isDirty() || arguments.force ){
 
 			callbackArgs.isNew = false;
 
-			// Run preUpdate function.  If it returns anything we'll
+			// Run beforeUpdate function.  If it returns anything we'll
 			// abort the update.
-			logIt( 'Executing preUpdate event for #getTable()#' );
-			if( isNull( this.preUpdate ) ){
-				if( !isNull( preUpdate(  variables._pristine ) ) ){
-					logIt( 'Aborting update due to preInsert' );
+			logIt( 'Executing beforeUpdate event for #getTable()#' );
+			if( isNull( this.beforeUpdate ) ){
+				if( !isNull( beforeUpdate(  variables._pristine ) ) ){
+					logIt( 'Aborting update due to beforeInsert' );
 					return;
 				}
 			}else{
-				if( !isNull( this.preUpdate( variables._pristine, this  ) ) ){
-					logIt( 'Aborting update due to preInsert' );
+				if( !isNull( this.beforeUpdate( variables._pristine, this  ) ) ){
+					logIt( 'Aborting update due to beforeInsert' );
 					return;
 				}
 			}
@@ -2345,12 +2355,12 @@ component accessors="true" output="false" {
 		}
 
 		variables._isNew = false;
-		// Run postUpdate function.
-		logIt( 'Executing postUpdate event for #getTable()#' );
-		if( isNull( this.postUpdate ) ){
-			postUpdate( this );
+		// Run afterUpdate function.
+		logIt( 'Executing afterUpdate event for #getTable()#' );
+		if( isNull( this.afterUpdate ) ){
+			afterUpdate( this );
 		}else{
-			this.postUpdate( this );
+			this.afterUpdate( this );
 		}
 
 		this.load(ID = tempID);
@@ -2444,17 +2454,17 @@ component accessors="true" output="false" {
     **/
 	public void function delete( boolean soft = false, any callback ){
 		var callbackArgs = { ID = getID(), method = 'delete', deletedChildren = []};
-		// Run preDelete function.  If it returns anything we'll
+		// Run beforeDelete function.  If it returns anything we'll
 		// abort the delete.
-		logIt( 'Executing preDelete event for #getTable()#' );
-		if( isNull( this.preDelete ) ){
-			if( !isNull( preDelete( this ) ) ){
-				logIt( 'Aborting delete due to preDelete' );
+		logIt( 'Executing beforeDelete event for #getTable()#' );
+		if( isNull( this.beforeDelete ) ){
+			if( !isNull( beforeDelete( this ) ) ){
+				logIt( 'Aborting delete due to beforeDelete' );
 				return;
 			}
 		}else{
-			if( !isNull( this.preDelete( this ) ) ){
-				logIt( 'Aborting delete due to preDelete' );
+			if( !isNull( this.beforeDelete( this ) ) ){
+				logIt( 'Aborting delete due to beforeDelete' );
 				return;
 			}
 		}
@@ -2524,13 +2534,13 @@ component accessors="true" output="false" {
 
 		//this.init( dao = getDao(), table = getTable() );
 
-		// Run postUpdate function.
-		logIt( 'Executing postDelete event for #getTable()#' );
+		// Run afterUpdate function.
+		logIt( 'Executing afterDelete event for #getTable()#' );
 
-		if( isNull( this.postDelete ) ){
-			postDelete( this );
+		if( isNull( this.afterDelete ) ){
+			afterDelete( this );
 		}else{
-			this.postDelete( this );
+			this.afterDelete( this );
 		}
 		$reset();
 		// Fire callback function (if provided). Could be used for AOP
@@ -2733,14 +2743,14 @@ component accessors="true" output="false" {
 	}
 
 	// Event functions meant to be overwridden
-	private function preLoad(){}
-	private function postLoad(){}
-	private function preInsert(){}
-	private function preUpdate(){}
-	private function preDelete(){}
-	private function postInsert(){}
-	private function postUpdate( struct oldData ){}
-	private function postDelete(){}
+	private function beforeLoad(){}
+	private function afterLoad(){}
+	private function beforeInsert(){}
+	private function beforeUpdate(){}
+	private function beforeDelete(){}
+	private function afterInsert(){}
+	private function afterUpdate( struct oldData ){}
+	private function afterDelete(){}
 
 	/* Utilities */
 	/**
