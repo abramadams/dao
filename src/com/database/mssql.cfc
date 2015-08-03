@@ -564,7 +564,7 @@
 		/**
 	    * I drop a table based on the passed in table name.
 	    **/
-		public tabledef function dropTable( required string table ) output = false{
+		public void function dropTable( required string table ) output = false{
 			getDao().execute( "
 				IF OBJECT_ID('#this.getTable()#', 'U') IS NOT NULL
   				DROP TABLE [#this.getTable()#]
