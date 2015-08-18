@@ -1058,8 +1058,8 @@
 		/**
 		* Delegates the dropping of a "table" to the underlying persistence storage "connector"
 		**/
-		public tabledef function dropTable( required string table ){
-			return getConn().dropTable( arguments.table );
+		public void function dropTable( required string table ){
+			getConn().dropTable( arguments.table );
 		}
 
 		/**

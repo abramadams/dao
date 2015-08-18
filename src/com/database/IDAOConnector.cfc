@@ -62,7 +62,7 @@ interface {
 	tabledef function makeTable( required tabledef tabledef ) output = false
 		description ="I create a table based on the passed in tabledef object's properties.";
 
-	tabledef function dropTable( required string table ) output = false
+	void function dropTable( required string table ) output = false
 		description="I drop a table based on the passed in table name.";
 
 }
