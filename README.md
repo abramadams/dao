@@ -439,7 +439,7 @@ entity properties and describe relationships.  Example:
 
 ```javascript
 /* Pet.cfc */
-component persistent="true" table="pets" extends="com.database.BaseModelObject" accessors="true" {
+component norm_persistent="true" table="pets" extends="com.database.BaseModelObject" accessors="true" {
 
 	property name="ID" type="numeric" fieldtype="id" generator="increment";
 	property name="_id" fieldtype="id" generator="uuid" type="string" length="45";
@@ -515,7 +515,7 @@ These can be defined within a CFC, or injected after the fact.  Examples:
 Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
 ```javascript
 /* EventLog.cfc */
-component persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
+component norm_persistent="true" table="eventLog" extends="com.database.BaseModelObject"{
 }
 ```
 That's all we *need*.  Now say I created a table named eventLog in my databse with the following:
@@ -543,7 +543,7 @@ To make this work, just make sure you set the table attribute to point to the ac
 
 You can also mix and match.  You can statically define properties:
 ```javascript
-component persistent="true" table="eventLog" extends="com.database.BaseModelObject" accessors="true"{
+component norm_persistent="true" table="eventLog" extends="com.database.BaseModelObject" accessors="true"{
 	property name="description" type="string";
 }
 ```

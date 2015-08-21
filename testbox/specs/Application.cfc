@@ -8,6 +8,7 @@ component {
 	this.mappings[ "/testbox" ] = expandPath( '/testbox' );
 	// any orm definitions go here.
 
+
 	// request start
 	public boolean function onRequestStart( String targetPage ){
 

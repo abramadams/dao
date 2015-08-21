@@ -15,12 +15,13 @@ component{
 
 	this.datasource = "dao";
 	// any orm definitions go here.
+	this.ormenabled = !!( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) );
+	this.ormsettings={datasource="dao"};
 
 	// request start
-	public boolean function onRequestStart( String targetPage ){
+	public function onRequestStart( String targetPage ){
 		request.dao = new com.database.dao( dsn = "dao" );
 		// @TODO: Make database setup for each supported database engine
-
 		// MySQL
 		local.start = getTickCount();
  		request.dao.execute("DROP TABLE IF EXISTS `eventLog`");

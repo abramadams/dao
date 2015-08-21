@@ -382,7 +382,9 @@
 
 									<cfset value = qry[col][currentRow]/>
 									<cfset cfsqltype = arguments.tabledef.getCFSQLType(col)>
-
+									<cfif cfsqltype eq "cf_sql_double" && len( listLast( value ) ) eq 2>
+										<cfset value = lsParseNumber( value )/>
+									</cfif>
 									<cfif not len(trim(value))>
 										<cfif cfsqltype neq "cf_sql_boolean">
 											<cfset isnull = true>

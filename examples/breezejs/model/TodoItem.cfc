@@ -1,4 +1,4 @@
-component persistent="true" table="TodoItem" extends="com.database.BaseModelObject" accessors="true" {
+component norm_persistent="true" table="TodoItem" extends="com.database.BaseModelObject" accessors="true" {
 
 	property name="_id" type="string" fieldtype="id" generator="uuid";	
 	property name="ID" type="numeric" fieldtype="id" generator="increment";	
