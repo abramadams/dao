@@ -2908,7 +2908,7 @@ component accessors="true" output="false" {
 	/**
     * I drop the current table.
     **/
-	private function dropTable(){
+	private void function dropTable(){
 		variables.dao.dropTable( this.getTable() );
 	}
 
