@@ -10,7 +10,7 @@
         dao = new com.database.dao( dsn = "myDB", dbtype = "mysql" );
     */
 
-    testEntity = new com.database.BaseModelObject( table = "eventLog", dao = dao, cachedWithin = createTimeSpan(0,0,0,20) );
+    testEntity = new com.database.Norm( table = "eventLog", dao = dao, cachedWithin = createTimeSpan(0,0,0,20) );
     writeDump(getmetaData( testEntity ) );
     query = dao.from( "pets", [{ table = "users", columns = "users.first_name as fname", type = "LEFT OUTER", on = "users.ID = pets.userID" }] )
                     .where( 1, "=", 1 )
@@ -53,7 +53,7 @@
    /**
     * eventLog = new model.EventLog( dao = dao );
     * The above code should essentially be equivalent to the below line
-    * eventLog = new com.database.BaseModelObject( dao = dao, table = "eventLog");
+    * eventLog = new com.database.Norm( dao = dao, table = "eventLog");
     *
     * NOTE that the eventLog table must exist when instantiating the object this way.
     * when instantiating using the entity's cfc directly (i.e. new EventLog) it will

@@ -1,4 +1,4 @@
-component displayName="I test BMO's Dynamic Relationships" extends="testbox.system.BaseSpec"{
+component displayName="I test NORM's Dynamic Relationships" extends="testbox.system.BaseSpec"{
 
      // executes before all tests
      function beforeTests(){
@@ -8,13 +8,13 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
      function createNewEntityInstance() test{
      	var testEntity = new model.EventLog( dao = request.dao );
 
-     	$assert.isTrue( isInstanceOf( testEntity, "com.database.BaseModelObject" ) );
+     	$assert.isTrue( isInstanceOf( testEntity, "com.database.Norm" ) );
      }
 
      function loadEntityAndDynamicOneToManyChildEntityUsingFKNamingConvention() test{
-          var product = new com.database.BaseModelObject( table = "products", dao = request.dao, autoWire = true );
+          var product = new com.database.Norm( table = "products", dao = request.dao, autoWire = true );
 
-          $assert.isTrue( isInstanceOf( product, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
           $assert.isTrue( product.isNew() );
 
           product.load(2381);
@@ -28,9 +28,9 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
      }
 
      function loadEntityAndDynamicOneToManyChildEntityUsingFKNamingConventionAndSaveChildRecord() test{
-          var product = new com.database.BaseModelObject( table = "products", dao = request.dao, autoWire = true, debugMode = false );
+          var product = new com.database.Norm( table = "products", dao = request.dao, autoWire = true, debugMode = false );
 
-          $assert.isTrue( isInstanceOf( product, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
           $assert.isTrue( product.isNew() );
 
           product.load(2381);
@@ -55,7 +55,7 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
      }
 
      function loadEntityAndDynamicOneToManyChildEntityUsingDynamicMappings() test{
-          var product = new com.database.BaseModelObject(
+          var product = new com.database.Norm(
                                                             table = "products",
                                                             dao = request.dao,
                                                             autowire = true,
@@ -63,7 +63,7 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
                                                          );
 
 
-          $assert.isTrue( isInstanceOf( product, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
           $assert.isTrue( product.isNew() );
 
           product.load(2381);
@@ -76,9 +76,9 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
      }
 
     function loadEntityAndDynamicManyToOneChildEntity() test{
-          var company = new com.database.BaseModelObject( table = "companies", dao = request.dao );
+          var company = new com.database.Norm( table = "companies", dao = request.dao );
 
-          $assert.isTrue( isInstanceOf( company, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
           $assert.isTrue( company.isNew() );
 
           company.load(23622);
@@ -92,9 +92,9 @@ component displayName="I test BMO's Dynamic Relationships" extends="testbox.syst
      }
 
     function loadEntityAndDynamicManyToOneChildEntityByConvention() test{
-          var company = new com.database.BaseModelObject( table = "companies", dao = request.dao );
+          var company = new com.database.Norm( table = "companies", dao = request.dao );
 
-          $assert.isTrue( isInstanceOf( company, "com.database.BaseModelObject" ) );
+          $assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
           $assert.isTrue( company.isNew() );
 
           company.load(23622);

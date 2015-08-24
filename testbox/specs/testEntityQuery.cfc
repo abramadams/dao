@@ -7,7 +7,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 	}
 
 	function createNewEntityQueryInstance() test{
-		//var test = new com.database.BaseModelObject( dao = request.dao, table = "eventLog" );
+		//var test = new com.database.Norm( dao = request.dao, table = "eventLog" );
 
 		$assert.isTrue( isInstanceOf( request.dao, "com.database.dao" ) );
 	}

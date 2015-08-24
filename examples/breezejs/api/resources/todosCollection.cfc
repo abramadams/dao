@@ -4,8 +4,8 @@ component extends="taffy.core.resource" taffy_uri="breeze/todos/Todos" {
 
 		//you could have an entity CFC modeling your table and invoke it such as:
   		//var todo = new model.TodoItem( dao = dao );
-    	//or just invoke the BaseModelObject and point it at a table in the datasource (identified in dao)
-		var todo = new com.database.BaseModelObject( dao = application.dao, table = "TodoItem");
+    	//or just invoke the Norm and point it at a table in the datasource (identified in dao)
+		var todo = new com.database.Norm( dao = application.dao, table = "TodoItem");
 
 		return representationOf(
         //returns a breeze object containing all of the matching entities in our DB

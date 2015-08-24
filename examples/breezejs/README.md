@@ -1,4 +1,4 @@
-DAO/BaseModelObject Integration with Breeze.js 
+DAO/Norm Integration with Breeze.js 
 ===
 
 This example application demonstrates the basic CRUD features provided by Breeze.js backed by the CFML library [DAO](https://github.com/abramadams/dao/tree/breezeJS). The server-side code to make this interaction work is surprisingly minimal.  For instance, to add, update or delete one or more records in the TodoItem table, one simply has to do this:
@@ -6,7 +6,7 @@ This example application demonstrates the basic CRUD features provided by Breeze
 ```javascript
   remote function someMethod() httpmethod="POST" restpath="/SaveChanges" produces="application/json"{
     var dao = new com.database.dao( dsn = "dao" );
-    var todo = new com.database.BaseModelObject( dao = dao, table = "TodoItem");
+    var todo = new com.database.Norm( dao = dao, table = "TodoItem");
     
     return todo.breezeSave( arguments.entities );   
   }

@@ -1,4 +1,4 @@
-component norm_persistent="true" table="eventLog" extends="com.database.BaseModelObject" accessors="true" {
+component norm_persistent="true" table="eventLog" extends="com.database.Norm" accessors="true" {
 	property name="ID" type="numeric" fieldtype="id" generator="increment";
 	property name="userID" type="string";
 
