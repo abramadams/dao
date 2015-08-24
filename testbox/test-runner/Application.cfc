@@ -15,8 +15,8 @@ component{
 
 	this.datasource = "dao";
 	// any orm definitions go here.
-	this.ormenabled = !!( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) );
-	this.ormsettings={datasource="dao"};
+	/*this.ormenabled = !!( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) );
+	this.ormsettings={datasource="dao"};*/
 
 	// request start
 	public function onRequestStart( String targetPage ){
