@@ -874,7 +874,7 @@ component accessors="true" output="false" {
 				}
 				var tmpNewEntity = $new( dao = this.getDao(), table = this.getTable() );
 				// logIt('loading #recCount# records');
-				var startLoadChildren = getTickCount();
+				// var startLoadChildren = getTickCount();
 				for ( var rec = 1; rec <= recCount; rec++ ){
 					// logIt('iterating #rec# of #recCount# records');
 					var qn = queryNew( record.columnList );
@@ -904,7 +904,7 @@ component accessors="true" output="false" {
 						// var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable(), dynamicMappings = getDynamicMappings(), excludedEntities = getExcludedEntities() );
 						// var tmpNewEntity = new "#variables.meta.fullName#"( argumentCollection:this );
 
-						var start = getTickCount();
+						// var start = getTickCount();
 						tmpNewEntity.lazyLoad( ID = qn, parenttable = getParentTable() );
 						// logIt("took #(getTickCount()-start)/1000# seconds to lazily load one of #recCount# child objects for #getTable()#");
 					}
@@ -2922,7 +2922,7 @@ component accessors="true" output="false" {
 	private any function _safeValidationTypeName( string typeName ){
 		var type = arguments.typeName;
 
-		switch( arguments.typeName) {
+		switch( arguments.typeName ) {
 			case "varchar" : type = 'string';
 			break;
 			case "double" : type = 'numeric';

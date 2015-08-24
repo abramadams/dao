@@ -8,6 +8,20 @@ Dao/Norm is a duo of libraries that provide a simple yet full featured interface
 
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 
+# New in 0.2.x
+This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
+
+## 0.2.x Breaking changes
+The "Norm" aspect of this project has always aimed to closely mimic the Adobe ColdFusion implementation of ORM.  It uses the same attributes, has support to define relationships via properties, even supports the same events.  While this is still a goal, I found it necessary to diverge sligthly in certain areas.  The first being the attribute names.
+
+Attribute names used in Norm in version 0.1.x were always named exactly as the ORM counterpart attributes.  While this makes it easy to migrate from CF ORM to Norm, it caused unexpected issues due to the fact that the cfml engine (Lucee in particular) may see these attributes as reserved keywords at compile time, which fires up Hibernate and expect ORM to be enabled.  To mitigate this, I've change the ``persistent`` attribute to ``norm_persistent``.  So far this is the only attribute name I've needed to change, but will evaluate changing the rest as needed.
+
+The other breaking change, and deviation from the CFML way is in the ORM style events.  ACF named these events "``preLoad``, ``postLoad``, etc...", and while that is fine for ACF I thought it to be stupid naming.  I've opted to use ``beforeLoad``, and ``afterLoad``, etc... instead. If you are using this lib and really, really want it to be pre/post, submit an issue, or better yet a pull request to add support for both namings.
+
+One to Many relationships have changed in that when dynamically loading child records these will be loaded as either an array of structs instead of array of objects or an array of closures for lazy loading the objects (for which calling ``parentObj.getWhateverChildNameIs()`` would hydrate the object).  The process to load fully initialized/loaded objects is quite expensive when adding 3 or more child entities to a parent entity.
+
+This update also includes many bug fixes and performance improvements.
+
 # Requirements
 Currently this library has been actively used and tested on Railo 4x, Lucee 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).
 
@@ -719,6 +733,25 @@ pet = new Pet( dao ).lazyLoadAll();
 // then, if I only need the first name of the "user" for the second pet I'd just:
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
 ```
+
+# Data Validation
+Each property in a Norm object can be validated using the ``validateProperty()`` or you can validate the entire object by calling ``validate()`` on the Norm object.  By default this will validate against the ``type`` attribute on the property definition.  This attribute is either hard coded via ``property`` tag, or dynamically via the DB column definition (if object initialized dynamically - apposed to via cfc definition).
+
+To provide custom validation, you'll need to define the property in a CFC.  You don't need to spell out the entire model object in the cfc, just the properties you want custom validation on.  For example:
+```javascript
+/* Events.cfc */
+component norm_persistent="true" table="events" extends="com.database.Norm"{
+	property name="priority" type="range" min="0" max="3";
+	property name="eventDate" type="date";
+	property name="eventUrl" type="regex" regex="^(http://|https://)[\w\.-]+\.[a-zA-Z]{2,3}(/?)$";
+	property name="title" type="text" allowNulls="false";
+	property name="venue" type="model.Venue";
+}
+```
+With the above object, the ``priority`` would only be valid if it was between 0 and 3, the ``eventDate`` must be a valid date, ``eventUrl`` must be a valid url (according to the supplied regex), ``title`` cannot be null and ``venue`` must be an instance of the ``model.Venue`` object.
+
+Calling ``obj.validate()`` will return a struct with key valid set to true if no errors or false if any validation errors. If a validation error was found it will also contain an array of errors.
+
 # oData
 Any of your Norm entities can produce and/or consume [oData](http://www.odata.org/).  OData (`Open Data Protocol`) is (according to the official site) _" an OASIS standard that defines the best practice for building and consuming RESTful APIs."_.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as [BreezeJS](http://www.getbreezenow.com/) to build RESTFul APIs without having to duplicate your model on the client.  See [examples/breezejs/README.md](examples/breezejs) for a sample BreezeJS app that uses Taffy/Norm to create a simple TODO app (specifically `/examples/breezejs/api/resources/`).
 
