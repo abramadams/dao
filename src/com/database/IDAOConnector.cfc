@@ -31,7 +31,7 @@ interface {
 					) output = false
 		description="I select records from the database.";
 
-	any function write( required tabledef tabledef ) output = false
+	any function write( required tabledef tabledef, boolean insertPrimaryKeys ) output = false
 		description="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.";
 
 	any function update( required any tabledef, string columns = "", required string IDField ) output = false

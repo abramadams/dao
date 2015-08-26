@@ -266,6 +266,7 @@
 
 	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
+		<cfargument name="insertPrimaryKeys" required="false" type="boolean" default="false">
 
 		<cfset var curRow = 0 />
 		<cfset var current = [] />
@@ -280,8 +281,11 @@
 
 
 		<cfset qry = arguments.tabledef.getRows()/>
-		<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
-
+		<cfif !arguments.insertPrimaryKeys>
+			<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
+		<cfelse>
+			<cfset columns = arguments.tabledef.getColumns() />
+		</cfif>
 		<cfif !qry.recordCount>
 			<cfdump var="#arguments#" abort>
 		</cfif>

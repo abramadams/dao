@@ -203,8 +203,8 @@
 		/**
 		* I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.
 		**/
-		public function write( required tabledef tabledef){
-			return getConn().write( arguments.tabledef );
+		public function write( required tabledef tabledef, boolean insertPrimaryKeys ){
+			return getConn().write( tabledef, insertPrimaryKeys );
 		}
 
 
@@ -215,7 +215,7 @@
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "", any callbackArgs = {} ){
+		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
 			var LOCAL = {};
 			if( !structKeyExists( variables.tabledefs, arguments.table ) ){
 				variables.tabledefs[ arguments.table ] = new tabledef( tablename = arguments.table, dsn = getDSN() );
@@ -240,7 +240,7 @@
 			}
 			/// insert it
 			if (!arguments.dryrun){
-				var newRecord = getConn().write( LOCAL.table );
+				var newRecord = getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys );
 			}else{
 				return {
 						"Data" = arguments.data,
@@ -899,8 +899,8 @@
 			// pull out the : in date object values that can break the named param regex
 			str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 			// now parse named params
-			str = reReplaceNoCase( str, ':+(\w[^\{]*?)(?=\s|\)|,)',':\1{}\2','all');
-			str = reReplaceNoCase( str, ':+(\w*?)\{(.*?)\}','$queryParam(%%%="##arguments.params.\1##",\2)$','all');
+			str = reReplaceNoCase( str, '[\W]+:+(\w[^\{]*?)(?=\s|\)|,)',':\1{}\2','all');
+			str = reReplaceNoCase( str, '[\W]+:+(\w*?)\{(.*?)\}','$queryParam(%%%="##arguments.params.\1##",\2)$','all');
 
 			str = reReplace(str,',\)',')','all');
 			if( findNoCase( '##arguments.params', str) ){
