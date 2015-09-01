@@ -160,7 +160,7 @@
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
-						#arguments.columns#
+						#arrayToList(listToArray(trim(arguments.columns)))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 							<!---
@@ -201,7 +201,7 @@
 				<cfelse>
 					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
-						#arguments.columns#
+						#arrayToList(listToArray(trim(arguments.columns)))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 							<!---
