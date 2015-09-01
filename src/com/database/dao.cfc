@@ -899,8 +899,8 @@
 			// pull out the : in date object values that can break the named param regex
 			str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 			// now parse named params
-			str = reReplaceNoCase( str, '(\W+):+(\w[^\{]*?)(?=\s|\)|,)','\1:\2{}\3','all');
-			str = reReplaceNoCase( str, '(\W+):+(\w*?)\{(.*?)\}','\1$queryParam(%%%="##arguments.params.\2##",\3)$','all');
+			str = reReplaceNoCase( str, '((\s|\t|\(|,):)\s*(?![0-9])(\w[^\{]*?)(?=\s|\)|,|$)','\1\3{}','all');
+			str = reReplaceNoCase( str, '(\s|\t|\(|,):(\w*?)\{(.*?)\}','\1$queryParam(%%%="##arguments.params.\2##",\3)$','all');
 
 			str = reReplace(str,',\)',')','all');
 			if( findNoCase( '##arguments.params', str) ){
