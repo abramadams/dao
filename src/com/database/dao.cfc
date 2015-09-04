@@ -594,7 +594,7 @@
 		* I return an array of tables for the current database
 		**/
 		public array function getTables(){
-			if ( isDefined('server') && structKeyExists( server, 'railo' ) ){
+			if ( isDefined('server') && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
 				// railo does things a bit different with dbinfo.
 				var railoHacks = new railoHacks( variables.dsn );
 				// See if the table exists, if not return false;
