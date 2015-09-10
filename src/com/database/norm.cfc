@@ -3319,8 +3319,8 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* Parse oDatajs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value="\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value="\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
