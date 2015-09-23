@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.75
-		@updated 8/21/2015
+		@version 0.0.76
+		@updated 9/23/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1241,20 +1241,28 @@
 			}
 
 			var colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
-
+			// Support for JOIN tables
+			if( findNoCase( "JOIN ", sqlString ) ){
+				// When ACF10 support is no longer needed, replace this with member & reduce functions.
+				var sqlJoinTables = listToArray( reReplaceNoCase( sqlString, "JOIN ", chr( 999 ) ), chr( 999 ) );
+				arrayDeleteAt( sqlJoinTables, 1 );
+				for( var sqlJoin in sqlJoinTables ){
+					var tmpSQLJoinTable = trim( listFirst( sqlJoin, ' ' ) );
+					if( !structKeyExists( variables.tabledefs, tmpSQLJoinTable) ){
+						variables.tabledefs[ tmpSQLJoinTable ] = new tabledef( tableName = tmpSQLJoinTable, dsn = getDSN() );
+					}
+				}
+				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
+			}
 			// If the query was an query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
 			// and include the query columns as is assuming the source sql provides the desired case.
 			if( !arrayLen( colList ) ){
-				// structKeyList fails on a query object with zero records.
-				if( qry.recordCount ){
-					colList = listToArray( structKeyList( qry ) );
-				}else{
-					var metadata = getMetadata( qry );
-					for( var col in metadata ){
-						arrayAppend( colList, col.name );
-					}
-				}
+				// Grabs column names preserving case.
+				// This could have been used on a table based query
+				// but it relies on the case of the typed in columns in
+				// the sql statement, no necessarily the true column name case.
+				colList = qry.getColumnNames();
 			}
 			var i = 0;
 			for( var rec in qry ){
