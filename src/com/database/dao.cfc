@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.76
-		@updated 9/23/2015
+		@version 0.0.77
+		@updated 10/2/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1239,7 +1239,7 @@
 			if( !structKeyExists( variables.tabledefs, tableName) ){
 				variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
 			}
-
+			// KNOWN ISSUE: This does not retain the column order of the original sql string
 			var colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
 			// Support for JOIN tables
 			if( findNoCase( "JOIN ", sqlString ) ){
@@ -1269,12 +1269,20 @@
 				i++;
 				var cols = {};
 				// if supplied, run query through map closure for custom processing
-				if( !isNull( map ) && isclosure( map ) ){
-					rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
+				if( !isNull( map ) && isClosure( map ) ){
+					// rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
+					rec = map( rec, i, listToArray( qry.columnList ) );
+					// Add any cols that may have been added during the map transformation
+					var newCols = listToArray( structKeyList( rec ) );
+					for( var newCol in newCols ){
+						if( !arrayFindNoCase( colList, newCol ) ){
+							arrayAppend( colList, newCol );
+						}
+					}
 				}
 				for( var col in colList ){
 					if( structKeyExists( rec, col ) ){
-						structAppend(cols, {'#col#' = rec[col] } );
+						structAppend( cols, { '#col#': rec[col] } );
 					}
 				}
 				arrayAppend( queryArray, cols );
@@ -1304,7 +1312,7 @@
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
 		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
-
+		<cfargument name="map" required="false" type="any" hint="A function to be executed for each row in the results ( only used if returnType == array )" default="">
 
 		<cfset var tmpSQL = "" />
 		<cfset var tempCFSQLType = "" />
@@ -1441,7 +1449,7 @@
 			<cfthrow errorcode="882" type="DAO.Read.InvalidQueryType" detail="Invalid Query Type for ""DAO.read()""" message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements.">
 		</cfif>
 		<cfif arguments.returnType eq 'array'>
-			<cfreturn queryToArray( LOCAL[arguments.name] )  />
+			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map )  />
 		<cfelseif arguments.returnType eq 'json'>
 			<cfreturn queryToJSON( LOCAL[arguments.name] )  />
 		<cfelse>
