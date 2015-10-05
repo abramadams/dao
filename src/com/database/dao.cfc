@@ -1233,7 +1233,7 @@
 			}
 
 			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
-			var tableName = listLast( tablesInQry[ arrayLen( tablesInQry ) ], ' ' );
+			var tableName = listLast( tablesInQry[ 1 ], ' ' );
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
 			if( !structKeyExists( variables.tabledefs, tableName) ){
