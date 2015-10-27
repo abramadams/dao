@@ -896,6 +896,8 @@
 			//		{ firstName = 'Jim%', email = session.user.email isAdmin = session.user.isAdmin, userIds = "1,2,4,77" }
 			// );
 
+			// pull out : in values.
+			str = reReplaceNoCase( str, 'value=\#chr( 777 )#(.*?)(:+)(.*?)\#chr( 777 )#', 'value=#chr( 777 )#\1#chr(765)#\3#chr( 777 )#','all' );
 			// pull out the : in date object values that can break the named param regex
 			str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 			// now parse named params
