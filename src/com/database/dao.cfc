@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.77
-		@updated 10/2/2015
+		@version 0.0.78
+		@updated 10/13/2015
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1246,7 +1246,7 @@
 			// Support for JOIN tables
 			if( findNoCase( "JOIN ", sqlString ) ){
 				// When ACF10 support is no longer needed, replace this with member & reduce functions.
-				var sqlJoinTables = listToArray( reReplaceNoCase( sqlString, "JOIN ", chr( 999 ) ), chr( 999 ) );
+				var sqlJoinTables = listToArray( reReplaceNoCase( sqlString, "JOIN ", chr( 999 ), 'all' ), chr( 999 ) );
 				arrayDeleteAt( sqlJoinTables, 1 );
 				for( var sqlJoin in sqlJoinTables ){
 					var tmpSQLJoinTable = trim( listFirst( sqlJoin, ' ' ) );
@@ -1255,6 +1255,8 @@
 					}
 				}
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
+				// Since joined tables typically have aliased columns we'll merge all the query columns;
+				arrayAppend( colList, qry.getColumns(), true );
 			}
 			// If the query was an query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
