@@ -1,3 +1,20 @@
+/************************************************************
+*
+*	Copyright (c) 2007-2015, Abram Adams
+*
+*	Licensed under the Apache License, Version 2.0 (the "License");
+*	you may not use this file except in compliance with the License.
+*	You may obtain a copy of the License at
+*
+*		http://www.apache.org/licenses/LICENSE-2.0
+*
+*	Unless required by applicable law or agreed to in writing, software
+*	distributed under the License is distributed on an "AS IS" BASIS,
+*	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*	See the License for the specific language governing permissions and
+*	limitations under the License.
+*
+***********************************************************/
 interface {
 
 	any function init(
@@ -31,7 +48,7 @@ interface {
 					) output = false
 		description="I select records from the database.";
 
-	any function write( required tabledef tabledef ) output = false
+	any function write( required tabledef tabledef, boolean insertPrimaryKeys ) output = false
 		description="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.";
 
 	any function update( required any tabledef, string columns = "", required string IDField ) output = false
@@ -62,7 +79,7 @@ interface {
 	tabledef function makeTable( required tabledef tabledef ) output = false
 		description ="I create a table based on the passed in tabledef object's properties.";
 
-	tabledef function dropTable( required string table ) output = false
+	void function dropTable( required string table ) output = false
 		description="I drop a table based on the passed in table name.";
 
 }

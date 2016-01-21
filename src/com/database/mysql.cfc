@@ -1,15 +1,31 @@
-<!--- **********************************************************
-		Component	: dao.cfc (MySQL Specific)
-		Author		: Abram Adams
-		Date		: 1/2/2007
-		@version 0.0.70
-	   	@updated 5/14/2015
-		Description	: Targeted database access object that will
-		control all MySQL specific database interaction.
-		This component will use MySQL syntax to perform general
-		database functions.
-
-	  ********************************************************** --->
+<!---
+************************************************************
+*
+*	Copyright (c) 2007-2015, Abram Adams
+*
+*	Licensed under the Apache License, Version 2.0 (the "License");
+*	you may not use this file except in compliance with the License.
+*	You may obtain a copy of the License at
+*
+*		http://www.apache.org/licenses/LICENSE-2.0
+*
+*	Unless required by applicable law or agreed to in writing, software
+*	distributed under the License is distributed on an "AS IS" BASIS,
+*	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*	See the License for the specific language governing permissions and
+*	limitations under the License.
+*
+***********************************************************
+*		Component	: dao.cfc (MySQL Specific)
+*		Author		: Abram Adams
+*		Date		: 1/2/2007
+*		@version 0.0.70
+*	   	@updated 5/14/2015
+*		Description	: Targeted database access object that will
+*		control all MySQL specific database interaction.
+*		This component will use MySQL syntax to perform general
+*		database functions.
+*********************************************************** --->
 
 <cfcomponent output="false" accessors="true" implements="IDAOConnector">
 	<cfproperty name="dao" type="dao" />
@@ -160,7 +176,7 @@
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
-						#arguments.columns#
+						#arrayToList(listToArray(trim(arguments.columns)))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 							<!---
@@ -201,7 +217,7 @@
 				<cfelse>
 					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
 						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
-						#arguments.columns#
+						#arrayToList(listToArray(trim(arguments.columns)))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
 							<!---
@@ -266,6 +282,7 @@
 
 	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
+		<cfargument name="insertPrimaryKeys" required="false" type="boolean" default="false">
 
 		<cfset var curRow = 0 />
 		<cfset var current = [] />
@@ -280,8 +297,11 @@
 
 
 		<cfset qry = arguments.tabledef.getRows()/>
-		<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
-
+		<cfif !arguments.insertPrimaryKeys>
+			<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
+		<cfelse>
+			<cfset columns = arguments.tabledef.getColumns() />
+		</cfif>
 		<cfif !qry.recordCount>
 			<cfdump var="#arguments#" abort>
 		</cfif>
@@ -382,7 +402,9 @@
 
 									<cfset value = qry[col][currentRow]/>
 									<cfset cfsqltype = arguments.tabledef.getCFSQLType(col)>
-
+									<cfif cfsqltype eq "cf_sql_double" && len( listLast( value ) ) eq 2>
+										<cfset value = lsParseNumber( value )/>
+									</cfif>
 									<cfif not len(trim(value))>
 										<cfif cfsqltype neq "cf_sql_boolean">
 											<cfset isnull = true>
@@ -605,7 +627,7 @@
 		/**
 	    * I drop a table based on the passed in table name.
 	    **/
-		public tabledef function dropTable( required string table ) output = false{
+		public void function dropTable( required string table ) output = false{
 			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
 		}
 	</cfscript>

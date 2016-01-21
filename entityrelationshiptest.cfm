@@ -16,14 +16,14 @@
         //             ORDER BY m.sent_datetime desc
         //         ");
         dynamicMappings = { "sender" = "users" };
-        messages = new com.database.BaseModelObject( table = "messages", dao = dao, dynamicMappings = dynamicMappings )
+        messages = new com.database.Norm( table = "messages", dao = dao, dynamicMappings = dynamicMappings )
             .loadAllBySender_IDAndStatusAsArray(sender_ID = id, status = 1, orderby = "sent_datetime desc" );
         // writeDump(messages);abort;
         for ( message in messages ){
             LOCAL.tmpStruct = { "cbx" = '<input type="checkbox" class="uniform"/>', "read" = val(!sent ? message.read : 1), "message_status" = val(message.status)};
 
             // CF9 doesn't like implicit structs passed in as args to the init method....
-            messageObj = new com.database.BaseModelObject( table = "messages", dao = dao, dynamicMappings = dynamicMappings );
+            messageObj = new com.database.Norm( table = "messages", dao = dao, dynamicMappings = dynamicMappings );
             structAppend( LOCAL.tmpStruct, messageObj.load( message.ID ).toStruct( top = 4 ), true );
             arrayAppend(LOCAL.aaData, LOCAL.tmpStruct);
             if( !structKeyExists( messageObj, 'sender' ) ){
@@ -33,25 +33,25 @@
         writeDump(LOCAL.aaData);
     }
 
-    // testEntity = new com.database.BaseModelObject( dao = dao, table = "pets" );
+    // testEntity = new com.database.Norm( dao = dao, table = "pets" );
     // testEntity.load( 93 );
     // testEntity.belongsTo( table = "users", fkcolumn = "userID", property = "user" );
     // writeDump(testEntity.toStruct() );
 
-    // order = new com.database.BaseModelObject( table = "orders", dao = dao );
+    // order = new com.database.Norm( table = "orders", dao = dao );
     // order.load(66901);
     // order.hasMany( table = "order_items", fkColumn = "orders_ID", property = "OrderItems" );
 
     // writeDump( order.toStruct() );
 
 
-    // orderItems = new com.database.BaseModelObject( table = "order_items", dao = dao );
+    // orderItems = new com.database.Norm( table = "order_items", dao = dao );
     // orderItems.load(148991);
     // orderItems.belongsTo( table = "orders", fkColumn = "orders_ID", pkColumn = "ID" );
 
     // writeDump(orderItems.toStruct());
 
-    // message = new com.database.BaseModelObject( table = "messages", dao = dao );
+    // message = new com.database.Norm( table = "messages", dao = dao );
     // message.load(76);
     // message.belongsTo( table = "users", fkColumn = "sender_ID", pkColumn = "ID" );
 

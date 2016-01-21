@@ -12,7 +12,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      	// change event to 'test'
      	testEntity.load(93);
-          var testStruct = testEntity.toStruct();
+          var testStruct = testEntity.toStruct( top = 2);
           $assert.typeOf( "struct",  testStruct );
           $assert.isTrue( structKeyExists( testStruct, 'user' ) );
 		$assert.typeOf( "struct", testStruct.user );

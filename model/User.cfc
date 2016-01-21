@@ -1,4 +1,4 @@
-component persistent="true" table="users" singularName="User" extends="com.database.BaseModelObject" accessors="true" {
+component norm_persistent="true" table="users" singularName="User" extends="com.database.Norm" accessors="true" {
 
 	property name="ID" type="numeric" fieldtype="id" generator="increment";
 	property name="_id" fieldtype="id" generator="uuid" type="string" length="45";
