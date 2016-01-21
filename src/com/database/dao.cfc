@@ -1186,9 +1186,17 @@
 			if ( arrayLen( this._criteria.clause )
 				&& ( left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 5 ) != "AND ("
 				&& left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 4 ) != "OR (" ) ){
-				arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				if( operator == "in" ){
+					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
+				}else{
+					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				}
 			}else{
-				arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				if( operator == "in" ){
+					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
+				}else{
+					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+				}
 			}
 			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
 			return this;
