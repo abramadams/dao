@@ -231,6 +231,7 @@ Each method takes the following options:
  - __SHORTHAND__ == just drop off the *cf\_sql\_ * prefix.
 * `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
 * `null` - True/False.  If true, the __value__ is considered null.
+
 # All `Read()` Arguments
 * sql (String) = The actual SQL statement you wish to run.
 * params (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
