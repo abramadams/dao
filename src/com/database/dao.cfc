@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.78
-		@updated 10/13/2015
+		@version 0.0.79
+		@updated 2/17/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1277,13 +1277,16 @@
 				colList = qry.getColumnNames();
 			}
 			var i = 0;
+			var isNullisClosureValue = !isNull( map ) && isClosure( map );
+			var tempListToArray = listToArray( qry.columnList );
 			for( var rec in qry ){
 				i++;
 				var cols = {};
 				// if supplied, run query through map closure for custom processing
-				if( !isNull( map ) && isClosure( map ) ){
+
+				if( isNullisClosureValue ){
 					// rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
-					rec = map( rec, i, listToArray( qry.columnList ) );
+					rec = map( rec, i, tempListToArray );
 					// Add any cols that may have been added during the map transformation
 					var newCols = listToArray( structKeyList( rec ) );
 					for( var newCol in newCols ){
@@ -1292,9 +1295,10 @@
 						}
 					}
 				}
+
 				for( var col in colList ){
 					if( structKeyExists( rec, col ) ){
-						structAppend( cols, { '#col#': rec[col] } );
+						structAppend( cols, {'#col#' = rec[col] } );
 					}
 				}
 				arrayAppend( queryArray, cols );
