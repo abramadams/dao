@@ -1319,8 +1319,8 @@
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename">
-		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
-		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
+		<cfargument name="limit" required="false" type="any" hint="Limit records returned." default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset." default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
 		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
@@ -1372,7 +1372,7 @@
 
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
@@ -1396,7 +1396,7 @@
 					<cfelse>
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
@@ -1435,7 +1435,7 @@
 
 			<cfelse>
 				<!--- <cfset setVariable( arguments.qoq.name, arguments.qoq.query)> --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">

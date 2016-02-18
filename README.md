@@ -231,6 +231,44 @@ Each method takes the following options:
  - __SHORTHAND__ == just drop off the *cf\_sql\_ * prefix.
 * `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
 * `null` - True/False.  If true, the __value__ is considered null.
+# All `Read()` Arguments
+* sql (String) = The actual SQL statement you wish to run.
+* params (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
+Example 
+```
+usersByFirstName = dao.read(
+	sql="SELECT * FROM users where Name = :userFirstName", 
+	params = {userFirstName:session.user.getFirstName()}
+);
+```
+* name (String) = Name of Query (required for cachedwithin)
+* QoQ (Struct) = A struct of key/value pairs where the Key is the query's name as used in the SQL statement and the value is the actual query object.
+Example 
+```
+filtered = dao.read(
+	sql="SELECT * FROM filteredUsers", 
+	QoQ = {filteredUsers:usersByFirstName}
+);
+```
+* cachedwithin (Timespan) = createTimeSpan() value to cache this query
+* table (String) = Table name to select from. Used only if not using `SQL` argument
+Example
+```
+users = dao.read( table = "users" )
+//OR
+users = dao.read("users");
+```
+* columns (String) = List of valid column names for select statement. Used only if not using `SQL` argument
+Example
+```
+users = dao.read( table = "users", columns = "Id,firstName,LastName" );
+```
+* where (String) = Where clause. Used only if not using `SQL` argument
+* limit (Number) = Limits the number of returned results.  If `SQL` argument is provided it will use CF's "maxRows" attribute, otherwise will use native TSQL limits (i.e. MySQL LIMIT 10 OFFSET 1). Default = unlimited
+* offset (Number) = If `SQL` argument is provided it will be used as the "startRow" argument, otherwise will use native TSQL offset (i.e. MySQL LIMIT 10 OFFSET 1). Default = 1
+* orderby (String) = Column name to order the query by. Used only if not using `SQL` argument
+* returnType (String) = Type of data to return.  Options: __Query__ (default), __Array__ (Array of Structs) or __JSON__
+* map (Function) = A function to be executed for each row in the results ( only used if returnType == Array )
 
 # Callbacks
 DAO can automatically fire a callback method upon completion each data modifying event.  To take advantage of this, supply the a function to the "onFinish" argument of the `update`, `insert` or `delete` functions.  DAO will supply the callback with data specific to the action, or more precisely:

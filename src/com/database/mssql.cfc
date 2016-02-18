@@ -110,8 +110,8 @@
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
-		<cfargument name="limit" required="false" type="any" hint="Limit records returned.  Only used if sql is a tablename" default="">
-		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset.  Only used if sql is a tablename" default="">
+		<cfargument name="limit" required="false" type="any" hint="Limit records returned." default="">
+		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset." default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 
 		<cfset var get = "" />
@@ -123,7 +123,7 @@
 		<cftry>
 			<cfif listlen(trim(arguments.sql), ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
+					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 							Parse out the queryParam calls inside the where statement
@@ -144,7 +144,7 @@
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="get" datasource="#getDsn()#">
+					<cfquery name="get" datasource="#getDsn()#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 							Parse out the queryParam calls inside the where statement
