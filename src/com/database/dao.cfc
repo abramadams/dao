@@ -1313,16 +1313,16 @@
 			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
 
-		public function pageRecords( required query qry, numeric limit = 0, numeric offset = 0 ){
-
-			if( limit > 0 ){
-				// remove last n rows
-				qry.removeRows( end, qry.recordcount - end );
-
-				if ( offset >= 1){
+		public function pageRecords( required query qry, numeric offset = 0, numeric limit = 0 ){
+			var recordCount = qry.recordCount;
+			if ( offset > 0){
 				// remove first n rows
-				qry.removeRows( 0, end - arguments.pagesize );
-				}
+				qry.removeRows( 0, ( offset < recordCount ) ? offset : recordCount );
+			}
+			// writeDump([qry.recordCount,offset,limit]);abort;
+			if( limit > 0 && qry.recordCount && limit <= qry.recordCount ){
+				// remove last n rows
+				qry.removeRows( limit, qry.recordCount - limit );
 			}
 
 			return qry;
@@ -1414,7 +1414,7 @@
 							</cfquery>
 							<!--- DB Agnostic Limit/Offset for server-side paging --->
 							<cfif len( trim( limit ) ) && len( trim( offset ) )>
-								LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit );
+								<cfset LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit ) />
 							</cfif>
 					<cfelse>
 
@@ -1441,7 +1441,7 @@
 							</cfquery>
 							<!--- DB Agnostic Limit/Offset for server-side paging --->
 							<cfif len( trim( limit ) ) && len( trim( offset ) )>
-								LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit );
+								<cfset LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit ) />
 							</cfif>
 
 					</cfif>
@@ -1461,7 +1461,7 @@
 				</cfif>
 
 			<cfelse>
-				<!--- <cfset setVariable( arguments.qoq.name, arguments.qoq.query)> --->
+				<!--- Query of Query --->
 				<cfquery name="LOCAL.#arguments.name#" dbtype="query">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
@@ -1475,8 +1475,12 @@
 								list="#tmpSQL.statements[idx].isList#">
 						</cfif>
 					</cfloop>
-					<!--- #PreserveSingleQuotes( tmpSQL )#--->
 				</cfquery>
+				<!--- DB Agnostic Limit/Offset for server-side paging --->
+				<cfif len( trim( limit ) ) && len( trim( offset ) )>
+					<cfset LOCAL[ arguments.name ] = pageRecords( LOCAL[ name ], offset, limit ) />
+				</cfif>
+
 			</cfif>
 			</cftimer>
 		</cfif>

@@ -187,7 +187,22 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.isTrue( records.recordCount == arrayLen( test ) );
           $assert.isTrue( records["first_name"][1] & "test" == test[1]["first_name"] );
      }
+     function pageQoQResultsWithLimitAndOffset() hint="I test the query of query syntax with server side paging" returntype="any" output="false" test{
+          var events = request.dao.read("eventLog");
+          var pagedEvents = request.dao.read(
+               sql = "
+                    SELECT *
+                    FROM eventsQuery
+                    ",
+               QoQ = { eventsQuery = events },
+               offset = 1,
+               limit = 5
+          );
+          // writeDump([pagedEvents,events]);abort;
+          $assert.isTrue( events.ID[2] == pagedEvents.ID[1] );
+          $assert.isTrue( pagedEvents.recordCount == 5 );
 
+     }
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }

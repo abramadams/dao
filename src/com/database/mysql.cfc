@@ -124,6 +124,7 @@
 		</cfif>
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
+			<!--- Arbitrary SQL --->
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
@@ -168,8 +169,14 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				</cfif>
+
+				<!--- DB Agnostic Limit/Offset for server-side paging --->
+				<cfif len( trim( limit ) ) && len( trim( offset ) )>
+					<cfset __get = getDao().pageRecords( __get, offset, limit ) />
+				</cfif>
+
 			<cfelse>
-				<!--- Table select --->
+			<!--- Table select --->
 				<cfif !len( trim( arguments.columns ) ) >
 					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
@@ -277,10 +284,7 @@
 				</cfif>
 			</cfcatch>
 		</cftry>
-		<!--- DB Agnostic Limit/Offset for server-side paging --->
-		<cfif len( trim( limit ) ) && len( trim( offset ) )>
-			__get = getDao().pageRecords( __get, offset, limit );
-		</cfif>
+
 		<cfreturn __get />
 	</cffunction>
 

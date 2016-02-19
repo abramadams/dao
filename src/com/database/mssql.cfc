@@ -165,6 +165,12 @@
 						<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				</cfif>
+
+
+				<!--- DB Agnostic Limit/Offset for server-side paging --->
+				<cfif len( trim( limit ) ) && len( trim( offset ) )>
+					<cfset get = getDao().pageRecords( get, offset, limit ) />
+				</cfif>
 			<cfelse>
 				<!--- Table select --->
 				<cfif !len( trim( arguments.columns ) ) >
@@ -249,10 +255,6 @@
 				<cfabort>
 			</cfcatch>
 		</cftry>
-		<!--- DB Agnostic Limit/Offset for server-side paging --->
-		<cfif len( trim( limit ) ) && len( trim( offset ) )>
-			__get = getDao().pageRecords( __get, offset, limit );
-		</cfif>
 		<cfreturn get />
 	</cffunction>
 
