@@ -1328,10 +1328,6 @@
 			return qry;
 		}
 
-
-
-	</cffunction>
-
 	</cfscript>
 	<!--- @TODO: convert to using new Query() --->
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
@@ -1396,7 +1392,7 @@
 
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
@@ -1423,7 +1419,7 @@
 					<cfelse>
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
@@ -1466,7 +1462,7 @@
 
 			<cfelse>
 				<!--- <cfset setVariable( arguments.qoq.name, arguments.qoq.query)> --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
