@@ -125,7 +125,7 @@
 		<cftry>
 			<cfif listlen(arguments.sql, ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
-					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+					<cfquery name="__get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -146,7 +146,7 @@
 							<!--- /Parse out the queryParam calls inside the where statement --->
 					</cfquery>
 				<cfelse>
-					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
 						<!--- #preserveSingleQuotes(arguments.sql)# --->
 						<!---
 								Parse out the queryParam calls inside the where statement
@@ -277,6 +277,10 @@
 				</cfif>
 			</cfcatch>
 		</cftry>
+		<!--- DB Agnostic Limit/Offset for server-side paging --->
+		<cfif len( trim( limit ) ) && len( trim( offset ) )>
+			__get = pageRecords( __get, offset, limit );
+		</cfif>
 		<cfreturn __get />
 	</cffunction>
 

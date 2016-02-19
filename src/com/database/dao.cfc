@@ -20,7 +20,7 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.79
+		@version 0.0.80
 		@updated 2/17/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
@@ -1312,6 +1312,26 @@
 		public function queryToJSON( required query qry, any map ){
 			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
+
+		public function pageRecords( required query qry, numeric limit = 0, numeric offset = 0 ){
+
+			if( limit > 0 ){
+				// remove last n rows
+				qry.removeRows( end, qry.recordcount - end );
+
+				if ( offset >= 1){
+				// remove first n rows
+				qry.removeRows( 0, end - arguments.pagesize );
+				}
+			}
+
+			return qry;
+		}
+
+
+
+	</cffunction>
+
 	</cfscript>
 	<!--- @TODO: convert to using new Query() --->
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
@@ -1376,13 +1396,14 @@
 
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" cachedwithin="#cachedwithin#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
 									cfqueryparam tags outside of a cfquery.
 									@TODO: refactor to use the query.cfc
 								--->
+								<!--- /Parse out the queryParam calls inside the where statement --->
 								<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									<cfset var SqlPart = tmpSQL.statements[idx].before />
@@ -1394,19 +1415,22 @@
 											list="#tmpSQL.statements[idx].isList#">
 									</cfif>
 								</cfloop>
-								<!--- /Parse out the queryParam calls inside the where statement --->
 							</cfquery>
-
+							<!--- DB Agnostic Limit/Offset for server-side paging --->
+							<cfif len( trim( limit ) ) && len( trim( offset ) )>
+								LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit );
+							</cfif>
 					<cfelse>
 
 							<!--- Now we build the query --->
-							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+							<cfquery name="LOCAL.#arguments.name#" datasource="#variables.dsn#" result="results_#arguments.name#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 								<!---
 									Parse out the queryParam calls inside the where statement
 									This has to be done this way because you cannot use
 									cfqueryparam tags outside of a cfquery.
 									@TODO: refactor to use the query.cfc
 								--->
+								<!--- /Parse out the queryParam calls inside the where statement --->
 								<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									<cfset var SqlPart = tmpSQL.statements[idx].before />
@@ -1418,8 +1442,11 @@
 											list="#tmpSQL.statements[idx].isList#">
 									</cfif>
 								</cfloop>
-								<!--- /Parse out the queryParam calls inside the where statement --->
 							</cfquery>
+							<!--- DB Agnostic Limit/Offset for server-side paging --->
+							<cfif len( trim( limit ) ) && len( trim( offset ) )>
+								LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit );
+							</cfif>
 
 					</cfif>
 				<cfelse>
@@ -1439,7 +1466,7 @@
 
 			<cfelse>
 				<!--- <cfset setVariable( arguments.qoq.name, arguments.qoq.query)> --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query" startRow="#len(trim(offset)) ? offset : 1#" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxRows="#len(trim(limit)) ? limit : 9999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">

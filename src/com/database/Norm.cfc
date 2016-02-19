@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.0
-*   @dependencies { "dao" : ">=0.0.65" }
-*   @updated 10/13/2015
+*   @version 0.2.1
+*   @dependencies { "dao" : ">=0.0.80" }
+*   @updated 2/18/2016
 *   @author Abram Adams
 **/
 
@@ -3174,14 +3174,11 @@ component accessors="true" output="false" {
 		return oDataMetaData;
 	}
 
+
 	/**
-	* Returns results of arbitrary SQL query in oData format.  This
-	* essentially does what listAsOData does, except it allows the
-	* "table" and "where" arguments to build the source query that will
-	* then be filtered by the oData filter criteria; as apposed to using
-	* Norm's defined table as the source.
+	* Returns results of arbitrary SQL query
 	**/
-	public function queryAsOData(
+	public function queryProcessor(
 								string table,
 								string where = "",
 								string filter = "",
@@ -3199,8 +3196,10 @@ component accessors="true" output="false" {
 		}else{
 			where = "(1=1)";
 		}
+
 		var sqlWhere = (len( trim( $filter ) )) ? ' AND #$filter#' : '';
 		sqlWhere = where & sqlWhere;
+
 		// Grab base Query
 		var results = getDao().read(
 							sql = table,
@@ -3209,6 +3208,31 @@ component accessors="true" output="false" {
 							orderBy = orderby,
 							limit = top,
 							offset = skip );
+
+		return results;
+	}
+
+
+	/**
+	* Returns results of arbitrary SQL query in oData format.  This
+	* essentially does what listAsOData does, except it allows the
+	* "table" and "where" arguments to build the source query that will
+	* then be filtered by the oData filter criteria; as apposed to using
+	* Norm's defined table as the source.
+	**/
+	public function queryAsOData(
+								sqlData,
+								string table,
+								string where = "",
+								string filter = "",
+								string columns = "*",
+								string orderby = "",
+								string skip = "",
+								string top = "",
+								numeric version = getODataVersion(),
+								any map = "" ){
+
+		var $filter = parseODataFilter( filter );
 
 		// serialize and return filtered query as oData object.
 		var data = serializeODataRows( getDao().queryToArray( qry = results, map = map ) );
@@ -3291,10 +3315,11 @@ component accessors="true" output="false" {
 	public array function serializeODataRows( required array data, numeric version = getODataVersion() ){
 		var row = "";
 		var oData = [];
+		var tempType = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
 
 		for( var i = 1; i LTE arrayLen( data ); i++ ){
 			row = data[ i ];
-			row["$type"] = "#getoDataNameSpace()#.#getoDataEntityName()#, DAOoDataService";
+			row["$type"] = tempType;
 			row["$id"] = structKeyExists( row, getIDField() ) ? row[ getIDField() ] : row[ listFirst( structKeyList( row ) ) ];
 			arrayAppend( oData, row );
 			row = "";
