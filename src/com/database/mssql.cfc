@@ -251,7 +251,7 @@
 		</cftry>
 		<!--- DB Agnostic Limit/Offset for server-side paging --->
 		<cfif len( trim( limit ) ) && len( trim( offset ) )>
-			__get = pageRecords( __get, offset, limit );
+			__get = getDao().pageRecords( __get, offset, limit );
 		</cfif>
 		<cfreturn get />
 	</cffunction>
