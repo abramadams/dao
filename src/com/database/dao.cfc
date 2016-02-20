@@ -1313,7 +1313,18 @@
 			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
 
-		public function pageRecords( required query qry, numeric offset = 0, numeric limit = 0 ){
+		/**
+		* Applies a limit and offset to a given query object to provide
+		* server side paging.  Optionally adds a column to include the
+		* full non-paged recordcount (i.e. for "1 to 5 of x" type counts)
+		**/
+		public function pageRecords(
+			required query qry,
+			numeric offset = 0,
+			numeric limit = 0,
+			boolean returnFullCount = true,
+			string fullCountName = "$fullCount"
+		){
 			var recordCount = qry.recordCount;
 			if ( offset > 0){
 				// remove first n rows
@@ -1323,6 +1334,9 @@
 			if( limit > 0 && qry.recordCount && limit <= qry.recordCount ){
 				// remove last n rows
 				qry.removeRows( limit, qry.recordCount - limit );
+			}
+			if( returnFullCount ){
+				queryAddColumn( qry, fullCountName, listToArray( repeatString( recordCount & ",", qry.recordCount ) ) );
 			}
 
 			return qry;

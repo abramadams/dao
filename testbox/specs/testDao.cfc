@@ -201,7 +201,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           // writeDump([pagedEvents,events]);abort;
           $assert.isTrue( events.ID[2] == pagedEvents.ID[1] );
           $assert.isTrue( pagedEvents.recordCount == 5 );
-
+          $assert.isTrue( pagedEvents.recordCount != pagedEvents.$fullCount );
      }
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');
