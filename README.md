@@ -222,7 +222,6 @@ Each method takes the following options:
  - cf_sql_money4
  - cf_sql_numeric
  - cf_sql_real
- - cf_sql_refcurs__or__
  - cf_sql_smallint
  - cf_sql_time
  - cf_sql_timestamp __or__ timestamp
@@ -233,42 +232,44 @@ Each method takes the following options:
 * `null` - True/False.  If true, the __value__ is considered null.
 
 # All `Read()` Arguments
-* sql (String) = The actual SQL statement you wish to run.
-* params (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
-Example 
+* `sql` (String) = The actual SQL statement you wish to run.
+* `params` (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
+Example
 ```
 usersByFirstName = dao.read(
-	sql="SELECT * FROM users where Name = :userFirstName", 
+	sql="SELECT * FROM users where Name = :userFirstName",
 	params = {userFirstName:session.user.getFirstName()}
 );
 ```
-* name (String) = Name of Query (required for cachedwithin)
-* QoQ (Struct) = A struct of key/value pairs where the Key is the query's name as used in the SQL statement and the value is the actual query object.
-Example 
+* `name` (String) = Name of Query (required for cachedwithin)
+* `QoQ` (Struct) = A struct of key/value pairs where the Key is the query's name as used in the SQL statement and the value is the actual query object.
+Example
 ```
 filtered = dao.read(
-	sql="SELECT * FROM filteredUsers", 
+	sql="SELECT * FROM filteredUsers",
 	QoQ = {filteredUsers:usersByFirstName}
 );
 ```
-* cachedwithin (Timespan) = createTimeSpan() value to cache this query
-* table (String) = Table name to select from. Used only if not using `SQL` argument
+* `cachedwithin` (Timespan) = createTimeSpan() value to cache this query
+* `table` (String) = Table name to select from. Used only if not using `SQL` argument
 Example
 ```
 users = dao.read( table = "users" )
-//OR
+```
+__OR__
+```
 users = dao.read("users");
 ```
-* columns (String) = List of valid column names for select statement. Used only if not using `SQL` argument
+* `columns` (String) = List of valid column names for select statement. Used only if not using `SQL` argument
 Example
 ```
 users = dao.read( table = "users", columns = "Id,firstName,LastName" );
 ```
-* where (String) = Where clause. Used only if not using `SQL` argument
-* limit (Number) = Limits the number of returned results.  If `SQL` argument is provided it will use CF's "maxRows" attribute, otherwise will use native TSQL limits (i.e. MySQL LIMIT 10 OFFSET 1). Default = unlimited
-* offset (Number) = If `SQL` argument is provided it will be used as the "startRow" argument, otherwise will use native TSQL offset (i.e. MySQL LIMIT 10 OFFSET 1). Default = 1
-* orderby (String) = Column name to order the query by. Used only if not using `SQL` argument
-* returnType (String) = Type of data to return.  Options: __Query__ (default), __Array__ (Array of Structs) or __JSON__
+* `where` (String) = Where clause. Used only if not using `SQL` argument
+* `limit` (Number) = Limits the number of returned results.  If `SQL` argument is provided it will reduce the results to the limit provided, otherwise will use native TSQL limits (i.e. MySQL LIMIT 10 OFFSET 1). Default = unlimited
+* `offset` (Number) = If `SQL` argument is provided it will remove the records from the results up to the offset provided, otherwise will use native TSQL offset (i.e. MySQL LIMIT 10 OFFSET 1). Default = 1
+* `orderBy` (String) = Column name to order the query by. Used only if not using `SQL` argument
+* `returnType` (String) = Type of data to return.  Options: __Query__ (default), __Array__ (Array of Structs) or __JSON__
 * map (Function) = A function to be executed for each row in the results ( only used if returnType == Array )
 
 # Callbacks
@@ -365,7 +366,7 @@ AND ( `ID` >= ? OR ( `event` = ? OR `event` = ? ) )
 ORDER BY eventDate desc
 ```
 
-You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).  
+You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).
 To do so, simply call the .returnAs() method in the chain, like so:
 ```javascript
 var query = dao.from( "eventLog" )
