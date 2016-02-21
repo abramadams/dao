@@ -255,9 +255,7 @@ filtered = dao.read(
 Example
 ```
 users = dao.read( table = "users" )
-```
-__OR__
-```
+//OR
 users = dao.read("users");
 ```
 * `columns` (String) = List of valid column names for select statement. Used only if not using `SQL` argument
@@ -270,7 +268,7 @@ users = dao.read( table = "users", columns = "Id,firstName,LastName" );
 * `offset` (Number) = If `SQL` argument is provided it will remove the records from the results up to the offset provided, otherwise will use native TSQL offset (i.e. MySQL LIMIT 10 OFFSET 1). Default = 1
 * `orderBy` (String) = Column name to order the query by. Used only if not using `SQL` argument
 * `returnType` (String) = Type of data to return.  Options: __Query__ (default), __Array__ (Array of Structs) or __JSON__
-* map (Function) = A function to be executed for each row in the results ( only used if returnType == Array )
+* `map` (Function) = A function to be executed for each row in the results ( only used if returnType == Array )
 
 # Callbacks
 DAO can automatically fire a callback method upon completion each data modifying event.  To take advantage of this, supply the a function to the "onFinish" argument of the `update`, `insert` or `delete` functions.  DAO will supply the callback with data specific to the action, or more precisely:
