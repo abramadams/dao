@@ -30,13 +30,13 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
      function loadEntityAndDynamicOneToManyChildEntityUsingFKNamingConventionAndSaveChildRecord() test{
           var product = new com.database.Norm( table = "products", dao = request.dao, autoWire = true, debugMode = false );
 
+          request.dao.execute("update product_classes set name = 'Holstein' where ID = 1");
           $assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
           $assert.isTrue( product.isNew() );
 
           product.load(2381);
 
           $assert.isTrue( product.getName() == 'ABRAM' );
-
           $assert.isTrue( product.getProduct_Classes().getName() == 'Holstein' );
 
           product.getProduct_Classes().setName( 'TEMP-TEST' );
@@ -47,6 +47,7 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
           $assert.isTrue( prodClassNameTest.name == 'TEMP-TEST' );
 
           product.getProduct_Classes().setName( 'Holstein' );
+
           product.save();
           prodClassNameTest = request.dao.read("select name from product_classes where ID = 1 ");
           $assert.isTrue( prodClassNameTest.name == 'Holstein' );
@@ -102,6 +103,7 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
           $assert.isTrue( company.getName() == 'K & M ATKINS' );
           // Now see if the child entities were loaded (dynamically by <table>_ID pattern)
           company.hasManyCall_Notes();
+          // writeDump(company.toStruct());abort;
           $assert.isTrue( company.hasCall_Notes() );
           // writeDump(company.getCall_Notes());
 
