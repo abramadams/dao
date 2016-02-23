@@ -341,7 +341,13 @@ component accessors="true" output="false" {
 	private function _injectProperty( required string name, required any val, struct prop = {} ){
 		variables[ name ] = val;
 		this[ name ] = val;
-		if( structCount( prop ) ){
+		var exists = variables.meta.properties.find( function( a ){
+		    return a.name == name;
+		});
+		if( exists ){
+			arrayDeleteAt(variables.meta.properties, exists );
+		}
+		if( structIsEmpty( prop ) ){
 			// Define the property struct (including any existing mappings)
 			var mapping = _getMapping( name );
 			var newProp = {
@@ -444,7 +450,7 @@ component accessors="true" output="false" {
 			// If the old value isn't identical to the new value, set the isDirty flag to true
 			// This only needs to be set if it isn't already
 			if( !variables._isDirty ){
-				variables._isDirty = compare( v, variables[ propertyName ] ) != 0;
+				this._setisDirty( compare( v, variables[ propertyName ] ) != 0 );
 			}
 		}
 
@@ -461,7 +467,6 @@ component accessors="true" output="false" {
 			structDelete( this, '__tmpFunc' );
 			// logIt('set called via _setter as #functionName#... finished');
 		}
-
 
 	}
 	private function _setNumberFunc( required numeric v ){
@@ -635,10 +640,10 @@ component accessors="true" output="false" {
 						// Loading Many to One relationship for getterInstructions
 						// // logIt('CALLING _getManyToOne() for #mapping.table# (#propertyName#) #returnType# (dynamically called via #arguments.missingMethodName# on #this.getTable()# for #this.getID()# [ #mapping.table# : #mapping.property# : #mapping.key#])');
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne(
-																																			table = lcase( mapping.table ),
-																																			property = propertyName,
-																																			fkColumn = mapping.key != mapping.table ? mapping.key : potentialFkColumn,
-																																			returnType = returnType );
+																			table = lcase( mapping.table ),
+																			property = propertyName,
+																			fkColumn = mapping.key != mapping.table ? mapping.key : potentialFkColumn,
+																			returnType = returnType );
 						// // logIt('loaded child #variables[propertyName].getID()# from #mapping.table# into property #propertyName#');
 						return variables[ propertyName ];
 					}else{
@@ -679,11 +684,10 @@ component accessors="true" output="false" {
 						// the record from the users table where users.ID == the current entity's
 						// Created_Users_ID value.
 						variables[ propertyName ] = this[ propertyName ] = _getManyToOne(
-																																			table = lcase( mapping.table ),
-																																			property = propertyName,
-																																			fkColumn = byClause,
-																																			returnType = returnType
-																																);
+																				table = lcase( mapping.table ),
+																				property = propertyName,
+																				fkColumn = byClause,
+																				returnType = returnType );
 						return variables[ propertyName ];
 
 					}else{
@@ -877,51 +881,111 @@ component accessors="true" output="false" {
 					return getDao().queryToArray( record );
 				}
 				var tmpNewEntity = $new( dao = this.getDao(), table = this.getTable() );
-				// logIt('loading #recCount# records');
-				// var startLoadChildren = getTickCount();
-				for ( var rec = 1; rec <= recCount; rec++ ){
-					// logIt('iterating #rec# of #recCount# records');
-					var qn = queryNew( record.columnList );
-					queryAddRow( qn, 1 );
-					// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
-					// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
-					var colList = listToArray( record.columnList );
-					for( var col in colList ){
-						querySetCell( qn, col, record[ col ][ rec ] );
-					}
+				// experimenting with threads...
+				var threaded = true;
+				if( threaded ){
+					var threads = "";
+					for ( var rec = 1; rec <= recCount; rec++ ){
+						var threadName = "thread"&hash("load-child-#this.getTable()#-#createUUID()#-#rec#");
+						threads = listAppend( threads, threadName );
+						// logIt('iterating #rec# of #recCount# records');
+						thread action="run"
+							name="#threadName#"
+							recordArray="#recordArray#"
+							parentTable="#getParentTable()#"
+							returnType="#returnType#"
+							tmpNewEntity="#tmpNewEntity#" rec="#rec#" record="#record#" table="#this.getTable()#" idField="#getIDField()#" cacheEntities="#get__cacheEntities()#" {
+							// thread.recordArray = recordArray;
+							param name="thread.recordArray" default="#[]#";
+	 						var qn = queryNew( record.columnList );
+							queryAddRow( qn, 1 );
+							// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
+							// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
+							var colList = listToArray( record.columnList );
+							for( var col in colList ){
+								querySetCell( qn, col, record[ col ][ rec ] );
+							}
 
-					if( get__cacheEntities() ){
-						lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
-							var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
+							if( cacheEntities ){
+								lock type="readonly" name="##-#qn[ idField ][ 1 ]#" timeout="3"{
+									var cachedObject = cacheGet( '#table#-#qn[ idField ][ 1 ]#' );
+								}
+							}
+							// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
+							if( !isNull( cachedObject ) ){
+								// object cached, load from memory.
+								var tmpNewEntity = cachedObject;
+							}else{
+
+								// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
+								// does not appear to be thread safe and ends up causing concurrency issues.
+								// var tmpNewEntity = $new();
+								// logIt('instantiating new object for #this.getTable()# as part of a loadAll call. [#arguments.missingMethodName# : #serializeJSON(arguments.missingMethodArguments)#');
+								// var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable(), dynamicMappings = getDynamicMappings(), excludedEntities = getExcludedEntities() );
+								// var tmpNewEntity = new "#variables.meta.fullName#"( argumentCollection:this );
+
+								// var start = getTickCount();
+								tmpNewEntity.lazyLoad( ID = qn, parenttable = parentTable );
+								// logIt("took #(getTickCount()-start)/1000# seconds to lazily load one of #recCount# child objects for #getTable()#");
+							}
+
+							if( returnType is "struct" /* || returnType is "array"  */){
+								tmpNewEntity = tmpNewEntity.toStruct();
+							}else if (returnType is "json"){
+								tmpNewEntity = tmpNewEntity.toJSON();
+							}
+							arrayAppend( thread.recordArray, tmpNewEntity );
+
 						}
 					}
-					// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
-					if( !isNull( cachedObject ) ){
-						// object cached, load from memory.
-						var tmpNewEntity = cachedObject;
-					}else{
+					thread action="join" name="#threads#";
+					recordArray = cfthread[listLast(threads)].recordArray;
+				}else{
 
-						// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
-						// does not appear to be thread safe and ends up causing concurrency issues.
-						// var tmpNewEntity = $new();
-						// logIt('instantiating new object for #this.getTable()# as part of a loadAll call. [#arguments.missingMethodName# : #serializeJSON(arguments.missingMethodArguments)#');
-						// var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable(), dynamicMappings = getDynamicMappings(), excludedEntities = getExcludedEntities() );
-						// var tmpNewEntity = new "#variables.meta.fullName#"( argumentCollection:this );
+					var startLoadChildren = getTickCount();
+					for ( var rec = 1; rec <= recCount; rec++ ){
+						// logIt('iterating #rec# of #recCount# records');
+						var qn = queryNew( record.columnList );
+						queryAddRow( qn, 1 );
+						// append each record to the array. Each record will be an instance of the model entity in represents.  If lazy loading
+						// this will be an empty entity instance with "overloaded" getter methods that instantiate when needed.
+						var colList = listToArray( record.columnList );
+						for( var col in colList ){
+							querySetCell( qn, col, record[ col ][ rec ] );
+						}
 
-						// var start = getTickCount();
-						tmpNewEntity.lazyLoad( ID = qn, parenttable = getParentTable() );
-						// logIt("took #(getTickCount()-start)/1000# seconds to lazily load one of #recCount# child objects for #getTable()#");
+						if( get__cacheEntities() ){
+							lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
+								var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
+							}
+						}
+						// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
+						if( !isNull( cachedObject ) ){
+							// object cached, load from memory.
+							var tmpNewEntity = cachedObject;
+						}else{
+
+							// Creating a new instance of the entity for each record.  Tried to use duplicate( this ), but that
+							// does not appear to be thread safe and ends up causing concurrency issues.
+							// var tmpNewEntity = $new();
+							// logIt('instantiating new object for #this.getTable()# as part of a loadAll call. [#arguments.missingMethodName# : #serializeJSON(arguments.missingMethodArguments)#');
+							// var tmpNewEntity = createObject( "component", variables.meta.fullName ).init( dao = this.getDao(), table = this.getTable(), dynamicMappings = getDynamicMappings(), excludedEntities = getExcludedEntities() );
+							// var tmpNewEntity = new "#variables.meta.fullName#"( argumentCollection:this );
+
+							// var start = getTickCount();
+							tmpNewEntity.lazyLoad( ID = qn, parenttable = getParentTable() );
+							// logIt("took #(getTickCount()-start)/1000# seconds to lazily load one of #recCount# child objects for #getTable()#");
+						}
+
+						if( returnType is "struct" /* || returnType is "array"  */){
+							tmpNewEntity = tmpNewEntity.toStruct();
+						}else if (returnType is "json"){
+							tmpNewEntity = tmpNewEntity.toJSON();
+						}
+
+						arrayAppend( recordArray, tmpNewEntity );
 					}
-
-					if( returnType is "struct" /* || returnType is "array"  */){
-						tmpNewEntity = tmpNewEntity.toStruct();
-					}else if (returnType is "json"){
-						tmpNewEntity = tmpNewEntity.toJSON();
-					}
-
-					arrayAppend( recordArray, tmpNewEntity );
 				}
-				// logIt(">> took #(getTickCount()-startLoadChildren)/1000# seconds to lazily load all #recCount# child objects for #getTable()#");
 
 				if( returnType is "json" ){
 					return "[" & arrayToList( recordArray ) & "]";
@@ -1183,7 +1247,6 @@ component accessors="true" output="false" {
 					}else{
 						variables[ prop.name ] = this[ prop.name ] = arguments.ID[ prop.name ];
 					}
-					this._setIsDirty( true ); // <-- may not be, but we can't tell so better safe than sorry
 				}
 			}
 
@@ -1750,7 +1813,7 @@ component accessors="true" output="false" {
 			var newObj = fkValue;
 			fkValue = newObj.getID();
 		}else{
-			var newObj = $new( table = mapping.table, dao = this.getDao(), idField = mapping.idField );
+			var newObj = $new( table = mapping.table, dao = this.getDao(), idField = mapping.idField, parentTable = this.getTable() );
 		}
 
 		if( !isObject( newObj ) ){
@@ -1761,15 +1824,26 @@ component accessors="true" output="false" {
 		// Load data into new object
 		// // logIt('Loading dynamic many-to-one relationship entity #table#[#mapping.table#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #isSimpleValue( variables[fkColumn] ) ? variables[fkColumn] : 'complex object'#. Lazy? #yesNoFormat(getParentTable() eq mapping.table)#');
 		if( len( trim( fkValue ) ) ){
-			newObj.load( ID = fkValue, lazy = true, where = where );
+			newObj.load( ID = fkValue, lazy = true, where = where, parentTable = this.getTable() );
 		}
 
 		// // logIt('Well, was there anything to load?: #yesNoFormat( !newObj.isNew() )#');
 		// Now set the relationhsip property value to the newly created and instantiated object.
 		variables[ propertyName ] = this[ propertyName ] = variables.properties[ propertyName ] = this.properties[ propertyName ] = newObj;
 
-		// Append the relationship propertyName to the meta properties
-		arrayAppend( variables.meta.properties, {
+		// Append the relationship propertyName to the meta properties (if not already there.)
+		// arrayAppend( variables.meta.properties, {
+		// 					"column": propertyName,
+		// 					"name": propertyName,
+		// 					"dynamic": true,
+		// 					"cfc": "Norm",
+		// 					"table": newObj.getTable(),
+		// 					"inverseJoinColumn": newObj.getIDField(),
+		// 					"fkcolumn": fkColumn,
+		// 					"fieldType": "many-to-one",
+		// 					"addedBy": "_getManyToOne:#getFunctionCalledName()#"
+		// 				} );
+		_injectProperty( name = propertyName, val = this[ propertyName ], prop = {
 							"column": propertyName,
 							"name": propertyName,
 							"dynamic": true,
@@ -1780,6 +1854,7 @@ component accessors="true" output="false" {
 							"fieldType": "many-to-one",
 							"addedBy": "_getManyToOne:#getFunctionCalledName()#"
 						} );
+
 		// Update Cache
 		if( get__cacheEntities()  ){
 		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
@@ -1805,13 +1880,13 @@ component accessors="true" output="false" {
 			,string where = ""
 	){
 		variables[ property ] = this[ property ] = _getManyToOne(
-																										table = lcase( arguments.table ),
-																										fkColumn = arguments.fkColumn,
-																										property = arguments.property,
-																										pkColumn = arguments.pkColumn,
-																										returnType = arguments.returnType,
-																										where = arguments.where
-																								);
+															table = lcase( arguments.table ),
+															fkColumn = arguments.fkColumn,
+															property = arguments.property,
+															pkColumn = arguments.pkColumn,
+															returnType = arguments.returnType,
+															where = arguments.where
+													);
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
 		if( get__cacheEntities() ){
@@ -1934,8 +2009,7 @@ component accessors="true" output="false" {
 				// logIt('iterating each in "#structKeyList( getDynamicMappings())#"');
 				// iterate mappings and look-up properties to find the key
 				for( var map in getDynamicMappings() ){
-
-					// // logIt("find mappings for #map#");
+					// logIt("find mappings for #map#");
 
 					if( isStruct( getDynamicMappings()[ map ] )
 						&& structKeyExists( getDynamicMappings()[ map ], 'property' )
@@ -1988,8 +2062,10 @@ component accessors="true" output="false" {
 
 						}
 					}
-					// logIt('mappings for #table#: #structKeyList( mapping )#: #mapping.table#, #mapping.property#', true);
 				}
+				// logIt('mappings for #table#: #structKeyList( mapping )#: #mapping.table#, #mapping.property#', true);
+
+
 			}
 		}
 
@@ -2180,7 +2256,7 @@ component accessors="true" output="false" {
   /**
   * I return a struct representation of the object in its current state.
   **/
-	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1 ){
+	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1, boolean threaded = true ){
 
 			var arg = "";
 			var LOCAL = {};
@@ -2189,11 +2265,27 @@ component accessors="true" output="false" {
 			var props = duplicate( variables.meta.properties );
 
 			// Iterate through each property and generate a struct representation
+			var tmpProps = listRemoveDuplicates( props.reduce( function( prev, cur ){
+				prev = prev?:'';
+				if( !listFindNoCase( keysToExclude, cur.name ) ){
+					return listAppend(prev, cur.name);
+				}else{
+					return prev;
+				}
+			}));
+			props = props.filter( function(prop){
+				return listFindNoCase( tmpProps, prop.name );
+			});
 			// writeDump(props);abort;
+			// writeLog("props: " & tmp);
+			// writeDump(variables.meta.properties);abort;
 			for ( var prop in props ){
+			// for ( var propName in tmpProps ){
+				// var prop = props[ propName ];
 				// First thing we need to do is load any "lazy" loaded properties.  This will populate
 				// the property with the correct object/data so that we can traverse it's structure and
 				// produce the serialized struct
+				// writeLog('prop name: #prop.name#');
 				if( structKeyExists(variables, prop.name) && isClosure( variables[ prop.name ] ) ){
 					var tmpRun = variables[ prop.name ];
 					variables[ prop.name ] = tmpRun();
@@ -2254,17 +2346,56 @@ component accessors="true" output="false" {
 									// });
 									// returnStruct[ arg ] = newArr;
 									var loopLen = arrayLen( returnStruct[ arg ] );
-									for( var i = 1; i <= loopLen; i++ ){
-										if( isObject( returnStruct[arg][ i ] ) ){
-											// writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
-											returnStruct[arg][ i ]['__level'] = nestLevel+1;
-											// writeLog('tostruct for #arg#: nested #nestLevel# deep');
-											returnStruct[arg][ i ] = returnStruct[ arg ][ i ].toStruct(
-																								excludeKeys = excludeKeys,
-																								preserveCase = preserveCase,
-																								nestLevel = nestLevel+1,
-																								top = top
-																							);
+									if( threaded ){
+										var threads = "";
+										for( var i = 1; i <= loopLen; i++ ){
+											var threadName = "toStruct#createUUID()#";
+											threads = listAppend( threads, threadName );
+											thread name="#threadName#" action="run"
+												returnStruct="#returnStruct[arg][ i ]#"
+												nestLevel="#nestLevel#"
+												top="#top#"
+												preserveCase="#preserveCase#"
+												excludeKeys="#excludeKeys#"{
+												// thread.returnStruct = returnStruct;
+												param name="thread.returnStruct" default="#[]#";
+												if( isObject( returnStruct ) ){
+													// writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
+													returnStruct['__level'] = nestLevel+1;
+													// writeLog('tostruct for #arg#: nested #nestLevel# deep');
+													returnStruct = returnStruct.toStruct(
+																					excludeKeys = excludeKeys,
+																					preserveCase = preserveCase,
+																					nestLevel = nestLevel+1,
+																					top = top,
+																					threaded = threaded
+																				);
+												}
+												arrayAppend( thread.returnStruct, returnStruct );
+											}
+										}
+										thread action="join" name="#threads#";
+										returnStruct[ arg ] = cfthread[listLast(threads)].returnStruct;
+									}else{
+										for( var i = 1; i <= loopLen; i++ ){
+											if( isObject( returnStruct[arg][ i ] ) ){
+												// writeLog('#repeatString(" ", nestLevel+1)#tostruct #prop.name# :: #arg# :: array item was an object' );
+												returnStruct[arg][ i ]['__level'] = nestLevel+1;
+												// writeLog('tostruct for #arg#: nested #nestLevel# deep');
+												if( len( trim( returnStruct[ arg ].getID() ) ) ){
+													returnStruct[arg][ i ] = returnStruct[ arg ][ i ].toStruct(
+																									excludeKeys = excludeKeys,
+																									preserveCase = preserveCase,
+																									nestLevel = nestLevel+1,
+																									top = top,
+																									threaded = threaded,
+																									parentArg = arg,
+																									parentArgId = returnStruct[ arg ][ i ].getID()
+																								);
+												}else{
+													returnStruct[ arg ] = {};
+												}
+											}
 										}
 									}
 
@@ -2297,23 +2428,44 @@ component accessors="true" output="false" {
 									var tmpStruct = {};
 									if( columnName == arg ){
 										// logIt('#repeatString(" ", nestLevel+1)#tostruct from object');
-										tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct(
-																																		 excludeKeys = excludeKeys
-																																		,preserveCase = preserveCase
-																																		,nestLevel = nestLevel+1
-																																		,top = top
-																																	);
+										if( len( trim( returnStruct[ arg ].getID() ) ) ){
+											tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = returnStruct[ arg ].toStruct(
+																																			 excludeKeys = excludeKeys
+																																			,preserveCase = preserveCase
+																																			,nestLevel = nestLevel+1
+																																			,top = top
+																																			,threaded = threaded
+																																			,parentArg = arg
+																																			,parentArgId = returnStruct[ arg ].getId()
+																																		);
+										}else{
+											tmpStruct[ col.owner.table == arg ? arg & "_data" : col.owner.table ] = {};
+										}
 										// prevent accidentally overwriting an existing key.
 										structAppend( returnStruct, tmpStruct, false );
 									}else{
-										// logIt('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
-										// Column name and property were not the same.  We'll still want to stuff the child data into the struct
-										returnStruct[ arg ] = returnStruct[ arg ].toStruct(
+										tmpTop = top;
+										if( structKeyExists( arguments, 'parentArg') && parentArg eq arg ){
+											if( parentArgId == returnStruct[ arg ].getID() ){
+												tmpTop = 1;
+											}
+											// writeDump([parentArg, parentArgId, arg, returnStruct[ arg ][getIdField()], top]);abort;
+										}
+										if( len( trim( returnStruct[ arg ].getID() ) ) ){
+											// logIt('#repeatString(" ", nestLevel+1)#tostruct from object for #arg#');
+											// Column name and property were not the same.  We'll still want to stuff the child data into the struct
+											returnStruct[ arg ] = returnStruct[ arg ].toStruct(
 																					 excludeKeys = excludeKeys
 																					,preserveCase = preserveCase
 																					,nestLevel = nestLevel+1
-																					,top = 1
+																					,top = tmpTop
+																					,threaded = threaded
+																					,parentArg = arg
+																					,parentArgId = returnStruct[ arg ].getId()
 																				);
+										}else{
+											returnStruct[ arg ] = {};
+										}
 									}
 								}
 							}else{
@@ -2382,8 +2534,7 @@ component accessors="true" output="false" {
 	/**
     * I save the current state to the database. I either insert or update based on the isNew flag
     **/
-	public any function save( struct overrides = {}, boolean force = false, any callback ){
-
+	public any function save( struct overrides = {}, boolean force = false, any callback, string parentTable = "" ){
 		var tempID = this.getID();
 		var callbackArgs = { ID = this.getID(), method = 'save' };
 
@@ -2539,7 +2690,7 @@ component accessors="true" output="false" {
 			// Runing this routine now will inject the child ID(s) into
 			// this entity instance.
 			// logIt('All the Children...');
-			_saveTheChildren();
+			_saveTheChildren( parentTable = parentTable );
 			// logIt('All the Children saved...');
 			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
 			var DATA = duplicate( this.toStruct( top = 1 ) );
@@ -2572,8 +2723,8 @@ component accessors="true" output="false" {
 					data = DATA
 				);
 			}
+
 		}else{
-			// logIt('_savethechildren: nothing to do for this entity, but maybe a child entity needs to be saved?');
 			_saveTheChildren();
 		}
 
@@ -2601,16 +2752,15 @@ component accessors="true" output="false" {
 		}
 		}
 
-		return this;
+		return;
 	}
 
-	private void function _saveTheChildren( any tempID = this.getID() ){
+	private void function _saveTheChildren( any tempID = this.getID(), string parentTable = this.getTable() ){
 	 /* Now save any child records */
 	 // logIt('_savethechildren: saving the children for #this.getTable()#:#arguments.tempID#');
 		for ( var col in variables.meta.properties ){
-			/*if( !structKeyExists( col, 'norm_persistent' ) || !col.norm_persistent ) continue;*/
-	 		// logIt('_savethechildren: is #col.name# a fk to a relationship?');
-	 		/*logIt('_savethechildren: #serializeJSON(col)#');*/
+			// Prevent circular recursion
+			if( col.name == this.getTable() || col.name == parentTable ) continue;
 
 			if( structKeyExists( col, 'fieldType' )
 				&& col.fieldType eq 'one-to-many'
@@ -2625,6 +2775,7 @@ component accessors="true" output="false" {
 					// logIt('_savethechildren: nothing to do for #col.name# - #this.getTable()#:#tempID#');
 					continue;
 				}
+				var threads = "";
 				for ( var child in variables[ col.name ] ){
 					// logIt('_savethechildren: saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 					try{
@@ -2636,26 +2787,31 @@ component accessors="true" output="false" {
 
 					}
 					// call the child's save routine;
-					child.save( force = true );
+					var threadName = "childSave#createUUID()#";
+					threads = listAppend( threads, threadName );
+					thread action="run" name="#threadName#" child="#child#"{
+						child.save( force = true, parentTable = this.getTable() );
+					}
 					// logIt('_savethechildren: DONE Saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 
 				}
+				thread action="join" name="#threadNames#";
 
 			}else if( structKeyExists( col, 'fieldType' )
 				&& col.fieldType eq 'many-to-one'
 				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
 				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
-
 				// // logIt('_savethechildren: yes, a many-to-one');
 				//**************************************************************************************************
 				// MANY TO ONE.   This will and persist the child record to the back end storage (DB)
 				//**************************************************************************************************
 				var child = variables[ col.name ];
-				// logIt( 'trying to save "#col.name#"');
 
-				if( isObject( child ) ) {
-					child.save();
+				// Only save the child object if there were changes.
+				if( isObject( child ) && child.isDirty() ) {
+					child.save( parentTable = this.getTable() );
 				}
+
 
 			}else if( structKeyExists( col, 'fieldType' ) && col.fieldType eq 'one-to-one' ){
 				// logIt('_savethechildren: yes, a one-to-one');
