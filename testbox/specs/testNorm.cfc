@@ -709,6 +709,21 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 		 }
 
+		 function testQueryAsOData() test{
+			beforeEach();
+
+			var testEntity = new com.database.Norm( dao = request.dao, table = "orders" );
+
+			var data = testEntity.serializeODataRows( request.dao.read(sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 10",limit=10,returnType="array") );
+
+			var meta = { "base": "orders", "page": 1, "filter": "" };
+			var ret = testEntity.serializeODataResponse( 4, data, meta );
+
+			writeDump(serializeJSON(ret));abort;
+					// $assert.isTrue( testEntity.isDirty() );
+
+		 }
+
 		 // executes after all tests
 		 function afterTests(){
 
