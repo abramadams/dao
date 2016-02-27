@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.1
+*   @version 0.2.2
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 2/18/2016
+*   @updated 2/26/2016
 *   @author Abram Adams
 **/
 
@@ -46,6 +46,7 @@ component accessors="true" output="false" {
 	property name="__cacheEntities" type="boolean" norm_persistent="false";
 	property name="cachedWithin" type="any" norm_persistent="false";
 	property name="__debugMode" type="boolean" norm_persistent="false";
+	property name="__threaded" type="boolean" norm_persistent="false";
 	/* OData properties*/
 	property name="oDataVersion" type="numeric" norm_persistent="false";
 	property name="oDataBaseUri" type="string" norm_persistent="false";
@@ -77,6 +78,7 @@ component accessors="true" output="false" {
 								boolean autoWire = true,
 								boolean cacheEntities = false, /* 2015-1-19 still experimental DO NOT USE */
 								boolean debugMode = false,
+								boolean threaded = true,
 								numeric oDataVersion = 3,
 								string oDataBaseUri = "/",
 								any cachedWithin = createTimeSpan( 0, 0, 0, 2 ) ){
@@ -85,6 +87,7 @@ component accessors="true" output="false" {
 		set__cacheEntities( cacheEntities );
         // If true, will tell // logIt() to actually write to log.
 		set__debugMode( debugMode );
+		set__threaded( threaded );
 
 		setODataVersion( oDataVersion );
 		setODataBaseUri( oDataBaseUri );
@@ -881,9 +884,8 @@ component accessors="true" output="false" {
 					return getDao().queryToArray( record );
 				}
 				var tmpNewEntity = $new( dao = this.getDao(), table = this.getTable() );
-				// experimenting with threads...
-				var threaded = true;
-				if( threaded ){
+
+				if( get__threaded() ){
 					var threads = "";
 					for ( var rec = 1; rec <= recCount; rec++ ){
 						var threadName = "thread"&hash("load-child-#this.getTable()#-#createUUID()#-#rec#");
@@ -2256,7 +2258,7 @@ component accessors="true" output="false" {
   /**
   * I return a struct representation of the object in its current state.
   **/
-	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1, boolean threaded = true ){
+	public struct function toStruct( array excludeKeys = [], numeric top = 0, boolean preserveCase = true, numeric nestLevel = 1, boolean threaded = get__threaded() ){
 
 			var arg = "";
 			var LOCAL = {};
