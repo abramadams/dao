@@ -246,6 +246,27 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 	}
 
+	function shorthandJoinWithColumnsToOdata() test{
+		var query = request.dao.from(
+						table = "pets",
+						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.ID as userID, users.first_name as ownerName"}])
+					.returnAs("array")
+					.where( "pets.ID", "=", 93 );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		$assert.typeOf( "array", query.getCriteria().joins );
+		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
+		var results = query.run();
+
+		var testEntity = new com.database.Norm( dao = request.dao, table = "pets" );
+		var data = testEntity.serializeODataRows( results );
+		var meta = { "base": "orders", "page": 1, "filter": "" };
+		var ret = testEntity.serializeODataResponse( 4, data, meta );
+
+		// writeDump(ret);abort;
+		$assert.isTrue( ret.keyExists('__metadata') );
+
+	}
 
 	// executes after all tests
 	function afterTests(){

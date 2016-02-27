@@ -87,7 +87,7 @@
 	public tabledef function init( required string tablename, required string dsn, boolean loadMeta = true ){
 		this.instance = {
 				table = queryNew( '' ),
-				name = arguments.tablename,
+				name = reReplaceNoCase( arguments.tablename, '[^a-z0-9]', '', 'all' ),
 				tabledef = {},
 				tablemeta.columns = {}
 		};
