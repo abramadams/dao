@@ -326,14 +326,14 @@ component accessors="true" output="false" {
 			}
 		}
 		if( structKeyExists( variables._tableDefs, table ) ){
-			cachePut( "tabledef-#table#", duplicate( variables._tableDefs[ table ] ), createTimeSpan( 0, 0, 30, 0 ) );
+			cachePut( "tabledef-#table#", variables._tableDefs[ table ], createTimeSpan( 0, 0, 30, 0 ) );
 			return variables._tableDefs[ table ];
 		}
 		var tableDef = new tabledef( tableName = table, dsn = getDao().getDSN() );
 		if( tableDef.getIsTable() ){
 			variables._tableDefs[ table ] = tableDef;
 		}
-		cachePut( "tabledef-#table#", duplicate( tableDef ), createTimeSpan( 0, 0, 30, 0 ) );
+		cachePut( "tabledef-#table#", tableDef, createTimeSpan( 0, 0, 30, 0 ) );
 
 		return tableDef;
 	}
@@ -884,8 +884,7 @@ component accessors="true" output="false" {
 					return getDao().queryToArray( record );
 				}
 				var tmpNewEntity = $new( dao = this.getDao(), table = this.getTable() );
-
-				if( get__threaded() ){
+				if( get__threaded() && 1==0 ){
 					var threads = "";
 					for ( var rec = 1; rec <= recCount; rec++ ){
 						var threadName = "thread"&hash("load-child-#this.getTable()#-#createUUID()#-#rec#");
@@ -907,7 +906,6 @@ component accessors="true" output="false" {
 							for( var col in colList ){
 								querySetCell( qn, col, record[ col ][ rec ] );
 							}
-
 							if( cacheEntities ){
 								lock type="readonly" name="##-#qn[ idField ][ 1 ]#" timeout="3"{
 									var cachedObject = cacheGet( '#table#-#qn[ idField ][ 1 ]#' );
@@ -944,7 +942,6 @@ component accessors="true" output="false" {
 					recordArray = cfthread[listLast(threads)].recordArray;
 				}else{
 
-					var startLoadChildren = getTickCount();
 					for ( var rec = 1; rec <= recCount; rec++ ){
 						// logIt('iterating #rec# of #recCount# records');
 						var qn = queryNew( record.columnList );
@@ -955,7 +952,6 @@ component accessors="true" output="false" {
 						for( var col in colList ){
 							querySetCell( qn, col, record[ col ][ rec ] );
 						}
-
 						if( get__cacheEntities() ){
 							lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
 								var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
@@ -988,7 +984,6 @@ component accessors="true" output="false" {
 						arrayAppend( recordArray, tmpNewEntity );
 					}
 				}
-
 				if( returnType is "json" ){
 					return "[" & arrayToList( recordArray ) & "]";
 				}
@@ -1132,8 +1127,8 @@ component accessors="true" output="false" {
 	* A convenience method to force the lazy loading of the entity.  I make code
 	* more self-documenting.
 	**/
-	public any function lazyLoad( required any ID ){
-		return load( ID = ID, lazy = true );
+	public any function lazyLoad( required any ID, string parentTable = getParentTable() ){
+		return load( ID = ID, lazy = true, parenTable = parentTable );
 	}
 
 	/**
@@ -1204,7 +1199,8 @@ component accessors="true" output="false" {
 							newProp['cfc'] = mapping.cfc;
 						}
 						if( !structIsEmpty( newProp ) ){
-							arrayAppend( variables.meta.properties, newProp );
+							// arrayAppend( variables.meta.properties, newProp );
+							_injectProperty( name = mapping.property, val = cachedObject[ cachedPropName ] , prop = newProp );
 						}
 					}
 				}
@@ -1218,7 +1214,7 @@ component accessors="true" output="false" {
 				if( len( trim( this.getID() ) ) ){
 					// Save the pristine state of this entity instance
 					lock name="#this.getTable()#-#ID#-pristine" type="exclusive" timeout="3"{
-						variables._pristine = duplicate( cachedObject );
+						variables._pristine = cachedObject;
 					}
 					// Fire the afterLoad the event handler
 					// logIt( 'Executing afterLoad event for #getTable()#' );
@@ -1262,7 +1258,7 @@ component accessors="true" output="false" {
 				}
 				// Save the pristine state of this entity instance
 				lock name="#this.getTable()#-#this.getID()#-pristine" type="exclusive" timeout="3"{
-					variables._pristine = duplicate( this );
+					variables._pristine = structCopy( this );
 				}
 				// Fire the afterLoad the event handler
 				// logIt( 'Executing afterLoad event for #getTable()#' );
@@ -1270,7 +1266,6 @@ component accessors="true" output="false" {
 				return this;
 			}
 		}else{
-
 			if ( isQuery( arguments.ID ) ){
 				var record = arguments.ID;
 			}else{
@@ -1510,7 +1505,14 @@ component accessors="true" output="false" {
 			}
 		}
 		// Save the pristine state of this entity instance
-		variables._pristine = duplicate( this );
+		// KNOWN ISSUE:
+		// duplicate() is very, very expensive and in this case can easily
+		// cause out of mem errors (seems to have a mem leak on at least lucee 4.5).
+		// Though the below doesn't really create a deep pristine copy, which is what we want, it will serve
+		// the purposes of comparing for changes at the top level as structCopy will copy by val the top
+		// level keys/values, then by ref on everything beyond that.
+		variables._pristine = structCopy( this );
+		// variables._pristine = duplicate( this );
 		// Fire the afterLoad the event handler
 		// logIt( 'Executing afterLoad event for #getTable()#' );
 		if( isNull( this.afterLoad ) ){
@@ -1620,9 +1622,9 @@ component accessors="true" output="false" {
 					}
 				}
 			}
-			// logIt( 'newObj for table: #mapping.table#, cfc #childCFC#... ' );
-			var newObj = $new( table = mapping.table, dao = this.getDao(), cfc = childCFC );
-			// logIt( 'newObj created for table: #newObj.getTable()#, cfc #childCFC#... ' );
+		// logIt( 'newObj for table: #mapping.table#, cfc #childCFC#... ' );
+		var newObj = $new( table = mapping.table, dao = this.getDao(), cfc = childCFC );
+		// logIt( 'newObj created for table: #newObj.getTable()#, cfc #childCFC#... ' );
 		// }catch( any e ){
 		// 	throw( message = "Table #propertyName# does not exist", type="NORM", detail="Table #propertyName# does not exist in #getDao().getDSN()#");
 		// 	writeDump([arguments,mapping]);abort;
@@ -1652,7 +1654,8 @@ component accessors="true" output="false" {
 		if( !isNull( singularName ) ){
 			newProp["singularName"] = singularName;
 		}
-		arrayAppend(variables.meta.properties, newProp );
+		// arrayAppend(variables.meta.properties, newProp );
+		_injectProperty( name = propertyName, val = newObj, prop = newProp );
 		// // logIt('adding adders/getters/setters for #propertyName#');
 		if( !structKeyExists( this, "add" & propertyName ) ){
 			this[ "add" & propertyName ] = variables[ "add" & propertyName ] = _adder;
@@ -1671,14 +1674,12 @@ component accessors="true" output="false" {
 		}
 
 		this.registerChildEntity( { name = propertyName, table = mapping.table, type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
-
 		// Update Cache
 		if( get__cacheEntities() ){
 			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
 				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
-
 		// logIt("newobject table: #newObj.getTable()#");
 		// logIt('Loading dynamic one-to-many relationship entity #table# with #fkcolumn# of #pkValue# - parent #this.getTable()# [#newObj.getParentTable()#]');
 		if( table == getTable() || returnType == "array" || returnType == "struct" || returnType == "json" ){
@@ -1738,6 +1739,14 @@ component accessors="true" output="false" {
 		// logIt('is #table# a table? #tableDef.getIsTable()#');
 		if( !tableDef.getIsTable() ){
 			return false;
+		}
+		if( get__cacheEntities() ){
+			lock type="readonly" name="#this.getTable()#-#this.getID()#" timeout="3"{
+				var cachedObject = cacheGet( '#this.getTable()#-#this.getID()#' );
+			}
+			if( !isNull( cachedObject ) ){
+				return cachedObject;
+			}
 		}
 		variables[ property ] = this[ property ] = _getOneToMany(
 														 table = lcase( table )
@@ -1845,7 +1854,7 @@ component accessors="true" output="false" {
 		// 					"fieldType": "many-to-one",
 		// 					"addedBy": "_getManyToOne:#getFunctionCalledName()#"
 		// 				} );
-		_injectProperty( name = propertyName, val = this[ propertyName ], prop = {
+		_injectProperty( name = propertyName, val = newObj, prop = {
 							"column": propertyName,
 							"name": propertyName,
 							"dynamic": true,
@@ -2964,7 +2973,6 @@ component accessors="true" output="false" {
 	**/
 	public struct function validateProperty( required string property, any value ){
 		var val = structKeyExists( arguments, value ) ? arguments.value : ( structKeyExists( variables, property ) ) ? variables[ property ] : '';
-		var start = getTickCount();
 		var error = { valid = false, message = "Property '#property#' was not found" };
 		var exists = ArrayFind(variables.meta.properties, function(struct){
 		   return struct.name == property ;
