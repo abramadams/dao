@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.2
+*   @version 0.2.3
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 2/26/2016
+*   @updated 3/2/2016
 *   @author Abram Adams
 **/
 
@@ -3387,7 +3387,7 @@ component accessors="true" output="false" {
 	* Norm's defined table as the source.
 	**/
 	public function queryAsOData(
-								sqlData,
+								any qry,
 								string table,
 								string where = "",
 								string filter = "",
@@ -3401,7 +3401,7 @@ component accessors="true" output="false" {
 		var $filter = parseODataFilter( filter );
 
 		// serialize and return filtered query as oData object.
-		var data = serializeODataRows( getDao().queryToArray( qry = results, map = map ) );
+		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
 			meta[ "base" ] &= ":" & where;
