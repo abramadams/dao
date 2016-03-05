@@ -730,17 +730,17 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 			var query = request.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10 );
 			var qoq = request.dao.read(
 				sql = "select ID as MainId, products_ID from qry", qoq={qry:query});
-			var ret = testEntity.queryAsOData( qry = qoq );
+			var ret = testEntity.queryAsOData( data = qoq );
 			$assert.isTrue( ret.keyExists('__metadata') );
 
 		 }
 
-		function testQueryAsODataUsingArray() test{
+		function testArrayAsOData() test{
 			beforeEach();
 
 			var testEntity = new com.database.Norm( dao = request.dao, table = "orders" );
 			var query = request.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10, returnType="array" );
-			var ret = testEntity.queryAsOData( qry = query );
+			var ret = testEntity.arrayAsOData( data = query );
 			$assert.isTrue( ret.keyExists('__metadata') );
 
 		 }
