@@ -20,32 +20,48 @@
 
     <section class="main-content">
       <h1>
-<a id="dao---a-coldfusion-library-for-easy-data-access-and-object-mapping" class="anchor" href="#dao---a-coldfusion-library-for-easy-data-access-and-object-mapping" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>dao - A ColdFusion library for easy Data Access and Object Mapping.</h1>
+<a id="dao--norm" class="anchor" href="#dao--norm" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dao &amp; Norm</h1>
+
+<ul>
+<li>Dao - A ColdFusion library for easy Data Access</li>
+<li>Norm (Not ORM) - A dynamic Object Mapping layer built on top of DAO.</li>
+</ul>
 
 <h1>
 <a id="elevator-pitch" class="anchor" href="#elevator-pitch" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Elevator Pitch</h1>
 
-<p>DAO/BaseModelObject is a library that provides a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo should have come with out of the box.</p>
+<p>Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box.</p>
 
 <p>In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.</p>
 
 <h1>
-<a id="disclaimer" class="anchor" href="#disclaimer" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Disclaimer</h1>
+<a id="new-in-02x" class="anchor" href="#new-in-02x" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New in 0.2.x</h1>
 
-<p>Though I have been using this library for many years on many, many projects, it has never been used or tested outside
-of my control, so there are absolutely-positively things that are missing, and things that are just plain old broke.  There's also
-a bit of ugly code in there, If you stumble on something, raise an issue (or submit a pull request :) )</p>
+<p>This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for <strong>N</strong>ot <strong>ORM</strong> (or one could argue <strong>N</strong>ot <strong>O</strong>nly <strong>ORM</strong>, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about <strong>Norm</strong>-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...</p>
+
+<h2>
+<a id="02x-breaking-changes" class="anchor" href="#02x-breaking-changes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>0.2.x Breaking changes</h2>
+
+<p>The "Norm" aspect of this project has always aimed to closely mimic the Adobe ColdFusion implementation of ORM.  It uses the same attributes, has support to define relationships via properties, even supports the same events.  While this is still a goal, I found it necessary to diverge sligthly in certain areas.  The first being the attribute names.</p>
+
+<p>Attribute names used in Norm in version 0.1.x were always named exactly as the ORM counterpart attributes.  While this makes it easy to migrate from CF ORM to Norm, it caused unexpected issues due to the fact that the cfml engine (Lucee in particular) may see these attributes as reserved keywords at compile time, which fires up Hibernate and expect ORM to be enabled.  To mitigate this, I've change the <code>persistent</code> attribute to <code>norm_persistent</code>.  So far this is the only attribute name I've needed to change, but will evaluate changing the rest as needed.</p>
+
+<p>The other breaking change, and deviation from the CFML way is in the ORM style events.  ACF named these events "<code>preLoad</code>, <code>postLoad</code>, etc...", and while that is fine for ACF I thought it to be stupid naming.  I've opted to use <code>beforeLoad</code>, and <code>afterLoad</code>, etc... instead. If you are using this lib and really, really want it to be pre/post, submit an issue, or better yet a pull request to add support for both namings.</p>
+
+<p>One to Many relationships have changed in that when dynamically loading child records these will be loaded as either an array of structs instead of array of objects or an array of closures for lazy loading the objects (for which calling <code>parentObj.getWhateverChildNameIs()</code> would hydrate the object).  The process to load fully initialized/loaded objects is quite expensive when adding 3 or more child entities to a parent entity.</p>
+
+<p>This update also includes many bug fixes and performance improvements.</p>
 
 <h1>
 <a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Requirements</h1>
 
-<p>Currently this library has been actively used and tested on Railo 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).  To make the entire library work on CF9 you would need to change any code that calls <em>closure</em>*() methods as these use function expressions and closures, which break CF9.  So far I've included commented code that will make it cf9 compatible.  Simply find and uncomment the code preceded with "// CF9 Way" and comment out the code preceded with "// CF10+/Railo4+ way"</p>
+<p>Currently this library has been actively used and tested on Railo 4x, Lucee 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).</p>
 
 <h1>
 <a id="database-platform-agnostic" class="anchor" href="#database-platform-agnostic" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Database Platform Agnostic</h1>
 
 <p>Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
-creating a new CFC that implements the necessary methods.  The CFC  name would then be the "dbtype"
+creating a new CFC that implements the necessary methods.  The CFC name would then be the "dbtype"
 argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
 instantiate as: dao = new dao( dbType = 'otherrdbs' );</p>
 
@@ -67,7 +83,7 @@ type interaction where one uses a handful of CRUD functions:</p>
 <p>Using the built-in methods for CRUD provides some benefits such as being database agnostic,
 providing optional "onFinish" callbacks functions, transaction logging (for custom replication).</p>
 
-<p>The second part (BaseModelObject.cfc) adds a layer of ORM type functionality, plus more.</p>
+<p>The second part, NORM (Norm.cfc) adds a layer of ORM type functionality, plus a whole lot more.</p>
 
 <h1>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h1>
@@ -121,7 +137,7 @@ newID2 <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="
 <span class="pl-c">// This is helpful if your SQL is persisted in storage and later read and executed.</span>
 
 <span class="pl-c">// Another param option is to pass in named params.  Named params take the signature of:</span>
-<span class="pl-c">//   :paramName{type="datatype",null=true/false,list=true/false} </span>
+<span class="pl-c">//   :paramName{type="datatype",null=true/false,list=true/false}</span>
 <span class="pl-c">// And you pass in a struct containing the named parameters and values.  You do not need</span>
 <span class="pl-c">// to provide any of the optional properties, dao can guess these for you.  This means you could</span>
 <span class="pl-c">// simply do: :paramName and not supply the {...} parts.</span>
@@ -136,11 +152,11 @@ newID2 <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="
 <span class="pl-s"><span class="pl-ii">            ,:email{null=false}</span></span>
 <span class="pl-s"><span class="pl-ii">            ,:createDate{type='timestamp'}</span></span>
 <span class="pl-s">    )<span class="pl-pds">"</span></span>,
-    { 
-        uuid <span class="pl-k">=</span> <span class="pl-en">lcase</span>( <span class="pl-en">createUUID</span>() ), 
-        firstName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span>, 
-        lastName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>, 
-        email <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>, 
+    {
+        uuid <span class="pl-k">=</span> <span class="pl-en">lcase</span>( <span class="pl-en">createUUID</span>() ),
+        firstName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span>,
+        lastName <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>deere<span class="pl-pds">'</span></span>,
+        email <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>jdeere@tractor.com<span class="pl-pds">'</span></span>,
         createDate <span class="pl-k">=</span> <span class="pl-en">now</span>() }
 );
 <span class="pl-c">// Notice that :lastName{} could have been written as :lastName or :lastName{type='varchar'}, etc...</span>
@@ -157,13 +173,13 @@ users <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="p
 
 <span class="pl-c">// Using named parameters</span>
 users <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="pl-en">read</span>(<span class="pl-s"><span class="pl-pds">"</span></span>
-<span class="pl-s"><span class="pl-ii">    SELECT first_name, last_name </span></span>
+<span class="pl-s"><span class="pl-ii">    SELECT first_name, last_name</span></span>
 <span class="pl-s"><span class="pl-ii">    FROM users</span></span>
 <span class="pl-s"><span class="pl-ii">    WHERE last_name IN( :lastNameList )</span></span>
 <span class="pl-s"><span class="pl-ii">    AND first_name like :firstName</span></span>
 <span class="pl-s"><span class="pl-pds">"</span></span>,
 { lastNameList <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> } );
-<span class="pl-c">// This will return all users with the last name of either 'deere' or 'doe' and </span>
+<span class="pl-c">// This will return all users with the last name of either 'deere' or 'doe' and</span>
 <span class="pl-c">// where their first name starts with JO.</span>
 <span class="pl-c">// NOTE: for list parameters you can also pass in an array:</span>
 <span class="pl-c">// ... lastNameList : [ 'deere', 'doe' ]....</span></pre></div>
@@ -175,13 +191,13 @@ users <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="p
 See example below:</p>
 
 <div class="highlight highlight-source-js"><pre>users <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="pl-en">read</span>( sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span></span>
-<span class="pl-s"><span class="pl-ii">        SELECT first_name, last_name </span></span>
+<span class="pl-s"><span class="pl-ii">        SELECT first_name, last_name</span></span>
 <span class="pl-s"><span class="pl-ii">        FROM users</span></span>
 <span class="pl-s"><span class="pl-ii">        WHERE last_name IN( :lastNameList )</span></span>
 <span class="pl-s"><span class="pl-ii">        AND first_name like :firstName</span></span>
 <span class="pl-s">    <span class="pl-pds">"</span></span>,
-    params <span class="pl-k">=</span> { lastNameList <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> }, 
-    returnType <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>JSON<span class="pl-pds">"</span></span> 
+    params <span class="pl-k">=</span> { lastNameList <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>deere,doe<span class="pl-pds">'</span></span>, firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>jo%<span class="pl-pds">'</span></span> },
+    returnType <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>JSON<span class="pl-pds">"</span></span>
 );
 <span class="pl-c">// This would return a string similar to:</span>
 <span class="pl-c">// [{"first_name" : "john", "last_name" : "deere" }, {"first_name" : "joe", "last_name" : "deere" }]</span>
@@ -215,7 +231,7 @@ See example below:</p>
 
 <p>This method will evaluate the parameters at runtime.  This means that in the above, <code>myUserIdVariable</code> doesn't get evaluated until the query is run.  This allows parameterized SQL to be stored in a file, or database and executed later.  It also allows building parameterized SQL strings that refer to variables that don't exist in the current context, but is then passed into a method that will have those variables.  Contrived example:</p>
 
-<div class="highlight highlight-source-js"><pre>sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-ii">SELECT * FROM users </span></span>
+<div class="highlight highlight-source-js"><pre>sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-ii">SELECT * FROM users</span></span>
 <span class="pl-s">WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$<span class="pl-pds">"</span></span>;
 <span class="pl-en">someFunction</span>( sql );
 
@@ -265,18 +281,88 @@ See example below:</p>
 <li>cf_sql_money4</li>
 <li>cf_sql_numeric</li>
 <li>cf_sql_real</li>
-<li>cf_sql_refcurs__or__</li>
 <li>cf_sql_smallint</li>
 <li>cf_sql_time</li>
 <li>cf_sql_timestamp <strong>or</strong> timestamp</li>
 <li>cf_sql_tinyint</li>
 <li>cf_sql_varchar <strong>or</strong> varchar,char,text,memo,nchar,nvarchar,ntext</li>
+<li>
+<strong>SHORTHAND</strong> == just drop off the *cf_sql_ * prefix.</li>
 </ul>
 </li>
 <li>
 <code>list</code> - True/False.  If the value is a list to be included in an IN() clause.  If true, the <strong>value</strong> argument can either be a string list or an array.</li>
 <li>
 <code>null</code> - True/False.  If true, the <strong>value</strong> is considered null.</li>
+</ul>
+
+<h1>
+<a id="all-read-arguments" class="anchor" href="#all-read-arguments" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>All <code>Read()</code> Arguments</h1>
+
+<ul>
+<li>
+<code>sql</code> (String) = The actual SQL statement you wish to run.</li>
+<li>
+<code>params</code> (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
+Example</li>
+</ul>
+
+<pre><code>usersByFirstName = dao.read(
+    sql="SELECT * FROM users where Name = :userFirstName",
+    params = {userFirstName:session.user.getFirstName()}
+);
+</code></pre>
+
+<ul>
+<li>
+<code>name</code> (String) = Name of Query (required for cachedwithin)</li>
+<li>
+<code>QoQ</code> (Struct) = A struct of key/value pairs where the Key is the query's name as used in the SQL statement and the value is the actual query object.
+Example</li>
+</ul>
+
+<pre><code>filtered = dao.read(
+    sql="SELECT * FROM filteredUsers",
+    QoQ = {filteredUsers:usersByFirstName}
+);
+</code></pre>
+
+<ul>
+<li>
+<code>cachedwithin</code> (Timespan) = createTimeSpan() value to cache this query</li>
+<li>
+<code>table</code> (String) = Table name to select from. Used only if not using <code>SQL</code> argument
+Example</li>
+</ul>
+
+<pre><code>users = dao.read( table = "users" )
+//OR
+users = dao.read("users");
+</code></pre>
+
+<ul>
+<li>
+<code>columns</code> (String) = List of valid column names for select statement. Used only if not using <code>SQL</code> argument
+Example</li>
+</ul>
+
+<pre><code>users = dao.read( table = "users", columns = "Id,firstName,LastName" );
+</code></pre>
+
+<ul>
+<li>
+<code>where</code> (String) = Where clause. Used only if not using <code>SQL</code> argument</li>
+<li>
+<code>limit</code> (Number) = Limits the number of returned results.  If <code>SQL</code> argument is provided it will reduce the results to the limit provided, otherwise will use native TSQL limits (i.e. MySQL LIMIT 10 OFFSET 1). Default = unlimited</li>
+<li>
+<code>offset</code> (Number) = If <code>SQL</code> argument is provided it will remove the records from the results up to the offset provided, otherwise will use native TSQL offset (i.e. MySQL LIMIT 10 OFFSET 1). Default = 1</li>
+<li>
+<code>orderBy</code> (String) = Column name to order the query by. Used only if not using <code>SQL</code> argument</li>
+<li>
+<code>returnType</code> (String) = Type of data to return.  Options: <strong>Query</strong> (default), <strong>Array</strong> (Array of Structs) or <strong>JSON</strong>
+</li>
+<li>
+<code>map</code> (Function) = A function to be executed for each row in the results ( only used if returnType == Array )</li>
 </ul>
 
 <h1>
@@ -338,7 +424,7 @@ In addition to the DAO supplied argumetns, you can also pass in an argument name
 }</pre></div>
 
 <blockquote>
-<p><em>Note</em>: Using the ORM-like functionality provided by BaseModelObject (see <code>The ORM'sh side of DAO</code> section below) will give you much more control over the insert/update/delete using an event model similar to the ColdFusion ORM events.</p>
+<p><em>Note</em>: Using the ORM-like functionality provided by Norm (see <code>Norm - The ORM'sh side of DAO</code> section below) will give you much more control over the insert/update/delete using an event model similar to the ColdFusion ORM events.</p>
 </blockquote>
 
 <h1>
@@ -348,11 +434,11 @@ In addition to the DAO supplied argumetns, you can also pass in an argument name
 
 <div class="highlight highlight-source-js"><pre>users <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="pl-en">read</span>(<span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>);
 johns <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="pl-en">read</span>( sql <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span></span>
-<span class="pl-s"><span class="pl-ii">        SELECT first_name, last_name </span></span>
+<span class="pl-s"><span class="pl-ii">        SELECT first_name, last_name</span></span>
 <span class="pl-s"><span class="pl-ii">        FROM userQuery</span></span>
 <span class="pl-s"><span class="pl-ii">        WHERE lower(first_name) = :firstName</span></span>
 <span class="pl-s">    <span class="pl-pds">"</span></span>,
-    params <span class="pl-k">=</span> { firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> }, 
+    params <span class="pl-k">=</span> { firstName <span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>john<span class="pl-pds">'</span></span> },
     returnType <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Array<span class="pl-pds">"</span></span>,
     QoQ <span class="pl-k">=</span> { userQuery <span class="pl-k">:</span> users}
 );</pre></div>
@@ -394,7 +480,7 @@ Here's an example of how to use this new feature:</p>
 <span class="pl-k">AND</span> ( <span class="pl-s"><span class="pl-pds">`</span>ID<span class="pl-pds">`</span></span> <span class="pl-k">&gt;=</span> ? <span class="pl-k">OR</span> ( <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? <span class="pl-k">OR</span> <span class="pl-s"><span class="pl-pds">`</span>event<span class="pl-pds">`</span></span> <span class="pl-k">=</span> ? ) )
 <span class="pl-k">ORDER BY</span> eventDate <span class="pl-k">desc</span></pre></div>
 
-<p>You can also specify the desired return type (supports the same return types as <code>read()</code>: <strong>Query</strong>, <strong>Array</strong>, <strong>JSON</strong>).<br>
+<p>You can also specify the desired return type (supports the same return types as <code>read()</code>: <strong>Query</strong>, <strong>Array</strong>, <strong>JSON</strong>).
 To do so, simply call the .returnAs() method in the chain, like so:</p>
 
 <div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">dao</span>.<span class="pl-en">from</span>( <span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> )
@@ -421,8 +507,8 @@ To do so, simply call the .returnAs() method in the chain, like so:</p>
 <li>With the <code>join()</code> function:</li>
 </ul>
 
-<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>( 
-        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>(
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>,
         columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName<span class="pl-pds">"</span></span> )
     .<span class="pl-c1">join</span>( type <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, on <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>)
     .<span class="pl-en">where</span>( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).<span class="pl-en">run</span>();</pre></div>
@@ -430,34 +516,34 @@ To do so, simply call the .returnAs() method in the chain, like so:</p>
 <p>When defining a join will want to supply the <code>columns</code> argument to properly alias your columns.  The above examples supply all of the columns in the <code>from()</code> function, however you can also supply the columns directly in the join, either as a key in the <code>joins</code> array when passing the <code>joins</code> argument to the <code>from()</code> function, or as the <code>columns</code> argument to the <code>join()</code> function.  The benefit of this method is that you can define the columns as they are joined, which may be in different parts of your code.  Here's an example:</p>
 
 <div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>)
-    .<span class="pl-c1">join</span>( 
-        type <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
-        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
-        on <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
+    .<span class="pl-c1">join</span>(
+        type <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>,
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>,
+        on <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>,
         columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span> )
     .<span class="pl-en">where</span>( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).<span class="pl-en">run</span>();
 
 <span class="pl-c">// OR</span>
 
-<span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>( 
-        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
-        joins <span class="pl-k">=</span> [{ 
-            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
-            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
-            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
-            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )    
+<span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>(
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>,
+        joins <span class="pl-k">=</span> [{
+            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>,
+            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>,
+            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>,
+            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )
     .<span class="pl-en">where</span>( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).<span class="pl-en">run</span>();</pre></div>
 
 <p>The above will return every column in the <em>pets</em> table, and only the <code>ID</code> and <code>first_name</code> from the <em>users</em> table (aliased).  With either method you can also specify the <code>columns</code> in the <code>from()</code> function to limit the columns from the main table to be returned:</p>
 
-<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>( 
-        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>, 
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> query <span class="pl-k">=</span> <span class="pl-smi">request</span>.<span class="pl-smi">dao</span>.<span class="pl-en">from</span>(
+        table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span>,
         columns <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pets.ID as petId, pets.firstName as petName<span class="pl-pds">"</span></span>
-        joins <span class="pl-k">=</span> [{ 
-            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>, 
-            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>, 
-            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>, 
-            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )        
+        joins <span class="pl-k">=</span> [{
+            type<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>LEFT<span class="pl-pds">"</span></span>,
+            table<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users<span class="pl-pds">"</span></span>,
+            on<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.id = pets.userId<span class="pl-pds">"</span></span>,
+            columns<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span>users.ID as userID, users.first_name as ownerName<span class="pl-pds">"</span></span>}] )
     .<span class="pl-en">where</span>( <span class="pl-s"><span class="pl-pds">"</span>pets.ID<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>=<span class="pl-pds">"</span></span>, <span class="pl-c1">93</span> ).<span class="pl-en">run</span>();</pre></div>
 
 <p>Which will only return pets.ID and pets.firstName (aliased) from the pets table and users.ID and users.first_name (aliased) from the users table.</p>
@@ -466,7 +552,7 @@ To do so, simply call the .returnAs() method in the chain, like so:</p>
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.</p>
 
 <h1>
-<a id="the-ormsh-side-of-dao" class="anchor" href="#the-ormsh-side-of-dao" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>The ORM'sh side of DAO</h1>
+<a id="norm---the-ormsh-side-of-dao" class="anchor" href="#norm---the-ormsh-side-of-dao" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>NORM - The ORM'sh side of DAO</h1>
 
 <p>The second part of this library is an ORM'sh implementation of entity management.  It internally uses the
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
@@ -475,7 +561,7 @@ the following examples:</p>
 <div class="highlight highlight-source-js"><pre><span class="pl-c">// create instance of dao ( could be injected via your favorite DI library )</span>
 dao <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">dao</span>( dsn <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>myDatasource<span class="pl-pds">"</span></span> );
 
-<span class="pl-c">// Suppose we have a model/User.cfc model cfc that extends "BaseModelObject.cfc"</span>
+<span class="pl-c">// Suppose we have a model/User.cfc model cfc that extends "Norm.cfc"</span>
 user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">model.User</span>( dao );
 
 <span class="pl-c">// Create a new user named john.</span>
@@ -527,7 +613,7 @@ relationships.  By-in-large I have adopted the property syntax used by CF ORM to
 entity properties and describe relationships.  Example:</p>
 
 <div class="highlight highlight-source-js"><pre><span class="pl-c">/* Pet.cfc */</span>
-component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> {
+component norm_persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>pets<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> {
 
     property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>ID<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>numeric<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>increment<span class="pl-pds">"</span></span>;
     property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>_id<span class="pl-pds">"</span></span> fieldtype<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>id<span class="pl-pds">"</span></span> generator<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>uuid<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span> length<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>45<span class="pl-pds">"</span></span>;
@@ -573,17 +659,17 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
 <h2>
 <a id="entity-events" class="anchor" href="#entity-events" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Entity Events</h2>
 
-<p>BaseModelObject supports the same ORM entity events as Adobe ColdFusion does:</p>
+<p>Norm supports almost the same ORM entity events as Adobe ColdFusion does (it in fact supports the same events, just named a little better.  Instead of pre/post in the name Norm uses before/after):</p>
 
 <ul>
-<li>preLoad(): This method is called before the load operation or before the data is loaded from the database.</li>
-<li>postLoad(): This method is called after the load operation is complete.</li>
-<li>preInsert(): This method is called just before the object is inserted.  <strong>If anything is returned it will abort the insert</strong>.</li>
-<li>postInsert(): This method is called after the insert operation is complete.</li>
-<li>preUpdate(BaseModelObject oldData): This method is called just before the object is updated. A struct of old data is passed to this method to know the original state of the entity being updated.  <strong>If anything is returned it will abort the update</strong>.</li>
-<li>postUpdate(): This method is called after the update operation is complete.</li>
-<li>preDelete(): This method is called before the object is deleted.  <strong>If anything is returned it will abort the delete</strong>.</li>
-<li>postDelete(): This method is called after the delete operation is complete.</li>
+<li>beforeLoad(): This method is called before the load operation or before the data is loaded from the database.</li>
+<li>afterLoad(): This method is called after the load operation is complete.</li>
+<li>beforeInsert(): This method is called just before the object is inserted.  <strong>If anything is returned it will abort the insert</strong>.</li>
+<li>afterInsert(): This method is called after the insert operation is complete.</li>
+<li>beforeUpdate(Norm oldData): This method is called just before the object is updated. A struct of old data is passed to this method to know the original state of the entity being updated.  <strong>If anything is returned it will abort the update</strong>.</li>
+<li>afterUpdate(): This method is called after the update operation is complete.</li>
+<li>beforeDelete(): This method is called before the object is deleted.  <strong>If anything is returned it will abort the delete</strong>.</li>
+<li>afterDelete(): This method is called after the delete operation is complete.</li>
 </ul>
 
 <blockquote>
@@ -593,9 +679,9 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
 <p>These can be defined within a CFC, or injected after the fact.  Examples:</p>
 
 <div class="highlight highlight-source-js"><pre>    <span class="pl-c">// Entity CFC</span>
-    component <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
+    component <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span>{
         <span class="pl-k">...</span>
-        <span class="pl-k">function</span> <span class="pl-en">preInsert</span>( <span class="pl-smi">entity</span> ){
+        <span class="pl-k">function</span> <span class="pl-en">beforeInsert</span>( <span class="pl-smi">entity</span> ){
             <span class="pl-c">//do something.</span>
             <span class="pl-k">if</span>(  <span class="pl-smi">entity</span>.<span class="pl-en">getSomeKey</span>() <span class="pl-k">==</span> <span class="pl-c1">false</span> ){
                 <span class="pl-k">return</span> <span class="pl-c1">false</span>;
@@ -603,8 +689,8 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
         }
     }
     <span class="pl-c">// Alternative: Inject Event Handler</span>
-    user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( <span class="pl-s"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> );
-    <span class="pl-c1">user</span>.<span class="pl-en">preInsert</span> <span class="pl-k">=</span> <span class="pl-k">function</span>( <span class="pl-smi">entity</span> ){
+    user <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( <span class="pl-s"><span class="pl-pds">"</span>user<span class="pl-pds">"</span></span> );
+    <span class="pl-c1">user</span>.<span class="pl-en">beforeInsert</span> <span class="pl-k">=</span> <span class="pl-k">function</span>( <span class="pl-smi">entity</span> ){
         <span class="pl-k">if</span>( <span class="pl-smi">entity</span>.<span class="pl-en">getSomeKey</span>() <span class="pl-k">==</span> <span class="pl-c1">false</span> ){
             <span class="pl-k">return</span> <span class="pl-c1">false</span>;
         }
@@ -616,7 +702,7 @@ varchar fields named <code>first_name</code> and <code>last_name</code> a dateti
 <p>Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:</p>
 
 <div class="highlight highlight-source-js"><pre><span class="pl-c">/* EventLog.cfc */</span>
-component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span>{
+component norm_persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span>{
 }</pre></div>
 
 <p>That's all we <em>need</em>.  Now say I created a table named eventLog in my databse with the following:</p>
@@ -640,11 +726,11 @@ property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">
 property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
 property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span>;</pre></div>
 
-<p>To make this work, just make sure you set the table attribute to point to the actual table in the database, extend BaseModelObject and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.</p>
+<p>To make this work, just make sure you set the table attribute to point to the actual table in the database, extend Norm and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.</p>
 
 <p>You can also mix and match.  You can statically define properties:</p>
 
-<div class="highlight highlight-source-js"><pre>component persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>{
+<div class="highlight highlight-source-js"><pre>component norm_persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventLog<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span> accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>{
     property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>description<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>;
 }</pre></div>
 
@@ -653,17 +739,17 @@ property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">
 <h3>
 <a id="dynamic-entity---a-step-further" class="anchor" href="#dynamic-entity---a-step-further" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dynamic Entity - A step further</h3>
 
-<p>In some cases it may best to create entity CFCs that extend BaseModelObject, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:</p>
+<p>In some cases it may best to create entity CFCs that extend Norm, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:</p>
 
-<div class="highlight highlight-source-js"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
+<div class="highlight highlight-source-js"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
 
-<p>That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends BaseModelObject : See more below about dynamic relationships ).</p>
+<p>That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends Norm : See more below about dynamic relationships ).</p>
 
-<p>Now, if you are on CF10+ or Railo 4.x and you have a default datasource setup in Application.cfc (this.datasource) you can omit the dao argument:</p>
+<p>Now, if you are on CF10+ or Railo 4.x or Lucee 4.x and you have a default datasource setup in Application.cfc (this.datasource) you can omit the dao argument:</p>
 
-<div class="highlight highlight-source-js"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
+<div class="highlight highlight-source-js"><pre>eventLog <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( <span class="pl-s"><span class="pl-pds">'</span>eventLog<span class="pl-pds">'</span></span> );</pre></div>
 
-<p>However, doing so will create a new instance of DAO for each instance of BaseModelObject.  It is often more peformant to create a singleton instance and store it in a global scope, then pass that in.</p>
+<p>However, doing so will create a new instance of DAO for each instance of Norm.  It is often more peformant to create a singleton instance and store it in a global scope, then pass that in.</p>
 
 <h2>
 <a id="relationships" class="anchor" href="#relationships" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Relationships</h2>
@@ -684,7 +770,7 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 <h3>
 <a id="many-to-one-relationship" class="anchor" href="#many-to-one-relationship" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>MANY-TO-ONE Relationship</h3>
 
-<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>);
+<div class="highlight highlight-source-js"><pre><span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>);
 <span class="pl-smi">order</span>.<span class="pl-c1">load</span>(<span class="pl-c1">123</span>); <span class="pl-c">// load order with ID of 123</span>
 <span class="pl-en">writeDump</span>( <span class="pl-smi">order</span>.<span class="pl-en">getCustomers</span>().<span class="pl-en">getName</span>() );
 <span class="pl-c">// ^ If the customers table has a field named "name" this writeDump will</span>
@@ -694,7 +780,7 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 <span class="pl-smi">order</span>.<span class="pl-en">setDynamicMappingFKConvention</span>(<span class="pl-s"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);
 <span class="pl-c">// The keyword {table} will be replaced at runtime to reflect the actual table name.</span>
 <span class="pl-c">// This could also be set during init as"</span>
-<span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappingFKConvention <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);</pre></div>
+<span class="pl-k">var</span> order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappingFKConvention <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>{table}Id<span class="pl-pds">'</span></span>);</pre></div>
 
 <h3>
 <a id="one-to-many-relationship" class="anchor" href="#one-to-many-relationship" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ONE-TO-MANY Relationship</h3>
@@ -738,12 +824,12 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 <h2>
 <a id="dynamic-mappingsaliases" class="anchor" href="#dynamic-mappingsaliases" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dynamic Mappings/Aliases</h2>
 
-<p>Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional <code>dynamicMappings</code> argument to the BaseModelObject's init method.  The dynamicMappings argument expects a struct containing <code>key</code> and <code>value</code> pairs of mappings wher the <code>key</code> is the desired property name for one-to-many or column name for many-to-one relationships and the <code>value</code> is the actual table name (or a struct, explained later).</p>
+<p>Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional <code>dynamicMappings</code> argument to the Norm's init method.  The dynamicMappings argument expects a struct containing <code>key</code> and <code>value</code> pairs of mappings wher the <code>key</code> is the desired property name for one-to-many or column name for many-to-one relationships and the <code>value</code> is the actual table name (or a struct, explained later).</p>
 
 <p>So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.</p>
 
 <div class="highlight highlight-source-js"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>orderItems<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>order_items<span class="pl-pds">"</span></span> };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
 <span class="pl-smi">order</span>.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 <span class="pl-en">writeDump</span>( <span class="pl-smi">order</span>.<span class="pl-en">getOrderItems</span>() );</pre></div>
 
@@ -752,14 +838,14 @@ order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-
 <p>The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named <code>&lt;table&gt;_ID</code>.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a <code>customers</code> table which has a <code>default_payment_terms</code> field that is a FK to a table called <code>payment_terms</code>, here's how we could handle that with simple dynamicMappings:</p>
 
 <div class="highlight highlight-source-js"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span> };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
 <span class="pl-smi">order</span>.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 <span class="pl-en">writeDump</span>( <span class="pl-smi">order</span>.<span class="pl-en">getDefault_Payment_Terms</span>() );</pre></div>
 
 <p>There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the <code>value</code> part of the mapping.  The struct consists of two keys: <code>table</code> and <code>property</code>.  So, if we wanted the <code>defualt_payment_terms</code> to be <code>defaultPaymentTerms</code> all we'd have to do is:</p>
 
 <div class="highlight highlight-source-js"><pre>dynamicMappings <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>default_payment_terms<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>payment_terms<span class="pl-pds">"</span></span>, property <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>defaultPaymentTerms<span class="pl-pds">"</span></span> } };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
 <span class="pl-smi">order</span>.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 <span class="pl-en">writeDump</span>( <span class="pl-smi">order</span>.<span class="pl-en">getDefaultPaymentTerms</span>() );</pre></div>
 
@@ -776,7 +862,7 @@ Here's an example of a more real-world dynamicMapping:</p>
     <span class="pl-s"><span class="pl-pds">"</span>default_locations_ID<span class="pl-pds">"</span></span> <span class="pl-k">=</span> { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>locations<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>defaultLocation<span class="pl-pds">"</span></span> },
     <span class="pl-s"><span class="pl-pds">"</span>primary_contact<span class="pl-pds">"</span></span> <span class="pl-k">=</span>  { <span class="pl-s"><span class="pl-pds">"</span>table<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>contacts<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>property<span class="pl-pds">"</span></span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>primaryContact<span class="pl-pds">"</span></span> }
 };
-order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
+order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( dao <span class="pl-k">=</span> dao, table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">'</span>orders<span class="pl-pds">'</span></span>, dynamicMappings <span class="pl-k">=</span> dynamicMappings );
 <span class="pl-smi">order</span>.<span class="pl-c1">load</span>( <span class="pl-c1">123</span> );
 <span class="pl-en">writeDump</span>( <span class="pl-smi">order</span>.<span class="pl-en">getCompany</span>().<span class="pl-en">getUser</span>() );</pre></div>
 
@@ -790,7 +876,7 @@ order <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-
 <div class="highlight highlight-source-js"><pre><span class="pl-c">/**</span>
 <span class="pl-c">* I define relationships and preset defaults for the orders entity</span>
 <span class="pl-c">**/</span>
-component accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> output<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>orders<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.BaseModelObject<span class="pl-pds">"</span></span> {
+component accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> output<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>orders<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span> {
 
     <span class="pl-k">public</span> any <span class="pl-k">function</span> <span class="pl-en">load</span>(){
         <span class="pl-c">// For convenience, we'll just pump in the dao here (pretend it lives in the application scope)</span>
@@ -826,7 +912,7 @@ component accessors<span class="pl-k">=</span><span class="pl-s"><span class="pl
 <h2>
 <a id="lazy-loading" class="anchor" href="#lazy-loading" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>lazy loading</h2>
 
-<p>If you are fortunate enough to be on Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related
+<p>If you are fortunate enough to be on Lucee 4.x, Railo 4x or ACF10+ you can take advantage of lazy loading.  This dramatically improves performance when loading entities with a lot of related
 entities, or are loading a collection of entities that have related entities.  What it will do is load the parent entity and "overload" the getters methods of the child entities
 with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.</p>
 
@@ -837,9 +923,29 @@ with a customized getter that will first instantiate/load the child object, then
 ownerName <span class="pl-k">=</span> pet[<span class="pl-c1">2</span>].<span class="pl-en">getFirstName</span>();  <span class="pl-c">// That would trigger the "load" on only the that pet's user object.</span></pre></div>
 
 <h1>
+<a id="data-validation" class="anchor" href="#data-validation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data Validation</h1>
+
+<p>Each property in a Norm object can be validated using the <code>validateProperty()</code> or you can validate the entire object by calling <code>validate()</code> on the Norm object.  By default this will validate against the <code>type</code> attribute on the property definition.  This attribute is either hard coded via <code>property</code> tag, or dynamically via the DB column definition (if object initialized dynamically - apposed to via cfc definition).</p>
+
+<p>To provide custom validation, you'll need to define the property in a CFC.  You don't need to spell out the entire model object in the cfc, just the properties you want custom validation on.  For example:</p>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-c">/* Events.cfc */</span>
+component norm_persistent<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span> table<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>events<span class="pl-pds">"</span></span> <span class="pl-k">extends</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>com.database.Norm<span class="pl-pds">"</span></span>{
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>priority<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>range<span class="pl-pds">"</span></span> min<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>0<span class="pl-pds">"</span></span> max<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>3<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventDate<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>date<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>eventUrl<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>regex<span class="pl-pds">"</span></span> regex<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>^(http://|https://)[<span class="pl-cce">\w\.</span>-]+<span class="pl-cce">\.</span>[a-zA-Z]{2,3}(/?)$<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>title<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>text<span class="pl-pds">"</span></span> allowNulls<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span>;
+    property name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>venue<span class="pl-pds">"</span></span> type<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>model.Venue<span class="pl-pds">"</span></span>;
+}</pre></div>
+
+<p>With the above object, the <code>priority</code> would only be valid if it was between 0 and 3, the <code>eventDate</code> must be a valid date, <code>eventUrl</code> must be a valid url (according to the supplied regex), <code>title</code> cannot be null and <code>venue</code> must be an instance of the <code>model.Venue</code> object.</p>
+
+<p>Calling <code>obj.validate()</code> will return a struct with key valid set to true if no errors or false if any validation errors. If a validation error was found it will also contain an array of errors.</p>
+
+<h1>
 <a id="odata" class="anchor" href="#odata" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>oData</h1>
 
-<p>Any of your BaseModelObject entities can produce and/or consume <a href="http://www.odata.org/">oData</a>.  OData (<code>Open Data Protocol</code>) is (according to the official site) <em>" an OASIS standard that defines the best practice for building and consuming RESTful APIs."</em>.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as <a href="http://www.getbreezenow.com/">BreezeJS</a> to build RESTFul APIs without having to duplicate your model on the client.  See <a href="examples/breezejs">examples/breezejs/README.md</a> for a sample BreezeJS app that uses Taffy/BaseModelObject to create a simple TODO app (specifically <code>/examples/breezejs/api/resources/</code>).</p>
+<p>Any of your Norm entities can produce and/or consume <a href="http://www.odata.org/">oData</a>.  OData (<code>Open Data Protocol</code>) is (according to the official site) <em>" an OASIS standard that defines the best practice for building and consuming RESTful APIs."</em>.  Basically it is a protocol to communicate model interactions between the front-end and back-end.  This allows you to use front-end libraries/oData Clients such as <a href="http://www.getbreezenow.com/">BreezeJS</a> to build RESTFul APIs without having to duplicate your model on the client.  See <a href="examples/breezejs">examples/breezejs/README.md</a> for a sample BreezeJS app that uses Taffy/Norm to create a simple TODO app (specifically <code>/examples/breezejs/api/resources/</code>).</p>
 
 <p>Currently we support the following oData methods:</p>
 
@@ -852,7 +958,7 @@ ownerName <span class="pl-k">=</span> pet[<span class="pl-c1">2</span>].<span cl
 
 <div class="highlight highlight-source-js"><pre><span class="pl-c">// FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria</span>
 remote <span class="pl-k">function</span> <span class="pl-en">get</span>(<span class="pl-smi">string</span> <span class="pl-smi">$filter</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span> ,<span class="pl-smi">string</span> <span class="pl-smi">$orderby</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>, <span class="pl-smi">string</span> <span class="pl-smi">$skip</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>, <span class="pl-smi">string</span> <span class="pl-smi">$top</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>){
-    <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
+    <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
 
     <span class="pl-k">return</span> <span class="pl-en">representationOf</span>(
         <span class="pl-c">//returns an oData object containing all of the matching entities in our DB</span>
@@ -881,7 +987,7 @@ remote <span class="pl-k">function</span> <span class="pl-en">get</span>(<span c
 
 <div class="highlight highlight-source-js"><pre><span class="pl-c">// FROM BREEZEJS SAMPLE: Taffy Resource for "post" verb to save one or more "TodoItem" records.</span>
   remote <span class="pl-k">function</span> <span class="pl-en">post</span>(){
-      <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">BaseModelObject</span>( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
+      <span class="pl-k">var</span> todo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">com.database</span>.<span class="pl-en">Norm</span>( table <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>TodoItem<span class="pl-pds">"</span></span> );
       <span class="pl-k">var</span> ret <span class="pl-k">=</span> <span class="pl-smi">todo</span>.<span class="pl-en">oDataSave</span>( <span class="pl-smi">arguments</span>.<span class="pl-c1">entities</span> );
       <span class="pl-k">return</span> <span class="pl-en">representationOf</span>( ret ).<span class="pl-en">withStatus</span>(<span class="pl-c1">200</span>);
   }</pre></div>
@@ -894,9 +1000,9 @@ remote <span class="pl-k">function</span> <span class="pl-en">get</span>(<span c
 <p>Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.</p>
 
 <h1>
-<a id="railo-notes" class="anchor" href="#railo-notes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Railo Notes</h1>
+<a id="railolucee-notes" class="anchor" href="#railolucee-notes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Railo/Lucee Notes</h1>
 
-<p>In order to use the DAO caching options with Railo you'll need to enable a default cache in the Railo Administrator.  Otherwise you'll end up with an error like: <code>there is no default object cache defined, you need to define this default cache in the Railo Administrator</code>
+<p>In order to use the DAO caching options with Railo/Lucee you'll need to enable a default cache in the Railo/Lucee Administrator.  Otherwise you'll end up with an error like: <code>there is no default object cache defined, you need to define this default cache in the Railo/Lucee Administrator</code>
 Simply create a <em>"RamCache"</em> (for some reason EHCache throws NPE) type Cache service under <code>Services &gt; Cache</code> and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:</p>
 
 <div class="highlight highlight-source-js"><pre><span class="pl-v">this</span>.<span class="pl-smi">cache</span>.<span class="pl-c1">object</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>your_cache_name_here<span class="pl-pds">"</span></span>;</pre></div>
@@ -905,7 +1011,7 @@ Simply create a <em>"RamCache"</em> (for some reason EHCache throws NPE) type Ca
 <p>NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.</p>
 </blockquote>
 
-<p>Also, the "Preserve single quotes" setting must be checked in the Railo admin.  DAO specifically passes the SQL strings through <code>preserveSingleQuotes()</code>, but this doesn't seem to work unless you have that setting checked under <code>Services &gt; Datasources</code>.</p>
+<p>Also, the "Preserve single quotes" setting must be checked in the Railo/Lucee admin.  DAO specifically passes the SQL strings through <code>preserveSingleQuotes()</code>, but this doesn't seem to work unless you have that setting checked under <code>Services &gt; Datasources</code>.</p>
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/abramadams/dao">DAO</a> is maintained by <a href="https://github.com/abramadams">abramadams</a>.</span>
