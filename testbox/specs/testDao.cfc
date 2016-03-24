@@ -197,7 +197,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
-          $assert.isTrue( pagedEvents.recordCount != pagedEvents.$fullCount );
+          $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
      }
      function pageTableResultsWithLimitAndOffset() hint="I test the query with server side paging" returntype="any" output="false" test{
           var pagedEvents = request.dao.read(
@@ -206,7 +206,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
-          $assert.isTrue( pagedEvents.recordCount != pagedEvents.$fullCount );
+          $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
      }
      function pageImpliedTableResultsWithLimitAndOffset() hint="I test the query with server side paging" returntype="any" output="false" test{
           var pagedEvents = request.dao.read(
@@ -215,7 +215,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
-          $assert.isTrue( pagedEvents.recordCount != pagedEvents.$fullCount );
+          $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
      }
 
      function pageQoQResultsWithLimitAndOffset() hint="I test the query of query syntax with server side paging" returntype="any" output="false" test{
@@ -232,7 +232,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           // writeDump([pagedEvents,events]);abort;
           $assert.isTrue( events.ID[2] == pagedEvents.ID[1] );
           $assert.isTrue( pagedEvents.recordCount == 5 );
-          $assert.isTrue( pagedEvents.recordCount != pagedEvents.$fullCount );
+          $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
      }
      // function readFromQuery() hint="I read from another query (query of query). I take a sql statement as a parameter." returntype="query" output="false" test{
      //      $assert.fail('test not implemented yet');

@@ -218,7 +218,7 @@
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
 						<cfquery name="__get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
-							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
+							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
 						</cfquery>
 					</cfif>
 				<cfelse>
@@ -259,7 +259,7 @@
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
 						<cfquery name="__get" dbtype="query" result="results_#name#">
-							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
+							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
 						</cfquery>
 					</cfif>
 				</cfif>
