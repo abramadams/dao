@@ -1264,7 +1264,8 @@
 				}
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
-				arrayAppend( colList, qry.getColumns(), true );
+				// NOTE: ACF doesn't support queryObject.getColumn()...
+				arrayAppend( colList, structKeyExists( qry, 'getColumns' ) ? qry.getColumns() : qry.getColumnNames(), true );
 			}
 			// If the query was a query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
@@ -1335,7 +1336,7 @@
 			numeric offset = 0,
 			numeric limit = 0,
 			boolean returnFullCount = true,
-			string fullCountName = "$fullCount"
+			string fullCountName = "__fullCount"
 		){
 			var recordCount = qry.recordCount;
 			if ( offset > 0){
