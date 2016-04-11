@@ -1264,8 +1264,12 @@
 				}
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
-				// NOTE: ACF doesn't support queryObject.getColumn()...
-				arrayAppend( colList, structKeyExists( qry, 'getColumns' ) ? qry.getColumns() : qry.getColumnNames(), true );
+				// NOTE: ACF doesn't support queryObject.getColumn()... It also doesn't return a real CF array
+				// so we have to serialize/deserialize to make it an array of structs that ACF can handle
+				arrayAppend( colList, structKeyExists( qry, 'getColumns' )
+					? qry.getColumns()
+					: deSerializeJSON( serializeJSON( qry.getColumnNames() ) ),
+				true );
 			}
 			// If the query was a query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
