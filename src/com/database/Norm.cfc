@@ -197,7 +197,7 @@ component accessors="true" output="false" {
 
 		// We'll loop through each column in the table definition and see if we have a property, if not, create one.
 		for( var col in variables.tabledef.instance.tablemeta.columns ){
-			var colName = _alias( col );
+			var colName = col;
 			for ( var existingProp in variables.meta.properties ){
 				if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col )
 					|| ( structKeyExists( existingProp, 'name' ) && existingProp.name EQ col )
@@ -224,6 +224,7 @@ component accessors="true" output="false" {
 									? getDynamicMappings()[ colName ]['table']
 									: getDynamicMappings()[ colName ] )
 						: { property: col, table: colName, 'createdBy': "autoWire" };
+
 				var newProp = {
 					"name": mapping.property,
 					"column": col,
@@ -857,7 +858,7 @@ component accessors="true" output="false" {
 
 			var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
 
-			record = variables.dao.read(
+			record = this.getDAO().read(
 				table = this.getTable(),
 				columns = columns,
 				where = "WHERE #where# #recordSQL#",
@@ -865,7 +866,6 @@ component accessors="true" output="false" {
 				limit = limit,
 				name = "model_load_by_handler_#arguments.missingMethodName#"
 			);
-
 
 			variables._isNew = record.recordCount EQ 0;
 
@@ -2145,17 +2145,13 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : this.getID();
 
-		try{
-			// logIt("columns in #this.getTable()#: " & this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ) );
-			var record = this.getDAO().read(
-					table = this.getTable(),
-					columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
-					where = "WHERE #this.getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
-					name = "#this.getTable()#_getRecord"
-				);
-		}catch( any e ){
-			writeDump( [this, e ]);abort;
-		}
+		// logIt("columns in #this.getTable()#: " & this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ) );
+		var record = this.getDAO().read(
+				table = this.getTable(),
+				columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
+				where = "WHERE #this.getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
+				name = "#this.getTable()#_getRecord"
+			);
 
 		variables._isNew = record.recordCount EQ 0;
 		return record;

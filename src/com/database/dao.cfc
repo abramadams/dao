@@ -1264,13 +1264,10 @@
 				}
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
-				// NOTE: ACF doesn't support queryObject.getColumn()... It also doesn't return a real CF array
-				// so we have to serialize/deserialize to make it an array of structs that ACF can handle
-				arrayAppend( colList, structKeyExists( qry, 'getColumns' )
-					? qry.getColumns()
-					: deSerializeJSON( serializeJSON( qry.getColumnNames() ) ),
-				true );
+				arrayAppend( colList, _getQueryColumnNames( qry ), true );
+
 			}
+			// writeDump([colList,qry.getColumns()]);
 			// If the query was a query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
 			// and include the query columns as is assuming the source sql provides the desired case.
@@ -1279,19 +1276,7 @@
 				// This could have been used on a table based query
 				// but it relies on the case of the typed in columns in
 				// the sql statement, no necessarily the true column name case.
-				colList = qry.getColumnNames();
-				// NOTE: getColumnNames() returns a native Java array, which does
-				// not inherently work like a CF array; so we must convert to a CF
-				// array.  In Railo/Lucee we can use arrayMerge to convert to array
-				// but this does not exist in ACF.  ACF's array functions fail (i.e. arrayAppend)
-				// on this type of array, so the only way I've found to make it native in
-				// ACF is to serialize then deserialize the array.  Unfortunately this hack
-				// doesn't seem to work in Railo/Lucee, thus the logic below.
-				if( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
-					colList = arrayMerge( [], colList );
-				}else{
-					colList = deSerializeJSON( serializeJSON( colList ) );
-				}
+				 colList = _getQueryColumnNames( qry );
 			}
 			var i = 0;
 			var isNullisClosureValue = !isNull( map ) && isClosure( map );
@@ -1321,6 +1306,26 @@
 				arrayAppend( queryArray, cols );
 			}
 			return queryArray;
+		}
+
+		/**
+		* Returns an array of column names included in the given query (preserves case)
+		**/
+		public function _getQueryColumnNames( required query qry ){
+			// NOTE: getColumnNames() returns a native Java array, which does
+			// not inherently work like a CF array; so we must convert to a CF
+			// array.  In Railo/Lucee we can use arrayMerge to convert to array
+			// but this does not exist in ACF.  ACF's array functions fail (i.e. arrayAppend)
+			// on this type of array, so the only way I've found to make it native in
+			// ACF is to serialize then deserialize the array.  Unfortunately this hack
+			// doesn't seem to work in Railo/Lucee, thus the logic below.
+			// NOTE: ACF doesn't support queryObject.getColumn()... It also doesn't return a real CF array
+			// so we have to serialize/deserialize to make it an array of structs that ACF can handle
+			if( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
+				return arrayMerge( [], qry.getColumns() );
+			}else{
+				return deSerializeJSON( serializeJSON( qry.getColumnNames() ) );
+			}
 		}
 		/**
 		* I return the query as an JSON array of structs.  Not super efficient with large recordsets,
