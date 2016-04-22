@@ -2385,8 +2385,10 @@ component accessors="true" output="false" {
 												arrayAppend( thread.returnStruct, returnStruct );
 											}
 										}
-										thread action="join" name="#threads#";
-										returnStruct[ arg ] = cfthread[listLast(threads)].returnStruct;
+										if( len( trim( threads ) ) ){
+											thread action="join" name="#threads#";
+											returnStruct[ arg ] = cfthread[listLast(threads)].returnStruct;
+										}
 									}else{
 										for( var i = 1; i <= loopLen; i++ ){
 											if( isObject( returnStruct[arg][ i ] ) ){
