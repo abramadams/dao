@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.81
-		@updated 3/2/2016
+		@version 0.0.82
+		@updated 6/17/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1228,7 +1228,7 @@
 		* I return the query as an array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToArray( required query qry, any map ){
+		public function queryToArray( required query qry, any map, boolean forceLowercaseKeys = false ){
 			var queryArray = [];
 
 			// Using getMetaData instead of columnList to preserve case. Using qry.getMetaData().getColumnLabels()
@@ -1265,9 +1265,7 @@
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
 				arrayAppend( colList, _getQueryColumnNames( qry ), true );
-
 			}
-			// writeDump([colList,qry.getColumns()]);
 			// If the query was a query of queries the "from" will not be a table and therefore
 			// will not have returned any columns.  We'll just ignore the need for preserving case
 			// and include the query columns as is assuming the source sql provides the desired case.
@@ -1300,7 +1298,11 @@
 
 				for( var col in colList ){
 					if( structKeyExists( rec, col ) ){
-						structAppend( cols, {'#col#' = rec[col] } );
+						if( forceLowercaseKeys ){
+							structAppend( cols, {'#lcase(col)#' = rec[col] } );
+						}else{
+							structAppend( cols, {'#col#' = rec[col] } );
+						}
 					}
 				}
 				arrayAppend( queryArray, cols );
