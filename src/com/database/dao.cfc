@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.82
-		@updated 6/17/2016
+		@version 0.0.84
+		@updated 7/13/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -992,7 +992,7 @@
 					tmpString = reReplaceNoCase( tmpString, 'value="=','value="', "all" );
 
 					// Clean up blanks
-					tmpString = reReplaceNoCase( tmpString, "''",'""', "all" );
+					tmpString = reReplaceNoCase( tmpString, "''",'\"\"', "all" );
 					// Clean up empty {}s
 					tmpString = reReplaceNoCase( tmpString, '}"{}','}"', "all" );
 
@@ -1249,8 +1249,17 @@
 			if( !structKeyExists( variables.tabledefs, tableName) ){
 				variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
 			}
-			// KNOWN ISSUE: This does not retain the column order of the original sql string
-			var colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
+
+			// Grabs column names preserving case.
+			// This could have been used on a table based query
+			// but it relies on the case of the typed in columns in
+			// the sql statement, not necessarily the true column name case.
+			var colList = _getQueryColumnNames( qry );
+
+			if( !arrayLen( colList ) ){
+				// KNOWN ISSUE: This does not retain the column order of the original sql string
+				colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
+			}
 			// Support for JOIN tables
 			if( findNoCase( "JOIN ", sqlString ) ){
 				// When ACF10 support is no longer needed, replace this with member & reduce functions.
@@ -1265,16 +1274,6 @@
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
 				arrayAppend( colList, _getQueryColumnNames( qry ), true );
-			}
-			// If the query was a query of queries the "from" will not be a table and therefore
-			// will not have returned any columns.  We'll just ignore the need for preserving case
-			// and include the query columns as is assuming the source sql provides the desired case.
-			if( !arrayLen( colList ) ){
-				// Grabs column names preserving case.
-				// This could have been used on a table based query
-				// but it relies on the case of the typed in columns in
-				// the sql statement, no necessarily the true column name case.
-				 colList = _getQueryColumnNames( qry );
 			}
 			var i = 0;
 			var isNullisClosureValue = !isNull( map ) && isClosure( map );
@@ -1383,6 +1382,7 @@
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
 		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
 		<cfargument name="map" required="false" type="any" hint="A function to be executed for each row in the results ( only used if returnType == array )" default="">
+		<cfargument name="forceLowercaseKeys" required="false" type="boolean" hint="Forced struct keys to lowercase ( only used if returnType == array )" default="false">
 
 		<cfset var tmpSQL = "" />
 		<cfset var tempCFSQLType = "" />
@@ -1390,7 +1390,7 @@
 		<cfset var tmpName = "" />
 		<cfset var idx = "" />
 		<cfset var LOCAL = {} />
-		<!--- where is also a function name in this cfc, so let's localize the arg --->
+		<!--- where is also a function name in this cfc, so let''s localize the arg --->
 		<cfset var _where = isNull( arguments.where ) ? "" : arguments.where/>
 
 		<cfif !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) )>
@@ -1530,7 +1530,7 @@
 			<cfthrow errorcode="882" type="DAO.Read.InvalidQueryType" detail="Invalid Query Type for ""DAO.read()""" message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements.">
 		</cfif>
 		<cfif arguments.returnType eq 'array'>
-			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map )  />
+			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelseif arguments.returnType eq 'json'>
 			<cfreturn queryToJSON( LOCAL[arguments.name] )  />
 		<cfelse>

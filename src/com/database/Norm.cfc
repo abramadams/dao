@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.4
+*   @version 0.2.6
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 3/2/2016
+*   @updated 7/13/2016
 *   @author Abram Adams
 **/
 
@@ -197,7 +197,7 @@ component accessors="true" output="false" {
 
 		// We'll loop through each column in the table definition and see if we have a property, if not, create one.
 		for( var col in variables.tabledef.instance.tablemeta.columns ){
-			var colName = col;
+			var colName = _alias( col );
 			for ( var existingProp in variables.meta.properties ){
 				if ( ( structKeyExists( existingProp, 'column' ) && existingProp.column EQ col )
 					|| ( structKeyExists( existingProp, 'name' ) && existingProp.name EQ col )
@@ -224,7 +224,6 @@ component accessors="true" output="false" {
 									? getDynamicMappings()[ colName ]['table']
 									: getDynamicMappings()[ colName ] )
 						: { property: col, table: colName, 'createdBy': "autoWire" };
-
 				var newProp = {
 					"name": mapping.property,
 					"column": col,
@@ -858,7 +857,7 @@ component accessors="true" output="false" {
 
 			var columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
 
-			record = this.getDAO().read(
+			record = variables.dao.read(
 				table = this.getTable(),
 				columns = columns,
 				where = "WHERE #where# #recordSQL#",
@@ -866,6 +865,7 @@ component accessors="true" output="false" {
 				limit = limit,
 				name = "model_load_by_handler_#arguments.missingMethodName#"
 			);
+
 
 			variables._isNew = record.recordCount EQ 0;
 
@@ -2145,13 +2145,17 @@ component accessors="true" output="false" {
 		var LOCAL = {};
 		LOCAL.ID = structKeyExists( arguments, 'ID' ) ? arguments.ID : this.getID();
 
-		// logIt("columns in #this.getTable()#: " & this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ) );
-		var record = this.getDAO().read(
-				table = this.getTable(),
-				columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
-				where = "WHERE #this.getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
-				name = "#this.getTable()#_getRecord"
-			);
+		try{
+			// logIt("columns in #this.getTable()#: " & this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ) );
+			var record = this.getDAO().read(
+					table = this.getTable(),
+					columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() ),
+					where = "WHERE #this.getIDField()# = #this.getDAO().queryParam( value = val( LOCAL.ID ), cfsqltype = this.getIDFieldType() )#",
+					name = "#this.getTable()#_getRecord"
+				);
+		}catch( any e ){
+			writeDump( [this, e ]);abort;
+		}
 
 		variables._isNew = record.recordCount EQ 0;
 		return record;
@@ -2171,14 +2175,14 @@ component accessors="true" output="false" {
     **/
 	public any function list(
 		string columns = "",
-		string where = "",
-		string limit = "",
-		string orderby = "",
-		string offset = "",
+		string where,
+		string limit,
+		string orderby,
+		string offset,
 		array excludeKeys = [],
-		any cachedWithin = "",
+		any cachedWithin,
 		string returnType = "query",
-		any map = ""
+		any map
 	){
 
 		if( columns == "" ){
@@ -2187,19 +2191,11 @@ component accessors="true" output="false" {
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
 		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
+		arguments.table = this.getTable();
+		arguments.name = hash(cols & where & orderby & limit);
+		arguments.columns = cols;
+		var record = variables.dao.read( argumentCollection:arguments );
 
-		var record = variables.dao.read(
-				table = this.getTable(),
-				columns = cols,
-				where = where,
-				orderby = orderby,
-				limit = limit,
-				offset = offset,
-				cachedWithin = cachedWithin,
-				name = hash(cols & where & orderby & limit),
-				returnType = returnType,
-				map = map
-			);
 		return record;
 	}
 
@@ -2243,19 +2239,19 @@ component accessors="true" output="false" {
 		any cachedWithin = "",
 		any map = ""
 	){
-      var LOCAL = {};
-			var ret = list(
-					where = where,
-					columns = columns,
-					limit = limit,
-					orderby = orderby,
-					row = row,
-					offset = offset,
-					excludeKeys = excludeKeys,
-					cachedWithin = cachedWithin,
-					returnType = "array",
-					map = map
-									);
+		var ret = list(
+				where = where,
+				columns = columns,
+				limit = limit,
+				orderby = orderby,
+				row = row,
+				offset = offset,
+				excludeKeys = excludeKeys,
+				cachedWithin = cachedWithin,
+				returnType = "array",
+				map = map
+			);
+
 		return !!row ? ret[ 1 ] : ret;
 
   }
@@ -2353,7 +2349,7 @@ component accessors="true" output="false" {
 									// });
 									// returnStruct[ arg ] = newArr;
 									var loopLen = arrayLen( returnStruct[ arg ] );
-									if( threaded ){
+									if( threaded && loopLen > 0 ){
 										var threads = "";
 										for( var i = 1; i <= loopLen; i++ ){
 											var threadName = "toStruct#createUUID()#";
@@ -2381,10 +2377,11 @@ component accessors="true" output="false" {
 												arrayAppend( thread.returnStruct, returnStruct );
 											}
 										}
-										if( len( trim( threads ) ) ){
-											thread action="join" name="#threads#";
-											returnStruct[ arg ] = cfthread[listLast(threads)].returnStruct;
+										thread action="join" name="#threads#";
+										if( !isNull( thread ) ){
+											returnStruct[ arg ] = thread[listLast(threads)].returnStruct;
 										}
+
 									}else{
 										for( var i = 1; i <= loopLen; i++ ){
 											if( isObject( returnStruct[arg][ i ] ) ){
@@ -3343,7 +3340,7 @@ component accessors="true" output="false" {
 	* Returns results of arbitrary SQL query
 	**/
 	public function queryProcessor(
-								string table,
+								string table = getTable(),
 								string where = "",
 								string filter = "",
 								string columns = "*",
@@ -3383,29 +3380,9 @@ component accessors="true" output="false" {
 	* "table" and "where" arguments to build the source query that will
 	* then be filtered by the oData filter criteria; as apposed to using
 	* Norm's defined table as the source.
-	* Params
-	* @data: array of structs containing data to be serialized as oData
-	* @table: name of the table to use as the "base" in the oData struct
-	* @filter: oData style filter criteria
-	* @select: list of columns to return - named "select" to be consistent with oData naming convention
-	* @columns: same as select
-	* @orderby: column name(s) to order by
-	* @skip: the offset or starting row to return of the data set (for paging)
-	* @top: number of records to return (for limiting return query size and/or paging)
-	* @version: the version of the oData protocol to serialize as (3 or 4)
-	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
-	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
-	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
-	* 		row - current row as a struct which will contain the current row as a struct.
-	* 		index - the numeric position of the row (1 == first record)
-	* 		cols - an array of column names included in the row
-	*   example: map = function( row, index, cols ){
-	* 				row.append( {"bla":"value"});
-	* 				return row;
-	* 			 };
 	**/
-	public function arrayAsOData(
-								array data,
+	public function queryAsOData(
+								any qry,
 								string table,
 								string where = "",
 								string filter = "",
@@ -3414,87 +3391,44 @@ component accessors="true" output="false" {
 								string skip = "",
 								string top = "",
 								numeric version = getODataVersion(),
-								any map = "" ){
+								any map = "",
+								boolean forceLowercaseKeys = false ){
 
 		var $filter = parseODataFilter( filter );
+
 		// serialize and return filtered query as oData object.
-		var rows = serializeODataRows( data );
+		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
 			meta[ "base" ] &= ":" & where;
 		}
-		return serializeODataResponse( version, rows, meta );
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
-	* Wrapper for arrayAsOData. Used for code clarity.
-	* @data: query object containing data to be serialized as oData
-	* SEE arrayAsOdata for the rest of the arguments
-	**/
-	public function queryAsOData(
-								query data,
-								string table,
-								string where = "",
-								string filter = "",
-								string columns = "*",
-								string orderby = "",
-								string skip = "",
-								string top = "",
-								numeric version = getODataVersion(),
-								any map = "" ){
-		arguments.data = getDao().queryToArray( qry = data, map = map );
-		return arrayAsOData( argumentCollection:arguments );
-
-	}
-
-	/**
-	* Returns a list of the current entity collection (filtered/ordered based on query args) in an oData format.
-	* Params
-	* @filter: oData style filter criteria
-	* @select: list of columns to return - named "select" to be consistent with oData naming convention
-	* @columns: same as select
-	* @orderby: column name(s) to order by
-	* @skip: the offset or starting row to return of the data set (for paging)
-	* @top: number of records to return (for limiting return query size and/or paging)
-	* @excludeKeys = columns to exclude from results
-	* @version: the version of the oData protocol to serialize as (3 or 4)
-	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
-	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
-	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
-	* 		row - current row as a struct which will contain the current row as a struct.
-	* 		index - the numeric position of the row (1 == first record)
-	* 		cols - an array of column names included in the row
-	*   example: map = function( row, index, cols ){
-	* 				row.append( {"bla":"value"});
-	* 				return row;
-	* 			 };
+	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
 	public function listAsOData(
+								string table = getTable(),
 								string filter = "",
 								string select = "",  // columns. using "select" to be consistent with oData naming
 								string columns = select,
-								string orderby = "",
-								string skip = "",
-								string top = "",
+								string orderby,
+								string skip,
+								string offset = skip,
+								string top,
+								string limit = top,
 								array excludeKeys = variables.meta.privateKeys,
 								numeric version = getODataVersion(),
-								any cachedWithin = "",
-								any map = "" ){
-		var $filter = parseODataFilter( filter );
+								any cachedWithin,
+								any map ){
 
-		var list = listAsArray(
-								where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "",
-								columns = columns,
-								orderby = orderby,
-								offset = skip,
-								limit = top,
-								excludeKeys = excludeKeys,
-								cachedWithin = cachedWithin,
-								map = map
-							);
-		var rows = serializeODataRows( list );
+		var $filter = parseODataFilter( filter );
+		arguments.where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "";
+		var list = listAsArray( argumentCollection:arguments );
+		var data = serializeODataRows( list );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
-		return serializeODataResponse( version, rows, meta );
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
