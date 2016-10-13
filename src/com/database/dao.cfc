@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.84
-		@updated 7/13/2016
+		@version 0.0.86
+		@updated 10/11/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -81,6 +81,7 @@
 	<cfproperty name="transactionLogFile" type="string">
 	<cfproperty name="tableDefs" type="struct">
 	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
+	<cfproperty name="nullValue" hint="The value to pass in if you want the queryParam to consider it null.  Default is $null">
 
 	<cfset _resetCriteria() />
 	<cfscript>
@@ -102,7 +103,8 @@
 								  boolean writeTransactionLog = false,
 								  string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql",
 								  boolean useCFQueryParams = true,
-								  boolean autoParameterize = false ){
+								  boolean autoParameterize = false,
+								  string nullValue = "$null"  ){
 			// If DSN wasn't supplied, see if there is a default dsn.
 			if( !len( trim( dsn ) ) ){
 				var = appMetaData = getApplicationMetadata();
@@ -115,6 +117,8 @@
 			//This is the datasource name for the system
 			setDsn( arguments.dsn );
 			setWriteTransactionLog( arguments.writeTransactionLog );
+
+			setNullValue( nullValue );
 
 			// auto-detect the database type.
 			if ( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
@@ -681,7 +685,7 @@
 				// default to varchar
 				arguments.cfsqltype = "cf_sql_varchar";
 			}
-			returnStruct = queryParamStruct( value = trim( arguments.value ), cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
+			returnStruct = queryParamStruct( value = arguments.value, cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
 			returnString = '#chr(998)#list=#chr(777)##returnStruct.list##chr(777)# null=#chr(777)##returnStruct.null##chr(777)# cfsqltype=#chr(777)##returnStruct.cfsqltype##chr(777)# value=#chr(777)##returnStruct.value##chr(777)##chr(999)#';
 			return returnString;
 		}
@@ -817,6 +821,17 @@
 					tmp.isList = false;
 				}else{
 					tmp.isList = mid( tempParam, tempList.pos[2], tempList.len[2] );
+				}
+
+				var tempNull = reFindNoCase( 'null\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true );
+
+				tempNull = arrayLen( tempNull.pos ) >= 2 ? mid( tempParam, tempNull.pos[2], tempNull.len[2] ) : false;
+				tmp.null = isBoolean( tempNull ) ? tempNull : false;
+				if( tmp.null && listLast( trim( tmp.before ), " " ) == '=' ){
+					tmp.before = listDeleteAt( tmp.before, listLen( tmp.before, ' ' ), ' ' ) & " IS ";
+				}
+				if( tmp.null && ( listLast( trim( tmp.before ), " " ) == '!=' ||  listLast( trim( tmp.before ), " " ) == '<>' ) ){
+					tmp.before = listDeleteAt( tmp.before, listLen( tmp.before, ' ' ), ' ' ) & " IS NOT ";
 				}
 
 				arrayAppend( LOCAL.statements, tmp );
@@ -1018,7 +1033,9 @@
 													value = structKeyExists( tmpString, 'value' ) ? tmpString.value : '',
 													cfsqltype = structKeyExists( tmpString, 'cfsqltype' ) ? tmpString.cfsqltype : '',
 													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
-													null = structKeyExists( tmpString, 'null' ) ? tmpString.null : false
+													null = structKeyExists( tmpString, 'null' ) ? tmpString.null :
+														reReplace( tmpString.value, '"|''', '', 'all') == this.getNullValue()
+														? true : false
 												);
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
 					if ( isStruct( evalString ) ){
@@ -1189,13 +1206,13 @@
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
 				}
 			}else{
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
 				}
 			}
 			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
@@ -1243,6 +1260,7 @@
 			}
 
 			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
+			
 			var tableName = listLast( tablesInQry[ 1 ], ' ' );
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
@@ -1284,8 +1302,8 @@
 				// if supplied, run query through map closure for custom processing
 
 				if( isNullisClosureValue ){
-					// rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
-					rec = map( rec, i, tempListToArray );
+					rec = map( row = rec, index = i, cols = colList );
+					// rec = map( rec, i, tempListToArray );
 					// Add any cols that may have been added during the map transformation
 					var newCols = listToArray( structKeyList( rec ) );
 					for( var newCol in newCols ){
@@ -1366,7 +1384,7 @@
 		}
 
 	</cfscript>
-	<!--- @TODO: convert to using new Query() --->
+	<!--- @TODO: convert to using new queryExecute() --->
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
 		<cfargument name="sql" required="false" type="string" default="" hint="Either a tablename or full SQL statement.">
 		<cfargument name="params" required="false" type="struct" hint="Struct containing named query param values used to populate the parameterized values in the query (see parameterizeSQL())" default="#{}#">
@@ -1500,7 +1518,7 @@
 
 			<cfelse>
 				<!--- Query of Query --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) ? limit : 9999999999999999999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
@@ -1513,6 +1531,10 @@
 								list="#tmpSQL.statements[idx].isList#">
 						</cfif>
 					</cfloop>
+					<!--- Honor the order by if passed in --->
+					<cfif len( trim( arguments.orderby ) )>
+						ORDER BY #orderby#
+					</cfif>
 				</cfquery>
 				<!--- DB Agnostic Limit/Offset for server-side paging --->
 				<cfif len( trim( limit ) ) && len( trim( offset ) )>

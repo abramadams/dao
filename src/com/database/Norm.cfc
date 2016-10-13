@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.6
+*   @version 0.2.7
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 7/13/2016
+*   @updated 10/11/2016
 *   @author Abram Adams
 **/
 
@@ -2182,14 +2182,15 @@ component accessors="true" output="false" {
 		array excludeKeys = [],
 		any cachedWithin,
 		string returnType = "query",
-		any map
+		any map,
+		boolean forceLowercaseKeys = false
 	){
 
 		if( columns == "" ){
 			columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
 		}
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
-		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
+		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
 		arguments.table = this.getTable();
 		arguments.name = hash(cols & where & orderby & limit);
@@ -2210,7 +2211,8 @@ component accessors="true" output="false" {
 		numeric row = 0,
 		string offset = "",
 		array excludeKeys = [],
-		any map = ""
+		any map = "",
+		boolean forceLowercaseKeys = false
 	){
 		return serializeJSON(
 							listAsArray(
@@ -2221,7 +2223,8 @@ component accessors="true" output="false" {
 								row = row,
 								offset = offset,
 								excludeKeys = excludeKeys,
-								map = map
+								map = map,
+								forceLowercaseKeys = forceLowercaseKeys
 							)
 			);
   }
@@ -2237,7 +2240,8 @@ component accessors="true" output="false" {
 		string offset = "",
 		array excludeKeys = [],
 		any cachedWithin = "",
-		any map = ""
+		any map = "",
+		boolean forceLowercaseKeys = false
 	){
 		var ret = list(
 				where = where,
@@ -2249,7 +2253,8 @@ component accessors="true" output="false" {
 				excludeKeys = excludeKeys,
 				cachedWithin = cachedWithin,
 				returnType = "array",
-				map = map
+				map = map,
+				forceLowercaseKeys = forceLowercaseKeys
 			);
 
 		return !!row ? ret[ 1 ] : ret;
@@ -3196,7 +3201,7 @@ component accessors="true" output="false" {
 	/**
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
-	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [] ){
+	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [], array dynamicProperties = [] ){
 
 		var cacheName = "#this.getDAO().getDsn()#-oData-Metadata";
 		if( arrayLen( tables ) ){
@@ -3291,7 +3296,7 @@ component accessors="true" output="false" {
 						"name" = lcase( NORM[ table ].getIDField() )
 					}
 				},
-				"property" = NORM[ table ].generateODataProperties( excludeKeys =  excludeKeys )
+				"property" = NORM[ table ].generateODataProperties( excludeKeys =  excludeKeys, dynamicProperties = dynamicProperties )
 			};
 			if( arrayLen( navigationProperties ) ){
 				entityType[ "navigationProperty" ] = navigationProperties;
@@ -3395,7 +3400,10 @@ component accessors="true" output="false" {
 								boolean forceLowercaseKeys = false ){
 
 		var $filter = parseODataFilter( filter );
-
+		// If instructed to, re-order the query
+		if( len( trim( orderBy ) ) ){
+			qry = getDao().read( sql = "SELECT * FROM qry order by #orderby#", QoQ = {qry:qry} );
+		}
 		// serialize and return filtered query as oData object.
 		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
@@ -3421,7 +3429,8 @@ component accessors="true" output="false" {
 								array excludeKeys = variables.meta.privateKeys,
 								numeric version = getODataVersion(),
 								any cachedWithin,
-								any map ){
+								any map,
+								boolean forceLowercaseKeys = false ){
 
 		var $filter = parseODataFilter( filter );
 		arguments.where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "";
@@ -3443,15 +3452,22 @@ component accessors="true" output="false" {
 	}
 
 	public function parseODataFilter( filter ){
+		// var first = filter;
 		if( len(trim( filter ) ) ){
 			/* Parse oData fuzzy filters */
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\indexof\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
+
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\sfalse', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\strue', '\2 like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)false("|''*)', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)true("|''*)', '\2 like $queryParam(value="%\1%")$', 'all' );
+
+			// oData filters containing arrays will be passed as substringof. Convert to SQL IN() statement
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)true("|''*)', '\3 in ( $queryParam(value="\2",list=true)$ )', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)false("|''*)', '\3 not in( $queryParam(value="\2",list=true)$ )', 'all' );
+
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)''\s*,\s*(.*?)(\)\s*?|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
@@ -3459,13 +3475,20 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* Parse oDatajs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value="\2")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value="\2")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals*)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' = $queryParam(value="\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' != $queryParam(value="\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
+
+			// Only way to allow "is null" filters.
+			filter = reReplaceNoCase( filter, '\s\=\s\$queryParam\(value\=\"#getDao().getNullValue()#\"\)\$', ' is null', 'all' );
+			filter = reReplaceNoCase( filter, '\s\!\=\s\$queryParam\(value\=\"#getDao().getNullValue()#\"\)\$', ' is not null', 'all' );
+			filter = reReplaceNoCase( filter, '([a-zA-Z0-9]+?)\sis null', ' NULLIF( \1, "" ) IS NULL  ', 'all' );
+			filter = reReplaceNoCase( filter, '([a-zA-Z0-9]+?)\sis not null', ' NULLIF( \1, "" ) IS NOT NULL  ', 'all' );
 		}
+		// writeDump([first,filter]);abort;
 		return filter;
 	}
 	/**
@@ -3598,12 +3621,15 @@ component accessors="true" output="false" {
 	/**
 	* I return an array of structs containing all of the oData friendly properties of the entity (table).
 	**/
-	private function generateODataProperties( array excludeKeys = variables.meta.privateKeys ){
+	private function generateODataProperties( array excludeKeys = variables.meta.privateKeys, array dynamicProperties = [] ){
 		var props = [];
+		var properties = duplicate( variables.meta.properties );
+		properties.append( dynamicProperties, true );
+
 		//var prop = { "validators" = [] };
 		var prop = { };
 
-		for ( var col in variables.meta.properties ){
+		for ( var col in properties ){
 			/* TODO: flesh out relationships here */
 			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'norm_persistent' ) && !col.norm_persistent ) || arrayFindNoCase( excludeKeys, col.name ) ){
 				continue;
