@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.7
+*   @version 0.2.8
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 10/11/2016
+*   @updated 10/17/2016
 *   @author Abram Adams
 **/
 
@@ -3460,16 +3460,18 @@ component accessors="true" output="false" {
 			filter = reReplaceNoCase( filter, '\indexof\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)false("|''*)', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)true("|''*)', '\2 like $queryParam(value="%\1%")$', 'all' );
-
 			// oData filters containing arrays will be passed as substringof. Convert to SQL IN() statement
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)true("|''*)', '\3 in ( $queryParam(value="\2",list=true)$ )', 'all' );
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)false("|''*)', '\3 not in( $queryParam(value="\2",list=true)$ )', 'all' );
 
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)false("|''*)', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)true("|''*)', '\2 like $queryParam(value="%\1%")$', 'all' );
+
+
 			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)''\s*,\s*(.*?)(\)\s*?|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s(-1|false)', '\1 NOT like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s(1|true)', '\1 like $queryParam(value="\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );

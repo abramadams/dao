@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.86
-		@updated 10/11/2016
+		@version 0.0.87
+		@updated 10/17/2016
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1260,7 +1260,9 @@
 			}
 
 			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
-			
+			if( !tablesInQry.len() ){
+			writeDump([tablesInQry,sqlString]);abort;
+		}
 			var tableName = listLast( tablesInQry[ 1 ], ' ' );
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
