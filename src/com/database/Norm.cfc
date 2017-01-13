@@ -3504,7 +3504,6 @@ component accessors="true" output="false" {
 	*	Parse out the all of the "substringof()" oData filters in a given string into SQL IN or LIKE statements
 	**/
 	public function parseSubstringOf( filter ){
-		writeDump(filter);abort;
 		filter = reReplaceNoCase( filter, '(\(substringof\(.*?\)\s.*?\))', '#chr( 755 )#parseSubstringOf\1#chr( 755 )#', 'all' );
 		var ret = filter.listToArray( chr( 755 ) );
 		ret = ret.reduce( function( prev, cur ){
@@ -3512,7 +3511,6 @@ component accessors="true" output="false" {
         		prev = "";
     		}
     		if( left( trim( cur ), 16 ) == 'parseSubstringOf' ){
-    		writeDump('hi');
             	var substrToken = cur.listRest( '(' );
 	            substrToken = mid( substrToken, 1, substrToken.len()-1);
 	            substrToken = reReplaceNoCase( substrToken, 'substringof\((.*?)\)(.*)', '\1|\2' );
