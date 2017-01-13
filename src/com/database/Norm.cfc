@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.8
+*   @version 0.2.9
 *   @dependencies { "dao" : ">=0.0.80" }
 *   @updated 10/17/2016
 *   @author Abram Adams
@@ -3433,7 +3433,7 @@ component accessors="true" output="false" {
 								boolean forceLowercaseKeys = false ){
 
 		var $filter = parseODataFilter( filter );
-		arguments.where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "";
+		arguments.where = len( trim( $filter ) ) ? "WHERE (1=1) AND " & preserveSingleQuotes( $filter ) : "";
 		var list = listAsArray( argumentCollection:arguments );
 		var data = serializeODataRows( list );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
@@ -3451,29 +3451,35 @@ component accessors="true" output="false" {
 		return serializeODataResponse( version, data );
 	}
 
+	/**
+	*	Parses oData filters into SQl statements
+	**/
 	public function parseODataFilter( filter ){
 		// var first = filter;
 		if( len(trim( filter ) ) ){
 			/* Parse oData fuzzy filters */
+
+			filter = this.parseSubstringOf( filter );
+
+			// AA 12/2/2016 - Removed below regex replaces and changed to parseSubstringOf() call above to better handle various uses uf substringof() oData calls.
+			/*
+			// step 1 replace substringof with 3+ terms (SQL "IN" statements)
+			filter = rereplacenocase( filter, "\(substringof\(([^\),]+(?:,[^\),]+)+),(\w+)\)\s+((eq|\=)\s+true|(neq|\!\=)\s+false)\)", '(\2 IN ($queryParam(value="\1",list=true)$)', 'all' );
+			filter = rereplacenocase( filter, "\(substringof\(([^\),]+(?:,[^\),]+)+),(\w+)\)\s+((eq|\=)\s+false|(neq|\!\=)\s+true)\)", '(\2 NOT IN ($queryParam(value="\1",list=true)$)', 'all' );
+			// step 2 replace substringof with 2 terms (SQL "LIKE" statements)
+			filter = rereplacenocase ( filter, "\(substringof\((\w+),(\w+)\)\s+((eq|\=)\s+true|(neq|\!\=)\s+false)\)", '(\2 LIKE $queryParam(value="%\1%")$)', 'all');
+			filter = rereplacenocase ( filter, "\(substringof\((\w+),(\w+)\)\s+((eq|\=)\s+false|(neq|\!\=)\s+true)\)", '(\2 NOT LIKE $queryParam(value="%\1%")$)', 'all');
+			*/
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\indexof\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 
-			// oData filters containing arrays will be passed as substringof. Convert to SQL IN() statement
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)true("|''*)', '\3 in ( $queryParam(value="\2",list=true)$ )', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*((.*?)[,]([^,]+))\)\s*(=|eq)\s*("|''*)false("|''*)', '\3 not in( $queryParam(value="\2",list=true)$ )', 'all' );
 
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)false("|''*)', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s("|''*)true("|''*)', '\2 like $queryParam(value="%\1%")$', 'all' );
-
-
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)''\s*,\s*(.*?)(\)\s*?|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s(-1|false)', '\1 NOT like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s(1|true)', '\1 like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s(-1|false)', '\1 NOT like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s(1|true)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),[\'']*(.*?)[\'']*(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* Parse oDatajs filter operators */
@@ -3493,6 +3499,67 @@ component accessors="true" output="false" {
 		// writeDump([first,filter]);abort;
 		return filter;
 	}
+
+	/**
+	*	Parse out the all of the "substringof()" oData filters in a given string into SQL IN or LIKE statements
+	**/
+	public function parseSubstringOf( filter ){
+		writeDump(filter);abort;
+		filter = reReplaceNoCase( filter, '(\(substringof\(.*?\)\s.*?\))', '#chr( 755 )#parseSubstringOf\1#chr( 755 )#', 'all' );
+		var ret = filter.listToArray( chr( 755 ) );
+		ret = ret.reduce( function( prev, cur ){
+    		if( isNull( prev ) ){
+        		prev = "";
+    		}
+    		if( left( trim( cur ), 16 ) == 'parseSubstringOf' ){
+    		writeDump('hi');
+            	var substrToken = cur.listRest( '(' );
+	            substrToken = mid( substrToken, 1, substrToken.len()-1);
+	            substrToken = reReplaceNoCase( substrToken, 'substringof\((.*?)\)(.*)', '\1|\2' );
+	            var token = substrToken.listRest( '|' ).listToArray( ' ' );
+	            token.prepend( listFirst( substrToken, '|' ) );
+	            return prev & " " & substringof( token );
+	        }else{
+	            return prev & " " & cur;
+	        }
+		});
+
+    	return ret.replace( chr( 755 ), '', 'all' );
+	}
+
+	/**
+	* Parses a single "substringof()" filter into either an SQL IN or LIKE statement
+	* params should be an array with three items: ["comma separated list of values", "operator (eq|neq)", "boolean"]
+	**/
+	public function substringof( params ){
+		var args = params[ 1 ].listToArray();
+		if( args.len() ){
+        	var field = args[ args.len() ];
+        	var opr = params[ 2 ];
+        	var bool = params[ 3 ];
+        	bool = ( opr == 'eq' || opr == '=' ) ? bool : !bool;
+
+        	var value = args.reduce( function( prev, cur, idx ){
+	            if( isNull( prev ) ){
+	                return [ cur ];
+	            }else{
+	                // last item in list is always field name
+	                return idx >= args.len() ? prev : prev.append( cur );
+	            }
+	        });
+    	}
+
+	    var inLike = value.len() <= 1 ? 'LIKE' : 'IN';
+	    var val = value.toList();
+	    if( inLike == 'LIKE' ){
+	    	// strip any quotes if they exist, then wrap in %
+	    	val = "%#trim( val.reReplace( "['|""](.*?)['|""]", '\1' ) )#%";
+	    }
+	    var paramedValue = '$queryParam( value = "#val#", list = "#value.len() > 1#" )$';
+
+	    return "( #field# #!bool ? 'NOT' : ''# #inLike##inLike == 'IN' ? '(' : ''# #paramedValue# #inLike == 'IN' ? ')' : ''# )";
+	}
+
 	/**
 	* Takes an array of structs and converts it to an oData formatted array of structs
 	**/
