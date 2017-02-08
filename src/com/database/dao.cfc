@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.87
-		@updated 10/17/2016
+		@version 0.0.88
+		@updated 2/8/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -310,7 +310,7 @@
 				}
 
 				if( structKeyExists( arguments.data, column )
-					&& compare( currentData[ column ][ 1 ].toString(), arguments.data[ column ].toString() ) ){
+					&& compare( isNull( currentData[ column ][ 1 ] ) ? "" : currentData[ column ][ 1 ].toString(), isNull( arguments.data[ column ] ) ? "" : arguments.data[ column ].toString() ) ){
 
 					// This will cause dao.update to only update the columns that have changed.
 					// This will not only make the update slightly faster, but it will cut down
@@ -1259,10 +1259,10 @@
 				var sqlString = qry.getMetadata().getExtendedMetaData().sql;
 			}
 
-			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
+			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString & " " );
 			if( !tablesInQry.len() ){
-			writeDump([tablesInQry,sqlString]);abort;
-		}
+				throw("Unable to determine table name(s) in query");
+			}
 			var tableName = listLast( tablesInQry[ 1 ], ' ' );
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
