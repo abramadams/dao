@@ -1,5 +1,5 @@
 /**
-*	Copyright (c) 2013-2015, Abram Adams
+*	Copyright (c) 2013-2017, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.9
+*   @version 0.2.10
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 10/17/2016
+*   @updated 02/10/2017
 *   @author Abram Adams
 **/
 
@@ -3504,7 +3504,7 @@ component accessors="true" output="false" {
 	*	Parse out the all of the "substringof()" oData filters in a given string into SQL IN or LIKE statements
 	**/
 	public function parseSubstringOf( filter ){
-		filter = reReplaceNoCase( filter, '(\(substringof\(.*?\)\s.*?\))', '#chr( 755 )#parseSubstringOf\1#chr( 755 )#', 'all' );
+		filter = reReplaceNoCase( filter, '([\(*?]substringof\(.*?\)\s.*?[\)+|$])', '#chr( 755 )#parseSubstringOf\1#chr( 755 )#', 'all' );
 		var ret = filter.listToArray( chr( 755 ) );
 		ret = ret.reduce( function( prev, cur ){
     		if( isNull( prev ) ){
