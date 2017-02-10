@@ -3505,9 +3505,7 @@ component accessors="true" output="false" {
 	**/
 	public function parseSubstringOf( filter ){
 		var tmp = filter;
-		filter = reReplaceNoCase( filter, '([\(*]?substringof\(.*?\)\s.*?[neq|eq]+\s[true|false|0|1]+[\)])', '#chr( 755 )#parseSubstringOf(\1)#chr( 755 )#', 'all' );
-		// Depending on substringOf nesting there may be extra ()'s that we need to strip out.
-		filter = filter.reReplaceNoCase('parseSubstringOf\(\((.*?)\)\)', 'parseSubstringOf(\1)', 'all' );
+		filter = reReplaceNoCase( filter, '(substringof\(.*?\)\s.*?[neq|eq]+\s(true|false|0|1))', '#chr( 755 )#parseSubstringOf(\1)#chr( 755 )#', 'all' );
 		var ret = filter.listToArray( chr( 755 ) );
 		ret = ret.reduce( function( prev, cur ){
     		if( isNull( prev ) ){
@@ -3537,7 +3535,7 @@ component accessors="true" output="false" {
 		if( args.len() ){
         	var field = args[ args.len() ];
         	var opr = params[ 2 ];
-        	var bool = params[ 3 ].reReplace('[[:punct:]]', '', 'all' ); // sometimes depending on substringof nesting we have a hanging ) that we need to remove
+        	var bool = params[ 3 ];
         	bool = ( opr == 'eq' || opr == '=' ) ? bool : !bool;
 
         	var value = args.reduce( function( prev, cur, idx ){
