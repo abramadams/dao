@@ -3504,7 +3504,10 @@ component accessors="true" output="false" {
 	*	Parse out the all of the "substringof()" oData filters in a given string into SQL IN or LIKE statements
 	**/
 	public function parseSubstringOf( filter ){
-		filter = reReplaceNoCase( filter, '([\(*?]substringof\(.*?\)\s.*?[\)+|$])', '#chr( 755 )#parseSubstringOf\1#chr( 755 )#', 'all' );
+		var tmp = filter;
+		filter = reReplaceNoCase( filter, '([\(*]?substringof\(.*?\)\s.*?[neq|eq]+\s[true|false|0|1]+[\)])', '#chr( 755 )#parseSubstringOf(\1)#chr( 755 )#', 'all' );
+		// Depending on substringOf nesting there may be extra ()'s that we need to strip out.
+		filter = filter.reReplaceNoCase('parseSubstringOf\(\((.*?)\)\)', 'parseSubstringOf(\1)', 'all' );
 		var ret = filter.listToArray( chr( 755 ) );
 		ret = ret.reduce( function( prev, cur ){
     		if( isNull( prev ) ){
@@ -3534,7 +3537,7 @@ component accessors="true" output="false" {
 		if( args.len() ){
         	var field = args[ args.len() ];
         	var opr = params[ 2 ];
-        	var bool = params[ 3 ];
+        	var bool = params[ 3 ].reReplace('[[:punct:]]', '', 'all' ); // sometimes depending on substringof nesting we have a hanging ) that we need to remove
         	bool = ( opr == 'eq' || opr == '=' ) ? bool : !bool;
 
         	var value = args.reduce( function( prev, cur, idx ){
