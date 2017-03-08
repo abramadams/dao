@@ -19,8 +19,8 @@
 *		Component	: dao.cfc (MySQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.71
-*	   	@updated 10/11/2016
+*		@version 0.0.72
+*	   	@updated 3/8/2017
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
 *		This component will use MySQL syntax to perform general
@@ -267,7 +267,6 @@
 							</cfquery>
 						</cfif>
 
-						<!--- <cfif arguments.table contains "_bulls"><cfthrow></cfif> --->
 						<cfcatch type="any">
 						<cfsavecontent variable="out">
 							<cfoutput><pre>
@@ -394,8 +393,12 @@
 							</cfif>
 							<cfif not arguments.tabledef.isColumnNullable(col)>
 								<cfset isnull = "false">
-								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) && current[curRow].data eq '0000-00-00 00:00:00' >
-									<cfset current[curRow].data = createTime(0,0,0)/>
+								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) >
+									<cfif current[curRow].data eq 'CURRENT_TIMESTAMP'>
+										<cfset current[curRow].data = ''/>
+									<cfelseif current[curRow].data eq '0000-00-00 00:00:00'>
+										<cfset current[curRow].data = createTime(0,0,0)/>
+									</cfif>
 								</cfif>
 							</cfif>
 							<cfif curRow GT 1>,</cfif>
@@ -475,8 +478,11 @@
 											<cfset isNull = true/>
 										</cfif>
 									</cfif>
-									<cfif ( cfsqltype contains "date" || cfsqltype contains "time" ) && value eq '0000-00-00 00:00:00' >
+									<cfif ( cfsqltype contains "date" || cfsqltype contains "time" ) && ( value eq '0000-00-00 00:00:00' || value eq 'CURRENT_TIMESTAMP' ) >
 										<cfset isNull = true/>
+										<cfif value eq 'CURRENT_TIMESTAMP'>
+											<cfset value = ''/>
+										</cfif>
 									</cfif>
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
 									<!--- <cfif isNull>
