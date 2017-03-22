@@ -20,7 +20,7 @@
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
 *		@version 0.0.72
-*	   	@updated 3/8/2017
+*	   	@updated 03/22/2017
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
 *		This component will use MySQL syntax to perform general
@@ -266,6 +266,8 @@
 								SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
 							</cfquery>
 						</cfif>
+
+						<!--- <cfif arguments.table contains "_bulls" or arguments.table contains "vw"><cfthrow></cfif> --->
 
 						<cfcatch type="any">
 						<cfsavecontent variable="out">
@@ -551,8 +553,8 @@
 				</cfquery>
 			</cfcatch>
 		</cftry>
-		<cfset ret.field = get.field>
-		<cfset ret.type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
+		<cfset ret.field = __get.field>
+		<cfset ret.type = getDAO().getCFSQLType( listFirst( __get.type, '(' ) )>
 
 		<cfreturn ret />
 
@@ -571,8 +573,8 @@
 		</cfquery>
 		<cfoutput query="__get">
 			<cfset arrayAppend(ret, structNew())/>
-			<cfset ret[arrayLen(ret)].field = get.field>
-			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
+			<cfset ret[arrayLen(ret)].field = __get.field>
+			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( __get.type, '(' ) )>
 		</cfoutput>
 
 		<cfreturn ret />
