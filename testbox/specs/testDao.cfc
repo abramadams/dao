@@ -255,9 +255,18 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // function bulkUpdate() hint="I update data in the database.  I take a tabledef object containing the tablename and column values. I return the number of records updated." returntype="numeric" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
-     // function delete() hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false" test{
-     //      $assert.fail('test not implemented yet');
-     // }
+     function delete() hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false" test{
+          var newRecordId = request.dao.execute("
+               INSERT INTO eventLog ( event, description, eventDate )
+               VALUES (:event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'})",
+               { event="test to be deleted", description = "This is a description from a named param", eventDate = now(), ID = 0 }
+          );
+          var event = request.dao.read("select * from eventLog where ID = 0");
+          $assert.isTrue( event.recordCount );
+          request.dao.delete( table = "eventLog", idField = "ID", recordID = 0 );
+          var event = request.dao.read("select * from eventLog where ID = 0");
+          $assert.isTrue( !event.recordCount );
+     }
      // function markDeleted() hint="I mark the record as deleted.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
