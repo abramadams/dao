@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.88
-		@updated 2/8/2017
+		@version 0.0.89
+		@updated 3/12/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -1352,7 +1352,7 @@
 		* I return the query as an JSON array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToJSON( required query qry, any map ){
+		public function queryToJSON( required query qry, any map, boolean forceLowercaseKeys = false ){
 			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
 
@@ -1556,9 +1556,33 @@
 		<cfif arguments.returnType eq 'array'>
 			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelseif arguments.returnType eq 'json'>
-			<cfreturn queryToJSON( LOCAL[arguments.name] )  />
+			<cfreturn queryToJSON( LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelse>
-			<cfreturn LOCAL[arguments.name]  />
+			<cfscript>
+				var isNullisClosureValue = !isNull( map ) && isClosure( map );
+				var columns = listToArray( LOCAL[ arguments.name ].columnList );
+				if( isNullisClosureValue ){
+					var i = 0;
+					for( var rec in LOCAL[ arguments.name ] ){
+						i++;
+						rec = map( row = rec, index = i, cols = columns );
+						// Add any cols that may have been added during the map transformation
+						var newCols = rec.keyList().listToArray();
+						for( var newCol in newCols ){
+							if( !queryColumnExists( LOCAL[ arguments.name ], newCol ) ){
+
+								queryAddColumn( LOCAL[ arguments.name ], newCol );
+							}
+						}
+
+						for( var col in newCols ){
+							col = forceLowercaseKeys ? col.lcase() : col;
+							querySetCell( LOCAL[ arguments.name ], col, rec[ col ], i );
+						}
+					}
+				}
+				return LOCAL[ arguments.name ];
+			</cfscript>
 		</cfif>
 	</cffunction>
 
