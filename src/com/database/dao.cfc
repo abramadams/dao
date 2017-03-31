@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.89
-		@updated 3/12/2017
+		@version 0.0.90
+		@updated 3/31/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -213,53 +213,63 @@
 
 
 		/**
-		* I insert data into a table in the database.
+		* I insert data into a table in the database.  If inserting a single record I return the generated ID, if an array of records I return an array of IDs
 		* @table Name of table to insert data into.
-		* @data Struct of name value pairs containing data.  Name must match column name.  This could be a form scope
+		* @data Struct or array of structs of name value pairs containing data.  Name must match column name.  This could be a form scope
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
+		public function insert( required string table, required any data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
 			var LOCAL = {};
+			if( !isStruct( data ) && !isArray( data ) ){
+				throw( message = "Data must be a struct or an array of structs with key/value pairs where the key matches exactly the column name." );
+			}
+			// Convert to array if a single struct was passed in
+			var __data = isStruct( data ) ? [ data ] : data;
+
 			if( !structKeyExists( variables.tabledefs, arguments.table ) ){
 				variables.tabledefs[ arguments.table ] = new tabledef( tablename = arguments.table, dsn = getDSN() );
 			}
 			var LOCAL.table = duplicate( variables.tabledefs[ arguments.table ] );
 			var columns = LOCAL.table.getColumns();
-			var row = LOCAL.table.addRow();
+			var newRecord = [];
+			for( var dataRow in __data ){
 
-			// Iterate through each column in the table and either set the value with what's in the arguments.data struct
-			// or set it to the default value defined by the table itself.
-			for( var column in listToArray( columns ) ){
-				param name="arguments.data.#column#" default="#LOCAL.table.getColumnDefaultValue( column )#";
-				if ( structKeyExists( arguments.data, column ) ){
-					if( column == LOCAL.table.getPrimaryKeyColumn()
-						&&  LOCAL.table.getTableMeta().columns[ column ].type != 4
-						&& !len( trim( arguments.data[ column ] ) ) ){
-						LOCAL.table.setColumn( column = column, value = createUUID(), row = row );
-					}else{
-						 LOCAL.table.setColumn( column = column, value = arguments.data[ column ], row = row);
+				var row = LOCAL.table.addRow();
+
+				// Iterate through each column in the table and either set the value with what's in the arguments.data struct
+				// or set it to the default value defined by the table itself.
+				for( var column in listToArray( columns ) ){
+					param name="dataRow.#column#" default="#LOCAL.table.getColumnDefaultValue( column )#";
+					if ( structKeyExists( dataRow, column ) ){
+						if( column == LOCAL.table.getPrimaryKeyColumn()
+							&&  LOCAL.table.getTableMeta().columns[ column ].type != 4
+							&& !len( trim( dataRow[ column ] ) ) ){
+							LOCAL.table.setColumn( column = column, value = createUUID(), row = row );
+						}else{
+							 LOCAL.table.setColumn( column = column, value = dataRow[ column ], row = row);
+						}
 					}
 				}
 			}
 			/// insert it
 			if (!arguments.dryrun){
-				var newRecord = getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys );
+				newRecord.append( getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys ) );
+				// Insert has been performed.  If a callback was provided, fire it off.
+				if( isCustomFunction( onFinish ) ){
+					structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRow( newRecord.len() ), "id" = newRecord[ newRecord.len() ] } );
+					onFinish( argumentCollection:callbackArgs );
+				}
 			}else{
-				return {
-						"Data" = arguments.data,
+				newRecord.append( {
+						"Data" = dataRow,
 						"Table Instance" = LOCAL.table,
 						"Table Definition" = LOCAL.table.getTableMeta(),
 						"Records to be Inserted" = LOCAL.table.getRows()
-					};
-			}
-			// Insert has been performed.  If a callback was provided, fire it off.
-			if( isCustomFunction( onFinish ) ){
-				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = newRecord } );
-				onFinish( argumentCollection:callbackArgs );
+				});
 			}
 
-			return newRecord;
+			return newRecord.len() > 1 ? newRecord : newRecord[ 1 ];
 		}
 
 		/**

@@ -243,9 +243,20 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
-     // function bulkInsert() hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the number of records inserted." returntype="any" output="false" test{
-     //      $assert.fail('test not implemented yet');
-     // }
+     function bulkInsert() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
+          var data = [];
+          request.dao.execute("truncate test");
+          for( i = 1; i <= 10; i++ ){
+               data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
+          }
+          var test = request.dao.insert( table = "test", data = data );
+
+          $assert.isTrue( test.len() == 10 );
+          $assert.isTrue( test[ 5 ] == 5 );
+
+          var retrieve = request.dao.read( "test" );
+          $assert.isTrue( retrieve.recordCount == 10 );
+     }
      // function update() hint="I update data in a table in the database." returntype="any" access="public" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }

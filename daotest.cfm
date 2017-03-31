@@ -43,6 +43,15 @@
 					eventDate date NULL
 				)
 			" );
+		dao.execute( "
+			IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'test' AND xtype = 'U' )
+				CREATE TABLE test (
+					ID int NOT NULL IDENTITY (1, 1),
+					test varchar(50) NULL,
+					testDate date NULL
+				)
+			" );
+
 	} else if ( dao.getDBtype() == "mysql" ){
 
 		// MySQL specific
@@ -53,6 +62,15 @@
 			  `event` varchar(255) DEFAULT NULL,
 			  `description` varchar(255) DEFAULT NULL,
 			  `eventDate` datetime DEFAULT NULL,
+			  PRIMARY KEY (`ID`)
+			)
+		" );
+
+		 dao.execute( "
+			CREATE TABLE IF NOT EXISTS `test` (
+			  `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+			  `test` varchar(50) DEFAULT NULL,
+			  `testDate` datetime DEFAULT NULL,
 			  PRIMARY KEY (`ID`)
 			)
 		" );
