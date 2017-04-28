@@ -64,7 +64,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var records = request.dao.read("
                SELECT *
                FROM eventLog
-               WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ ventLogIds="1,20" } );
+               WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ eventLogIds="1,20" } );
 
           }catch("DAO.parseQueryParams.MissingNamedParameter" e ){
                $assert.isTrue(true);
@@ -226,10 +226,10 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                     FROM eventsQuery
                     ",
                QoQ = { eventsQuery = events },
-               offset = 1,
+               offset = 0,
                limit = 5
           );
-          // writeDump([pagedEvents,events]);abort;
+          writeDump([pagedEvents,events]);abort;
           $assert.isTrue( events.ID[2] == pagedEvents.ID[1] );
           $assert.isTrue( pagedEvents.recordCount == 5 );
           $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
@@ -243,13 +243,28 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
-     function bulkInsert() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
+     function bulkInsertArray() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
           var data = [];
           request.dao.execute("truncate test");
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
           var test = request.dao.insert( table = "test", data = data );
+
+          $assert.isTrue( test.len() == 10 );
+          $assert.isTrue( test[ 5 ] == 5 );
+
+          var retrieve = request.dao.read( "test" );
+          $assert.isTrue( retrieve.recordCount == 10 );
+     }
+     function bulkInsertQuery() hint="I test inserting an query object of data into the a table." returntype="any" output="false" test{
+          var data = [];
+          request.dao.execute("truncate test");
+          for( i = 1; i <= 10; i++ ){
+               data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
+          }
+          var qry = queryNew("test,testDate", "varchar,datetime", data );
+          var test = request.dao.insert( table = "test", data = qry );
 
           $assert.isTrue( test.len() == 10 );
           $assert.isTrue( test[ 5 ] == 5 );
