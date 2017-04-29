@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.90
-		@updated 3/31/2017
+		@version 0.0.92
+		@updated 4/7/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -215,14 +215,14 @@
 		/**
 		* I insert data into a table in the database.  If inserting a single record I return the generated ID, if an array of records I return an array of IDs
 		* @table Name of table to insert data into.
-		* @data Struct or array of structs of name value pairs containing data.  Name must match column name.  This could be a form scope
+		* @data Struct or array of structs or a query object with name value pairs containing data.  Name must match column name.  This could be a form scope
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function insert( required string table, required any data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
+		public function insert( required string table, required any data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {}, boolean bulkInsert = false ){
 			var LOCAL = {};
-			if( !isStruct( data ) && !isArray( data ) ){
-				throw( message = "Data must be a struct or an array of structs with key/value pairs where the key matches exactly the column name." );
+			if( !isStruct( data ) && !isArray( data ) && !isQuery( data ) ){
+				throw( message = "Data must be a struct or an array of structs or a query object with key/value pairs where the key matches exactly the column name." );
 			}
 			// Convert to array if a single struct was passed in
 			var __data = isStruct( data ) ? [ data ] : data;
@@ -254,7 +254,7 @@
 			}
 			/// insert it
 			if (!arguments.dryrun){
-				newRecord.append( getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys ) );
+				newRecord.append( getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys, bulkInsert = bulkInsert ) );
 				// Insert has been performed.  If a callback was provided, fire it off.
 				if( isCustomFunction( onFinish ) ){
 					structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRow( newRecord.len() ), "id" = newRecord[ newRecord.len() ] } );
@@ -632,6 +632,9 @@
 		**/
 		public function getColumns( required string table, string prefix = table ){
 			var def = new tabledef( tablename = arguments.table, dsn = variables.dsn );
+			if( !def.instance.tablemeta.columns.count() ){
+				throw( message="Table #table# was not found in #this.getDSN()#" );
+			}
 			var cols = def.getColumns( prefix = prefix );
 			if( !len( trim( cols ) ) ){
 				cols = "*";
@@ -1314,7 +1317,16 @@
 				// if supplied, run query through map closure for custom processing
 
 				if( isNullisClosureValue ){
-					rec = map( row = rec, index = i, cols = colList );
+					var tmpRec = map( row = rec, index = i, cols = colList );
+					// If the return value is not a row struct, it means it was deleted.
+					// This really should be abstracted to a "reduce" function, but I think
+					// it's worth adding to map in this context
+					if( !isDefined( 'tmpRec' ) || !isStruct( tmpRec ) ) {
+						queryDeleteRow( qry, i );
+						continue;
+					}
+					rec = tmpRec;
+
 					// rec = map( rec, i, tempListToArray );
 					// Add any cols that may have been added during the map transformation
 					var newCols = listToArray( structKeyList( rec ) );
@@ -1379,17 +1391,18 @@
 			string fullCountName = "__fullCount"
 		){
 			var recordCount = qry.recordCount;
-			if ( offset > 0){
+			if( returnFullCount ){
+				var fullCount = qry.recordCount;
+				queryAddColumn( qry, fullCountName, listToArray( repeatString( recordCount & ",", fullCount ) ) );
+			}
+
+			if ( offset > 0 ){
 				// remove first n rows
 				qry.removeRows( 0, ( offset < recordCount ) ? offset : recordCount );
 			}
-			// writeDump([qry.recordCount,offset,limit]);abort;
 			if( limit > 0 && qry.recordCount && limit <= qry.recordCount ){
 				// remove last n rows
-				qry.removeRows( limit, qry.recordCount - limit );
-			}
-			if( returnFullCount ){
-				queryAddColumn( qry, fullCountName, listToArray( repeatString( recordCount & ",", qry.recordCount ) ) );
+				qry.removeRows( limit-1, qry.recordCount - limit );
 			}
 
 			return qry;
@@ -1530,7 +1543,8 @@
 
 			<cfelse>
 				<!--- Query of Query --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) ? limit : 9999999999999999999999999999999#">
+				<cfset var fullCount = QoQ[ listFirst( structKeyList( QoQ ) ) ].recordCount>
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0) ? limit : 9999999999999999999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
@@ -1548,8 +1562,10 @@
 						ORDER BY #orderby#
 					</cfif>
 				</cfquery>
+				<cfif val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0)>
+					<cfset queryAddColumn( LOCAL[ name ], '__fullCount', listToArray( repeatString( fullCount & ",", LOCAL[ name ].recordCount ) ) ) />
+				<cfelseif len( trim( limit ) ) && len( trim( offset ) )>
 				<!--- DB Agnostic Limit/Offset for server-side paging --->
-				<cfif len( trim( limit ) ) && len( trim( offset ) )>
 					<cfset LOCAL[ arguments.name ] = pageRecords( LOCAL[ name ], offset, limit ) />
 				</cfif>
 
@@ -1566,7 +1582,7 @@
 		<cfif arguments.returnType eq 'array'>
 			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelseif arguments.returnType eq 'json'>
-			<cfreturn queryToJSON( LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
+			<cfreturn queryToJSON( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelse>
 			<cfscript>
 				var isNullisClosureValue = !isNull( map ) && isClosure( map );
@@ -1575,18 +1591,22 @@
 					var i = 0;
 					for( var rec in LOCAL[ arguments.name ] ){
 						i++;
-						rec = map( row = rec, index = i, cols = columns );
+						var tmpRec = map( row = rec, index = i, cols = columns );
+						// If the return value is not a row struct, it means it was deleted.
+						// This really should be abstracted to a "reduce" function, but I think
+						// it's worth adding to map in this context
+						if( !isDefined( 'tmpRec' ) || !isStruct( tmpRec ) ) {
+							queryDeleteRow( LOCAL[ arguments.name ], i );
+							continue;
+						}
+						rec = duplicate(tmpRec);
 						// Add any cols that may have been added during the map transformation
 						var newCols = rec.keyList().listToArray();
 						for( var newCol in newCols ){
 							if( !queryColumnExists( LOCAL[ arguments.name ], newCol ) ){
-
 								queryAddColumn( LOCAL[ arguments.name ], newCol );
 							}
-						}
-
-						for( var col in newCols ){
-							col = forceLowercaseKeys ? col.lcase() : col;
+							var col = forceLowercaseKeys ? newCol.lcase() : newCol;
 							querySetCell( LOCAL[ arguments.name ], col, rec[ col ], i );
 						}
 					}
