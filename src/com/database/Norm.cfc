@@ -1,5 +1,5 @@
 /**
-*	Copyright (c) 2013-2015, Abram Adams
+*	Copyright (c) 2013-2017, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.4
+*   @version 0.2.10
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 3/2/2016
+*   @updated 02/10/2017
 *   @author Abram Adams
 **/
 
@@ -2175,35 +2175,28 @@ component accessors="true" output="false" {
     **/
 	public any function list(
 		string columns = "",
-		string where = "",
-		string limit = "",
-		string orderby = "",
-		string offset = "",
+		string where,
+		string limit,
+		string orderby,
+		string offset,
 		array excludeKeys = [],
-		any cachedWithin = "",
+		any cachedWithin,
 		string returnType = "query",
-		any map = ""
+		any map,
+		boolean forceLowercaseKeys = false
 	){
 
 		if( columns == "" ){
 			columns = this.getDAO().getSafeColumnNames( this.getTableDef().getColumns() );
 		}
 		var cols = replaceList( lcase( arguments.columns ), lcase( arrayToList( arguments.excludeKeys ) ) , "" );
-		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#|\s", "", "all" );
+		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
+		arguments.table = this.getTable();
+		arguments.name = hash(cols & where & orderby & limit);
+		arguments.columns = cols;
+		var record = variables.dao.read( argumentCollection:arguments );
 
-		var record = variables.dao.read(
-				table = this.getTable(),
-				columns = cols,
-				where = where,
-				orderby = orderby,
-				limit = limit,
-				offset = offset,
-				cachedWithin = cachedWithin,
-				name = hash(cols & where & orderby & limit),
-				returnType = returnType,
-				map = map
-			);
 		return record;
 	}
 
@@ -2218,7 +2211,8 @@ component accessors="true" output="false" {
 		numeric row = 0,
 		string offset = "",
 		array excludeKeys = [],
-		any map = ""
+		any map = "",
+		boolean forceLowercaseKeys = false
 	){
 		return serializeJSON(
 							listAsArray(
@@ -2229,7 +2223,8 @@ component accessors="true" output="false" {
 								row = row,
 								offset = offset,
 								excludeKeys = excludeKeys,
-								map = map
+								map = map,
+								forceLowercaseKeys = forceLowercaseKeys
 							)
 			);
   }
@@ -2245,21 +2240,23 @@ component accessors="true" output="false" {
 		string offset = "",
 		array excludeKeys = [],
 		any cachedWithin = "",
-		any map = ""
+		any map = "",
+		boolean forceLowercaseKeys = false
 	){
-      var LOCAL = {};
-			var ret = list(
-					where = where,
-					columns = columns,
-					limit = limit,
-					orderby = orderby,
-					row = row,
-					offset = offset,
-					excludeKeys = excludeKeys,
-					cachedWithin = cachedWithin,
-					returnType = "array",
-					map = map
-									);
+		var ret = list(
+				where = where,
+				columns = columns,
+				limit = limit,
+				orderby = orderby,
+				row = row,
+				offset = offset,
+				excludeKeys = excludeKeys,
+				cachedWithin = cachedWithin,
+				returnType = "array",
+				map = map,
+				forceLowercaseKeys = forceLowercaseKeys
+			);
+
 		return !!row ? ret[ 1 ] : ret;
 
   }
@@ -2357,7 +2354,7 @@ component accessors="true" output="false" {
 									// });
 									// returnStruct[ arg ] = newArr;
 									var loopLen = arrayLen( returnStruct[ arg ] );
-									if( threaded ){
+									if( threaded && loopLen > 0 ){
 										var threads = "";
 										for( var i = 1; i <= loopLen; i++ ){
 											var threadName = "toStruct#createUUID()#";
@@ -2386,7 +2383,10 @@ component accessors="true" output="false" {
 											}
 										}
 										thread action="join" name="#threads#";
-										returnStruct[ arg ] = cfthread[listLast(threads)].returnStruct;
+										if( !isNull( thread ) ){
+											returnStruct[ arg ] = thread[listLast(threads)].returnStruct;
+										}
+
 									}else{
 										for( var i = 1; i <= loopLen; i++ ){
 											if( isObject( returnStruct[arg][ i ] ) ){
@@ -3201,7 +3201,7 @@ component accessors="true" output="false" {
 	/**
 	* Returns oData metadata ( for oData $metadata endpoint )
 	**/
-	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [] ){
+	public function getODataMetaData( array excludeKeys = variables.meta.privateKeys, ignoreCache = false, array tables = [], array dynamicProperties = [] ){
 
 		var cacheName = "#this.getDAO().getDsn()#-oData-Metadata";
 		if( arrayLen( tables ) ){
@@ -3296,7 +3296,7 @@ component accessors="true" output="false" {
 						"name" = lcase( NORM[ table ].getIDField() )
 					}
 				},
-				"property" = NORM[ table ].generateODataProperties( excludeKeys =  excludeKeys )
+				"property" = NORM[ table ].generateODataProperties( excludeKeys =  excludeKeys, dynamicProperties = dynamicProperties )
 			};
 			if( arrayLen( navigationProperties ) ){
 				entityType[ "navigationProperty" ] = navigationProperties;
@@ -3345,7 +3345,7 @@ component accessors="true" output="false" {
 	* Returns results of arbitrary SQL query
 	**/
 	public function queryProcessor(
-								string table,
+								string table = getTable(),
 								string where = "",
 								string filter = "",
 								string columns = "*",
@@ -3385,29 +3385,9 @@ component accessors="true" output="false" {
 	* "table" and "where" arguments to build the source query that will
 	* then be filtered by the oData filter criteria; as apposed to using
 	* Norm's defined table as the source.
-	* Params
-	* @data: array of structs containing data to be serialized as oData
-	* @table: name of the table to use as the "base" in the oData struct
-	* @filter: oData style filter criteria
-	* @select: list of columns to return - named "select" to be consistent with oData naming convention
-	* @columns: same as select
-	* @orderby: column name(s) to order by
-	* @skip: the offset or starting row to return of the data set (for paging)
-	* @top: number of records to return (for limiting return query size and/or paging)
-	* @version: the version of the oData protocol to serialize as (3 or 4)
-	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
-	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
-	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
-	* 		row - current row as a struct which will contain the current row as a struct.
-	* 		index - the numeric position of the row (1 == first record)
-	* 		cols - an array of column names included in the row
-	*   example: map = function( row, index, cols ){
-	* 				row.append( {"bla":"value"});
-	* 				return row;
-	* 			 };
 	**/
-	public function arrayAsOData(
-								array data,
+	public function queryAsOData(
+								any qry,
 								string table,
 								string where = "",
 								string filter = "",
@@ -3416,87 +3396,48 @@ component accessors="true" output="false" {
 								string skip = "",
 								string top = "",
 								numeric version = getODataVersion(),
-								any map = "" ){
+								any map = "",
+								boolean forceLowercaseKeys = false ){
 
 		var $filter = parseODataFilter( filter );
+		// If instructed to, re-order the query
+		if( len( trim( orderBy ) ) ){
+			qry = getDao().read( sql = "SELECT * FROM qry order by #orderby#", QoQ = {qry:qry} );
+		}
 		// serialize and return filtered query as oData object.
-		var rows = serializeODataRows( data );
+		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
 			meta[ "base" ] &= ":" & where;
 		}
-		return serializeODataResponse( version, rows, meta );
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
-	* Wrapper for arrayAsOData. Used for code clarity.
-	* @data: query object containing data to be serialized as oData
-	* SEE arrayAsOdata for the rest of the arguments
-	**/
-	public function queryAsOData(
-								query data,
-								string table,
-								string where = "",
-								string filter = "",
-								string columns = "*",
-								string orderby = "",
-								string skip = "",
-								string top = "",
-								numeric version = getODataVersion(),
-								any map = "" ){
-		arguments.data = getDao().queryToArray( qry = data, map = map );
-		return arrayAsOData( argumentCollection:arguments );
-
-	}
-
-	/**
-	* Returns a list of the current entity collection (filtered/ordered based on query args) in an oData format.
-	* Params
-	* @filter: oData style filter criteria
-	* @select: list of columns to return - named "select" to be consistent with oData naming convention
-	* @columns: same as select
-	* @orderby: column name(s) to order by
-	* @skip: the offset or starting row to return of the data set (for paging)
-	* @top: number of records to return (for limiting return query size and/or paging)
-	* @excludeKeys = columns to exclude from results
-	* @version: the version of the oData protocol to serialize as (3 or 4)
-	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
-	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
-	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
-	* 		row - current row as a struct which will contain the current row as a struct.
-	* 		index - the numeric position of the row (1 == first record)
-	* 		cols - an array of column names included in the row
-	*   example: map = function( row, index, cols ){
-	* 				row.append( {"bla":"value"});
-	* 				return row;
-	* 			 };
+	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
 	**/
 	public function listAsOData(
+								string table = getTable(),
 								string filter = "",
 								string select = "",  // columns. using "select" to be consistent with oData naming
 								string columns = select,
-								string orderby = "",
-								string skip = "",
-								string top = "",
+								string orderby,
+								string skip,
+								string offset = skip,
+								string top,
+								string limit = top,
 								array excludeKeys = variables.meta.privateKeys,
 								numeric version = getODataVersion(),
-								any cachedWithin = "",
-								any map = "" ){
-		var $filter = parseODataFilter( filter );
+								any cachedWithin,
+								any map,
+								boolean forceLowercaseKeys = false ){
 
-		var list = listAsArray(
-								where = len( trim( $filter ) ) ? "WHERE " & preserveSingleQuotes( $filter ) : "",
-								columns = columns,
-								orderby = orderby,
-								offset = skip,
-								limit = top,
-								excludeKeys = excludeKeys,
-								cachedWithin = cachedWithin,
-								map = map
-							);
-		var rows = serializeODataRows( list );
+		var $filter = parseODataFilter( filter );
+		arguments.where = len( trim( $filter ) ) ? "WHERE (1=1) AND " & preserveSingleQuotes( $filter ) : "";
+		var list = listAsArray( argumentCollection:arguments );
+		var data = serializeODataRows( list );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1 };
-		return serializeODataResponse( version, rows, meta );
+		return serializeODataResponse( version, data, meta );
 
 	}
 	/**
@@ -3510,32 +3451,114 @@ component accessors="true" output="false" {
 		return serializeODataResponse( version, data );
 	}
 
+	/**
+	*	Parses oData filters into SQl statements
+	**/
 	public function parseODataFilter( filter ){
+		// var first = filter;
 		if( len(trim( filter ) ) ){
 			/* Parse oData fuzzy filters */
+
+			filter = this.parseSubstringOf( filter );
+
+			// AA 12/2/2016 - Removed below regex replaces and changed to parseSubstringOf() call above to better handle various uses uf substringof() oData calls.
+			/*
+			// step 1 replace substringof with 3+ terms (SQL "IN" statements)
+			filter = rereplacenocase( filter, "\(substringof\(([^\),]+(?:,[^\),]+)+),(\w+)\)\s+((eq|\=)\s+true|(neq|\!\=)\s+false)\)", '(\2 IN ($queryParam(value="\1",list=true)$)', 'all' );
+			filter = rereplacenocase( filter, "\(substringof\(([^\),]+(?:,[^\),]+)+),(\w+)\)\s+((eq|\=)\s+false|(neq|\!\=)\s+true)\)", '(\2 NOT IN ($queryParam(value="\1",list=true)$)', 'all' );
+			// step 2 replace substringof with 2 terms (SQL "LIKE" statements)
+			filter = rereplacenocase ( filter, "\(substringof\((\w+),(\w+)\)\s+((eq|\=)\s+true|(neq|\!\=)\s+false)\)", '(\2 LIKE $queryParam(value="%\1%")$)', 'all');
+			filter = rereplacenocase ( filter, "\(substringof\((\w+),(\w+)\)\s+((eq|\=)\s+false|(neq|\!\=)\s+true)\)", '(\2 NOT LIKE $queryParam(value="%\1%")$)', 'all');
+			*/
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bcontains\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\indexof\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="%\2%")$', 'all' );
 			filter = reReplaceNoCase( filter, '\bindexof\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="%\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\s-1', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\sfalse', '\2 NOT like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*?''(.*?)''\s*,\s*(.*?)\s*?\)\seq\strue', '\2 like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bsubstringof\b\(\s*''(.*?)''\s*,\s*(.*?)(\)\s*?|$)', '\2 like $queryParam(value="%\1%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', '\1 NOT like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),''(.*?)''(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
-			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(.*?)\s*,\s*''(.*?)''\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
+
+
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s(-1|false)', '\1 NOT like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s(1|true)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bstartswith\b\(\s*(.*?),[\'']*(.*?)[\'']*(\)|$)', '\1 like $queryParam(value="\2%")$', 'all' );
+			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*?(.*?)\s*,\s*[\'']*(.*?)[\'']*\s*?\)\seq\s-1', ' NOT like $queryParam(value="%\2")$\3', 'all' );
 			filter = reReplaceNoCase( filter, '\bendswith\b\(\s*(.*?)(\)|$)', ' like $queryParam(value="%\2")$\3', 'all' );
 			/* TODO: figure out what "any|some" and "all|every" filters are for and factor them in here */
 			/* Parse oDatajs filter operators */
-			filter = reReplaceNoCase( filter, '\s(eq|==|Equals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' = $queryParam(value="\2")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s(.*?)(\)|$|\sand\s|\sor\s)', ' != $queryParam(value="\2")$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s(.*?)(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
-			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s(.*?)(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(eq|==|Equals*)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' = $queryParam(value="\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(ne|\!=|NotEquals)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' != $queryParam(value="\2")$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lte|le|<=|LessThanOrEqual)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' <= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gte|ge|>=|GreaterThanOrEqual)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' >= $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(lt|<|LessThan)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' < $queryParam(value=\2)$\3', 'all' );
+			filter = reReplaceNoCase( filter, '\s(gt|>|GreaterThan)\s[''|"]*(.*?)[''|"]*(\)|$|\sand\s|\sor\s)', ' > $queryParam(value=\2)$\3', 'all' );
+
+			// Only way to allow "is null" filters.
+			filter = reReplaceNoCase( filter, '\s\=\s\$queryParam\(value\=\"#getDao().getNullValue()#\"\)\$', ' is null', 'all' );
+			filter = reReplaceNoCase( filter, '\s\!\=\s\$queryParam\(value\=\"#getDao().getNullValue()#\"\)\$', ' is not null', 'all' );
+			filter = reReplaceNoCase( filter, '([a-zA-Z0-9]+?)\sis null', ' NULLIF( \1, "" ) IS NULL  ', 'all' );
+			filter = reReplaceNoCase( filter, '([a-zA-Z0-9]+?)\sis not null', ' NULLIF( \1, "" ) IS NOT NULL  ', 'all' );
 		}
+		// writeDump([first,filter]);abort;
 		return filter;
 	}
+
+	/**
+	*	Parse out the all of the "substringof()" oData filters in a given string into SQL IN or LIKE statements
+	**/
+	public function parseSubstringOf( filter ){
+		var tmp = filter;
+		filter = reReplaceNoCase( filter, '(substringof\(.*?\)\s.*?[neq|eq]+\s(true|false|0|1))', '#chr( 755 )#parseSubstringOf(\1)#chr( 755 )#', 'all' );
+		var ret = filter.listToArray( chr( 755 ) );
+		ret = ret.reduce( function( prev, cur ){
+    		if( isNull( prev ) ){
+        		prev = "";
+    		}
+    		if( left( trim( cur ), 16 ) == 'parseSubstringOf' ){
+            	var substrToken = cur.listRest( '(' );
+	            substrToken = mid( substrToken, 1, substrToken.len()-1);
+	            substrToken = reReplaceNoCase( substrToken, 'substringof\((.*?)\)(.*)', '\1|\2' );
+	            var token = substrToken.listRest( '|' ).listToArray( ' ' );
+	            token.prepend( listFirst( substrToken, '|' ) );
+	            return prev & " " & substringof( token );
+	        }else{
+	            return prev & " " & cur;
+	        }
+		});
+
+    	return ret.replace( chr( 755 ), '', 'all' );
+	}
+
+	/**
+	* Parses a single "substringof()" filter into either an SQL IN or LIKE statement
+	* params should be an array with three items: ["comma separated list of values", "operator (eq|neq)", "boolean"]
+	**/
+	public function substringof( params ){
+		var args = params[ 1 ].listToArray();
+		if( args.len() ){
+        	var field = args[ args.len() ];
+        	var opr = params[ 2 ];
+        	var bool = params[ 3 ];
+        	bool = ( opr == 'eq' || opr == '=' ) ? bool : !bool;
+
+        	var value = args.reduce( function( prev, cur, idx ){
+	            if( isNull( prev ) ){
+	                return [ cur ];
+	            }else{
+	                // last item in list is always field name
+	                return idx >= args.len() ? prev : prev.append( cur );
+	            }
+	        });
+    	}
+
+	    var inLike = value.len() <= 1 ? 'LIKE' : 'IN';
+	    var val = value.toList();
+	    if( inLike == 'LIKE' ){
+	    	// strip any quotes if they exist, then wrap in %
+	    	val = "%#trim( val.reReplace( "['|""](.*?)['|""]", '\1' ) )#%";
+	    }
+	    var paramedValue = '$queryParam( value = "#val#", list = "#value.len() > 1#" )$';
+
+	    return "( #field# #!bool ? 'NOT' : ''# #inLike##inLike == 'IN' ? '(' : ''# #paramedValue# #inLike == 'IN' ? ')' : ''# )";
+	}
+
 	/**
 	* Takes an array of structs and converts it to an oData formatted array of structs
 	**/
@@ -3666,12 +3689,15 @@ component accessors="true" output="false" {
 	/**
 	* I return an array of structs containing all of the oData friendly properties of the entity (table).
 	**/
-	private function generateODataProperties( array excludeKeys = variables.meta.privateKeys ){
+	private function generateODataProperties( array excludeKeys = variables.meta.privateKeys, array dynamicProperties = [] ){
 		var props = [];
+		var properties = duplicate( variables.meta.properties );
+		properties.append( dynamicProperties, true );
+
 		//var prop = { "validators" = [] };
 		var prop = { };
 
-		for ( var col in variables.meta.properties ){
+		for ( var col in properties ){
 			/* TODO: flesh out relationships here */
 			if( !structKeyExists( col, 'type') || ( structKeyExists( col, 'norm_persistent' ) && !col.norm_persistent ) || arrayFindNoCase( excludeKeys, col.name ) ){
 				continue;

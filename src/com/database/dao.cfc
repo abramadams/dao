@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2015, Abram Adams
+*	Copyright (c) 2007-2017, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.81
-		@updated 3/2/2016
+		@version 0.0.90
+		@updated 3/31/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -81,6 +81,7 @@
 	<cfproperty name="transactionLogFile" type="string">
 	<cfproperty name="tableDefs" type="struct">
 	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
+	<cfproperty name="nullValue" hint="The value to pass in if you want the queryParam to consider it null.  Default is $null">
 
 	<cfset _resetCriteria() />
 	<cfscript>
@@ -102,7 +103,8 @@
 								  boolean writeTransactionLog = false,
 								  string transactionLogFile = "#expandPath('/')#sql_transaction_log.sql",
 								  boolean useCFQueryParams = true,
-								  boolean autoParameterize = false ){
+								  boolean autoParameterize = false,
+								  string nullValue = "$null"  ){
 			// If DSN wasn't supplied, see if there is a default dsn.
 			if( !len( trim( dsn ) ) ){
 				var = appMetaData = getApplicationMetadata();
@@ -115,6 +117,8 @@
 			//This is the datasource name for the system
 			setDsn( arguments.dsn );
 			setWriteTransactionLog( arguments.writeTransactionLog );
+
+			setNullValue( nullValue );
 
 			// auto-detect the database type.
 			if ( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
@@ -209,53 +213,63 @@
 
 
 		/**
-		* I insert data into a table in the database.
+		* I insert data into a table in the database.  If inserting a single record I return the generated ID, if an array of records I return an array of IDs
 		* @table Name of table to insert data into.
-		* @data Struct of name value pairs containing data.  Name must match column name.  This could be a form scope
+		* @data Struct or array of structs of name value pairs containing data.  Name must match column name.  This could be a form scope
 		* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 		* @onFinish Will execute when finished inserting.  Can be used for audit logging, notifications, post update processing, etc...
 		**/
-		public function insert( required string table, required struct data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
+		public function insert( required string table, required any data, boolean dryRun = false, any onFinish = "", boolean insertPrimaryKeys = false, any callbackArgs = {} ){
 			var LOCAL = {};
+			if( !isStruct( data ) && !isArray( data ) ){
+				throw( message = "Data must be a struct or an array of structs with key/value pairs where the key matches exactly the column name." );
+			}
+			// Convert to array if a single struct was passed in
+			var __data = isStruct( data ) ? [ data ] : data;
+
 			if( !structKeyExists( variables.tabledefs, arguments.table ) ){
 				variables.tabledefs[ arguments.table ] = new tabledef( tablename = arguments.table, dsn = getDSN() );
 			}
 			var LOCAL.table = duplicate( variables.tabledefs[ arguments.table ] );
 			var columns = LOCAL.table.getColumns();
-			var row = LOCAL.table.addRow();
+			var newRecord = [];
+			for( var dataRow in __data ){
 
-			// Iterate through each column in the table and either set the value with what's in the arguments.data struct
-			// or set it to the default value defined by the table itself.
-			for( var column in listToArray( columns ) ){
-				param name="arguments.data.#column#" default="#LOCAL.table.getColumnDefaultValue( column )#";
-				if ( structKeyExists( arguments.data, column ) ){
-					if( column == LOCAL.table.getPrimaryKeyColumn()
-						&&  LOCAL.table.getTableMeta().columns[ column ].type != 4
-						&& !len( trim( arguments.data[ column ] ) ) ){
-						LOCAL.table.setColumn( column = column, value = createUUID(), row = row );
-					}else{
-						 LOCAL.table.setColumn( column = column, value = arguments.data[ column ], row = row);
+				var row = LOCAL.table.addRow();
+
+				// Iterate through each column in the table and either set the value with what's in the arguments.data struct
+				// or set it to the default value defined by the table itself.
+				for( var column in listToArray( columns ) ){
+					param name="dataRow.#column#" default="#LOCAL.table.getColumnDefaultValue( column )#";
+					if ( structKeyExists( dataRow, column ) ){
+						if( column == LOCAL.table.getPrimaryKeyColumn()
+							&&  LOCAL.table.getTableMeta().columns[ column ].type != 4
+							&& !len( trim( dataRow[ column ] ) ) ){
+							LOCAL.table.setColumn( column = column, value = createUUID(), row = row );
+						}else{
+							 LOCAL.table.setColumn( column = column, value = dataRow[ column ], row = row);
+						}
 					}
 				}
 			}
 			/// insert it
 			if (!arguments.dryrun){
-				var newRecord = getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys );
+				newRecord.append( getConn().write( tabledef = LOCAL.table, insertPrimaryKeys = insertPrimaryKeys ) );
+				// Insert has been performed.  If a callback was provided, fire it off.
+				if( isCustomFunction( onFinish ) ){
+					structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRow( newRecord.len() ), "id" = newRecord[ newRecord.len() ] } );
+					onFinish( argumentCollection:callbackArgs );
+				}
 			}else{
-				return {
-						"Data" = arguments.data,
+				newRecord.append( {
+						"Data" = dataRow,
 						"Table Instance" = LOCAL.table,
 						"Table Definition" = LOCAL.table.getTableMeta(),
 						"Records to be Inserted" = LOCAL.table.getRows()
-					};
-			}
-			// Insert has been performed.  If a callback was provided, fire it off.
-			if( isCustomFunction( onFinish ) ){
-				structAppend( arguments.callbackArgs, { "table" = arguments.table, "data" = LOCAL.table.getRows(), "id" = newRecord } );
-				onFinish( argumentCollection:callbackArgs );
+				});
 			}
 
-			return newRecord;
+			return newRecord.len() > 1 ? newRecord : newRecord[ 1 ];
 		}
 
 		/**
@@ -306,7 +320,7 @@
 				}
 
 				if( structKeyExists( arguments.data, column )
-					&& compare( currentData[ column ][ 1 ].toString(), arguments.data[ column ].toString() ) ){
+					&& compare( isNull( currentData[ column ][ 1 ] ) ? "" : currentData[ column ][ 1 ].toString(), isNull( arguments.data[ column ] ) ? "" : arguments.data[ column ].toString() ) ){
 
 					// This will cause dao.update to only update the columns that have changed.
 					// This will not only make the update slightly faster, but it will cut down
@@ -681,7 +695,7 @@
 				// default to varchar
 				arguments.cfsqltype = "cf_sql_varchar";
 			}
-			returnStruct = queryParamStruct( value = trim( arguments.value ), cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
+			returnStruct = queryParamStruct( value = arguments.value, cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
 			returnString = '#chr(998)#list=#chr(777)##returnStruct.list##chr(777)# null=#chr(777)##returnStruct.null##chr(777)# cfsqltype=#chr(777)##returnStruct.cfsqltype##chr(777)# value=#chr(777)##returnStruct.value##chr(777)##chr(999)#';
 			return returnString;
 		}
@@ -817,6 +831,17 @@
 					tmp.isList = false;
 				}else{
 					tmp.isList = mid( tempParam, tempList.pos[2], tempList.len[2] );
+				}
+
+				var tempNull = reFindNoCase( 'null\=#chr( 777 )#(.*?)#chr( 777 )#', tempParam, 1, true );
+
+				tempNull = arrayLen( tempNull.pos ) >= 2 ? mid( tempParam, tempNull.pos[2], tempNull.len[2] ) : false;
+				tmp.null = isBoolean( tempNull ) ? tempNull : false;
+				if( tmp.null && listLast( trim( tmp.before ), " " ) == '=' ){
+					tmp.before = listDeleteAt( tmp.before, listLen( tmp.before, ' ' ), ' ' ) & " IS ";
+				}
+				if( tmp.null && ( listLast( trim( tmp.before ), " " ) == '!=' ||  listLast( trim( tmp.before ), " " ) == '<>' ) ){
+					tmp.before = listDeleteAt( tmp.before, listLen( tmp.before, ' ' ), ' ' ) & " IS NOT ";
 				}
 
 				arrayAppend( LOCAL.statements, tmp );
@@ -992,7 +1017,7 @@
 					tmpString = reReplaceNoCase( tmpString, 'value="=','value="', "all" );
 
 					// Clean up blanks
-					tmpString = reReplaceNoCase( tmpString, "''",'""', "all" );
+					tmpString = reReplaceNoCase( tmpString, "''",'\"\"', "all" );
 					// Clean up empty {}s
 					tmpString = reReplaceNoCase( tmpString, '}"{}','}"', "all" );
 
@@ -1018,7 +1043,9 @@
 													value = structKeyExists( tmpString, 'value' ) ? tmpString.value : '',
 													cfsqltype = structKeyExists( tmpString, 'cfsqltype' ) ? tmpString.cfsqltype : '',
 													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
-													null = structKeyExists( tmpString, 'null' ) ? tmpString.null : false
+													null = structKeyExists( tmpString, 'null' ) ? tmpString.null :
+														reReplace( tmpString.value, '"|''', '', 'all') == this.getNullValue()
+														? true : false
 												);
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
 					if ( isStruct( evalString ) ){
@@ -1189,13 +1216,13 @@
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
 				}
 			}else{
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value)#" );
+					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
 				}
 			}
 			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
@@ -1228,7 +1255,7 @@
 		* I return the query as an array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToArray( required query qry, any map ){
+		public function queryToArray( required query qry, any map, boolean forceLowercaseKeys = false ){
 			var queryArray = [];
 
 			// Using getMetaData instead of columnList to preserve case. Using qry.getMetaData().getColumnLabels()
@@ -1242,15 +1269,27 @@
 				var sqlString = qry.getMetadata().getExtendedMetaData().sql;
 			}
 
-			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString );
+			var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString & " " );
+			if( !tablesInQry.len() ){
+				throw("Unable to determine table name(s) in query");
+			}
 			var tableName = listLast( tablesInQry[ 1 ], ' ' );
 
 			// Check for the tabledef object for this table, if it doesn't already exist, create it
 			if( !structKeyExists( variables.tabledefs, tableName) ){
 				variables.tabledefs[ tableName ] = new tabledef( tablename = tableName, dsn = getDSN() );
 			}
-			// KNOWN ISSUE: This does not retain the column order of the original sql string
-			var colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
+
+			// Grabs column names preserving case.
+			// This could have been used on a table based query
+			// but it relies on the case of the typed in columns in
+			// the sql statement, not necessarily the true column name case.
+			var colList = _getQueryColumnNames( qry );
+
+			if( !arrayLen( colList ) ){
+				// KNOWN ISSUE: This does not retain the column order of the original sql string
+				colList = listToArray( structKeyList( variables.tabledefs[ tableName ].getTableMeta().columns ) );
+			}
 			// Support for JOIN tables
 			if( findNoCase( "JOIN ", sqlString ) ){
 				// When ACF10 support is no longer needed, replace this with member & reduce functions.
@@ -1264,30 +1303,7 @@
 				}
 				arrayAppend( colList, listToArray( structKeyList( variables.tabledefs[ tmpSQLJoinTable ].getTableMeta().columns ) ), true );
 				// Since joined tables typically have aliased columns we'll merge all the query columns;
-				// NOTE: ACF doesn't support queryObject.getColumn()...
-				arrayAppend( colList, structKeyExists( qry, 'getColumns' ) ? qry.getColumns() : qry.getColumnNames(), true );
-			}
-			// If the query was a query of queries the "from" will not be a table and therefore
-			// will not have returned any columns.  We'll just ignore the need for preserving case
-			// and include the query columns as is assuming the source sql provides the desired case.
-			if( !arrayLen( colList ) ){
-				// Grabs column names preserving case.
-				// This could have been used on a table based query
-				// but it relies on the case of the typed in columns in
-				// the sql statement, no necessarily the true column name case.
-				colList = qry.getColumnNames();
-				// NOTE: getColumnNames() returns a native Java array, which does
-				// not inherently work like a CF array; so we must convert to a CF
-				// array.  In Railo/Lucee we can use arrayMerge to convert to array
-				// but this does not exist in ACF.  ACF's array functions fail (i.e. arrayAppend)
-				// on this type of array, so the only way I've found to make it native in
-				// ACF is to serialize then deserialize the array.  Unfortunately this hack
-				// doesn't seem to work in Railo/Lucee, thus the logic below.
-				if( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
-					colList = arrayMerge( [], colList );
-				}else{
-					colList = deSerializeJSON( serializeJSON( colList ) );
-				}
+				arrayAppend( colList, _getQueryColumnNames( qry ), true );
 			}
 			var i = 0;
 			var isNullisClosureValue = !isNull( map ) && isClosure( map );
@@ -1298,8 +1314,8 @@
 				// if supplied, run query through map closure for custom processing
 
 				if( isNullisClosureValue ){
-					// rec = map( row = rec, index = i, cols = listToArray( qry.columnList ) );
-					rec = map( rec, i, tempListToArray );
+					rec = map( row = rec, index = i, cols = colList );
+					// rec = map( rec, i, tempListToArray );
 					// Add any cols that may have been added during the map transformation
 					var newCols = listToArray( structKeyList( rec ) );
 					for( var newCol in newCols ){
@@ -1311,18 +1327,42 @@
 
 				for( var col in colList ){
 					if( structKeyExists( rec, col ) ){
-						structAppend( cols, {'#col#' = rec[col] } );
+						if( forceLowercaseKeys ){
+							structAppend( cols, {'#lcase(col)#' = rec[col] } );
+						}else{
+							structAppend( cols, {'#col#' = rec[col] } );
+						}
 					}
 				}
 				arrayAppend( queryArray, cols );
 			}
 			return queryArray;
 		}
+
+		/**
+		* Returns an array of column names included in the given query (preserves case)
+		**/
+		public function _getQueryColumnNames( required query qry ){
+			// NOTE: getColumnNames() returns a native Java array, which does
+			// not inherently work like a CF array; so we must convert to a CF
+			// array.  In Railo/Lucee we can use arrayMerge to convert to array
+			// but this does not exist in ACF.  ACF's array functions fail (i.e. arrayAppend)
+			// on this type of array, so the only way I've found to make it native in
+			// ACF is to serialize then deserialize the array.  Unfortunately this hack
+			// doesn't seem to work in Railo/Lucee, thus the logic below.
+			// NOTE: ACF doesn't support queryObject.getColumn()... It also doesn't return a real CF array
+			// so we have to serialize/deserialize to make it an array of structs that ACF can handle
+			if( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
+				return arrayMerge( [], qry.getColumns() );
+			}else{
+				return deSerializeJSON( serializeJSON( qry.getColumnNames() ) );
+			}
+		}
 		/**
 		* I return the query as an JSON array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
 		**/
-		public function queryToJSON( required query qry, any map ){
+		public function queryToJSON( required query qry, any map, boolean forceLowercaseKeys = false ){
 			return serializeJSON( queryToArray( argumentCollection:arguments ) );
 		}
 
@@ -1356,7 +1396,7 @@
 		}
 
 	</cfscript>
-	<!--- @TODO: convert to using new Query() --->
+	<!--- @TODO: convert to using new queryExecute() --->
 	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
 		<cfargument name="sql" required="false" type="string" default="" hint="Either a tablename or full SQL statement.">
 		<cfargument name="params" required="false" type="struct" hint="Struct containing named query param values used to populate the parameterized values in the query (see parameterizeSQL())" default="#{}#">
@@ -1372,6 +1412,7 @@
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
 		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
 		<cfargument name="map" required="false" type="any" hint="A function to be executed for each row in the results ( only used if returnType == array )" default="">
+		<cfargument name="forceLowercaseKeys" required="false" type="boolean" hint="Forced struct keys to lowercase ( only used if returnType == array )" default="false">
 
 		<cfset var tmpSQL = "" />
 		<cfset var tempCFSQLType = "" />
@@ -1379,7 +1420,7 @@
 		<cfset var tmpName = "" />
 		<cfset var idx = "" />
 		<cfset var LOCAL = {} />
-		<!--- where is also a function name in this cfc, so let's localize the arg --->
+		<!--- where is also a function name in this cfc, so let''s localize the arg --->
 		<cfset var _where = isNull( arguments.where ) ? "" : arguments.where/>
 
 		<cfif !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) )>
@@ -1489,7 +1530,7 @@
 
 			<cfelse>
 				<!--- Query of Query --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) ? limit : 9999999999999999999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
@@ -1502,6 +1543,10 @@
 								list="#tmpSQL.statements[idx].isList#">
 						</cfif>
 					</cfloop>
+					<!--- Honor the order by if passed in --->
+					<cfif len( trim( arguments.orderby ) )>
+						ORDER BY #orderby#
+					</cfif>
 				</cfquery>
 				<!--- DB Agnostic Limit/Offset for server-side paging --->
 				<cfif len( trim( limit ) ) && len( trim( offset ) )>
@@ -1519,11 +1564,35 @@
 			<cfthrow errorcode="882" type="DAO.Read.InvalidQueryType" detail="Invalid Query Type for ""DAO.read()""" message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements.">
 		</cfif>
 		<cfif arguments.returnType eq 'array'>
-			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map )  />
+			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelseif arguments.returnType eq 'json'>
-			<cfreturn queryToJSON( LOCAL[arguments.name] )  />
+			<cfreturn queryToJSON( LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelse>
-			<cfreturn LOCAL[arguments.name]  />
+			<cfscript>
+				var isNullisClosureValue = !isNull( map ) && isClosure( map );
+				var columns = listToArray( LOCAL[ arguments.name ].columnList );
+				if( isNullisClosureValue ){
+					var i = 0;
+					for( var rec in LOCAL[ arguments.name ] ){
+						i++;
+						rec = map( row = rec, index = i, cols = columns );
+						// Add any cols that may have been added during the map transformation
+						var newCols = rec.keyList().listToArray();
+						for( var newCol in newCols ){
+							if( !queryColumnExists( LOCAL[ arguments.name ], newCol ) ){
+
+								queryAddColumn( LOCAL[ arguments.name ], newCol );
+							}
+						}
+
+						for( var col in newCols ){
+							col = forceLowercaseKeys ? col.lcase() : col;
+							querySetCell( LOCAL[ arguments.name ], col, rec[ col ], i );
+						}
+					}
+				}
+				return LOCAL[ arguments.name ];
+			</cfscript>
 		</cfif>
 	</cffunction>
 

@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2015, Abram Adams
+*	Copyright (c) 2007-2017, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@
 *		Component	: dao.cfc (MySQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.70
-*	   	@updated 5/14/2015
+*		@version 0.0.73
+*	   	@updated 03/31/2017
+*   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
 *		This component will use MySQL syntax to perform general
@@ -218,12 +219,61 @@
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
 						<cfquery name="__get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
-							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
+							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
 						</cfquery>
 					</cfif>
 				<cfelse>
-					<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
-						SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
+					<cftry>
+
+						<cfquery name="__get" datasource="#getDsn()#" result="results_#name#">
+							SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
+							#arrayToList(listToArray(trim(arguments.columns)))#
+							FROM #arguments.table#
+							<cfif len( trim( arguments.where ) )>
+								<!---
+									Parse out the queryParam calls inside the where statement
+									This has to be done this way because you cannot use
+									cfqueryparam tags outside of a cfquery.
+									@TODO: refactor to use the query.cfc
+								--->
+								<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+									<cfset var simpleValue =  tmpSQL.statements[idx].before />
+									#preserveSingleQuotes(simpleValue)#
+									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
+										<cfqueryparam
+											cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
+											value="#tmpSQL.statements[idx].value#"
+											list="#tmpSQL.statements[idx].isList#"
+											null="#tmpSQL.statements[idx].null#">
+									</cfif>
+								</cfloop>
+								<!--- /Parse out the queryParam calls inside the where statement --->
+
+							</cfif>
+							<cfif len( trim( arguments.orderby ) )>
+								ORDER BY #arguments.orderby#
+							</cfif>
+							<cfif len( trim( arguments.limit ) ) && isNumeric( arguments.limit )>
+								LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer">
+							</cfif>
+						</cfquery>
+
+						<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
+							<cfquery name="count" datasource="#variables.dsn#">
+								select FOUND_ROWS() as found_rows;
+							</cfquery>
+							<cfquery name="__get" dbtype="query" result="results_#name#">
+								SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
+							</cfquery>
+						</cfif>
+
+						<!--- <cfif arguments.table contains "_bulls" or arguments.table contains "vw"><cfthrow></cfif> --->
+
+						<cfcatch type="any">
+						<cfsavecontent variable="out">
+							<cfoutput><pre>
+							SELECT <cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>SQL_CALC_FOUND_ROWS</cfif>
 						#arrayToList(listToArray(trim(arguments.columns)))#
 						FROM #arguments.table#
 						<cfif len( trim( arguments.where ) )>
@@ -238,30 +288,32 @@
 								<cfset var simpleValue =  tmpSQL.statements[idx].before />
 								#preserveSingleQuotes(simpleValue)#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
-									<cfqueryparam
-										cfsqltype="#tmpSQL.statements[idx].cfSQLType#"
-										value="#tmpSQL.statements[idx].value#"
-										list="#tmpSQL.statements[idx].isList#">
+										'#tmpSQL.statements[idx].value#'<br>
+										<!--- cfsqltype="#tmpSQL.statements[idx].cfSQLType#"<br>
+											value="#tmpSQL.statements[idx].value#"<br>
+											list="#tmpSQL.statements[idx].isList#"<br>
+											null="#tmpSQL.statements[idx].null# --->
 								</cfif>
 							</cfloop>
 							<!--- /Parse out the queryParam calls inside the where statement --->
-
 						</cfif>
 						<cfif len( trim( arguments.orderby ) )>
 							ORDER BY #arguments.orderby#
 						</cfif>
 						<cfif len( trim( arguments.limit ) ) && isNumeric( arguments.limit )>
-							LIMIT <cfqueryparam value="#val( arguments.limit )#" cfsqltype="cf_sql_integer"><cfif val( arguments.offset )> OFFSET <cfqueryparam value="#val( arguments.offset )#" cfsqltype="cf_sql_integer"></cfif>
-						</cfif>
-					</cfquery>
-					<cfif len( trim( arguments.limit ) ) GT 0 && isNumeric( arguments.limit )>
-						<cfquery name="count" datasource="#variables.dsn#">
-							select FOUND_ROWS() as found_rows;
-						</cfquery>
-						<cfquery name="__get" dbtype="query" result="results_#name#">
-							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
-						</cfquery>
-					</cfif>
+							LIMIT #val( arguments.limit )#<cfif val( arguments.offset )> OFFSET #val( arguments.offset )#</cfif>
+						</cfif></pre>
+							</cfoutput>
+						</cfsavecontent>
+						<cfoutput>#out#</cfoutput>
+						<cfdump var="#arguments#">
+						<cfdump var="#__get#">
+						<cfdump var="#tmpSQL#">
+						<cfdump var="#cfcatch#">
+						<cfabort>
+						</cfcatch>
+					</cftry>
+
 				</cfif>
 			</cfif>
 
@@ -301,7 +353,7 @@
 		<cfset var cfsqltype = "cf_sql_varchar" />
 		<cfset var tablename = arguments.tabledef.getTableName() />
 		<cfset var col = "" />
-		<cfset var ret = "" />
+		<cfset var ret = [] />
 
 
 		<cfset qry = arguments.tabledef.getRows()/>
@@ -344,8 +396,12 @@
 							</cfif>
 							<cfif not arguments.tabledef.isColumnNullable(col)>
 								<cfset isnull = "false">
-								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) && current[curRow].data eq '0000-00-00 00:00:00' >
-									<cfset current[curRow].data = createTime(0,0,0)/>
+								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) >
+									<cfif current[curRow].data eq 'CURRENT_TIMESTAMP'>
+										<cfset current[curRow].data = ''/>
+									<cfelseif current[curRow].data eq '0000-00-00 00:00:00'>
+										<cfset current[curRow].data = createTime(0,0,0)/>
+									</cfif>
 								</cfif>
 							</cfif>
 							<cfif curRow GT 1>,</cfif>
@@ -362,13 +418,12 @@
 						)
 				</cfsavecontent>
 
-				<cfset ret = getDao().execute(ins)/>
+				<cfset ret.append( getDao().execute(ins) )/>
 
 
 		</cfoutput>
 
-
-		<cfreturn ret />
+		<cfreturn ret.len() gt 1 ? ret : ret[ 1 ] />
 	</cffunction>
 
 	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
@@ -425,8 +480,11 @@
 											<cfset isNull = true/>
 										</cfif>
 									</cfif>
-									<cfif ( cfsqltype contains "date" || cfsqltype contains "time" ) && value eq '0000-00-00 00:00:00' >
+									<cfif ( cfsqltype contains "date" || cfsqltype contains "time" ) && ( value eq '0000-00-00 00:00:00' || value eq 'CURRENT_TIMESTAMP' ) >
 										<cfset isNull = true/>
+										<cfif value eq 'CURRENT_TIMESTAMP'>
+											<cfset value = ''/>
+										</cfif>
 									</cfif>
 									<!---<cfqueryparam value="#value#" cfsqltype="#cfsqltype#" null="#isnull#">--->
 									<!--- <cfif isNull>
@@ -495,8 +553,8 @@
 				</cfquery>
 			</cfcatch>
 		</cftry>
-		<cfset ret.field = get.field>
-		<cfset ret.type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
+		<cfset ret.field = __get.field>
+		<cfset ret.type = getDAO().getCFSQLType( listFirst( __get.type, '(' ) )>
 
 		<cfreturn ret />
 
@@ -515,8 +573,8 @@
 		</cfquery>
 		<cfoutput query="__get">
 			<cfset arrayAppend(ret, structNew())/>
-			<cfset ret[arrayLen(ret)].field = get.field>
-			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( get.type, '(' ) )>
+			<cfset ret[arrayLen(ret)].field = __get.field>
+			<cfset ret[arrayLen(ret)].type = getDAO().getCFSQLType( listFirst( __get.type, '(' ) )>
 		</cfoutput>
 
 		<cfreturn ret />

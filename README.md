@@ -69,6 +69,33 @@ DATA = {
 newID = dao.insert( table = "users", data = DATA );
 // newID would contain the record's auto-incremented PK value
 
+// the `dao.insert` function can also accept an array of structs to insert multiple records.
+DATA = [
+	{
+		"_id" = lcase(createUUID()),
+		"first_name" = "Joe" ,
+		"last_name" = "Shmo",
+		"email" = "jshmo@blahblah.com",
+		"created_datetime" = now()
+	},
+	{
+		"_id" = lcase(createUUID()),
+		"first_name" = "Sam" ,
+		"last_name" = "Miller",
+		"email" = "smiller@blahblah.com",
+		"created_datetime" = now()
+	},
+	{
+		"_id" = lcase(createUUID()),
+		"first_name" = "Diana" ,
+		"last_name" = "Smith",
+		"email" = "dsmith@blahblah.com",
+		"created_datetime" = now()
+	}
+];
+insertedIDs = dao.insert( table = "users", data = DATA );
+// insertedIDs would be an array of auto-incremented PK values for each inserted record
+
 // DAO has a method queryParam() that wraps your values in
 // appropriate cfqueryparam tags.  The method takes 4 args:
 // value - required

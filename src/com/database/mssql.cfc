@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2015, Abram Adams
+*	Copyright (c) 2007-2017, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@
 *		Component	: dao.cfc (MSSQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.68
-*	   	@updated 3/31/2015
+*		@version 0.0.69
+*	   	@updated 3/31/2017
+*   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
 *		This component will use MSSQL syntax to perform general
@@ -181,7 +182,7 @@
 
 						SELECT #arguments.columns#
 						FROM (
-							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [$fullCount], #arguments.columns#
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
 							<!---
@@ -207,14 +208,14 @@
 							</cfif>
 							) t
 						<cfif val( arguments.limit ) GT 0>
-							WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
+							WHERE [$fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
 						</cfif>
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#getDsn()#">
 						SELECT #arguments.columns#
 							FROM (
-								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [$fullCount], #arguments.columns#
 								FROM #arguments.table#
 								<cfif len( trim( arguments.where ) )>
 								<!---
@@ -238,7 +239,7 @@
 								) t
 
 							<cfif val( arguments.limit ) GT 0>
-								WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
+								WHERE [$fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
 							</cfif>
 							<cfif len( trim( arguments.orderby ) )>
 								ORDER BY #arguments.orderby#
@@ -271,7 +272,7 @@
 		<cfset var cfsqltype = "cf_sql_varchar" />
 		<cfset var tablename = arguments.tabledef.getTableName() />
 		<cfset var col = "" />
-		<cfset var ret = "" />
+		<cfset var ret = [] />
 
 
 		<cfset qry = arguments.tabledef.getRows()/>
@@ -332,13 +333,13 @@
 						)
 				</cfsavecontent>
 
-				<cfset ret = getDao().execute( ins )/>
+				<cfset ret.append( getDao().execute( ins ) )/>
 
 
 		</cfoutput>
 
 
-		<cfreturn ret />
+		<cfreturn ret.len() gt 1 ? ret : ret[ 1 ] />
 	</cffunction>
 
 	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am mssql specific." returntype="any" output="false">

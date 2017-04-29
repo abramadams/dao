@@ -744,6 +744,16 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 			$assert.isTrue( ret.keyExists('__metadata') );
 
 		 }
+		function testToStructWithEmptyRecord() test{
+			beforeEach();
+			var testEntity = new com.database.Norm( dao = request.dao, table = "eventLog" );
+			testEntity.loadById(0);
+			$assert.isTrue( structKeyExists( testEntity.toStruct(), 'ID'  ) );
+			var testEntity2 = new com.database.Norm( dao = request.dao, table = "orders" );
+			testEntity2.loadById(0);
+			$assert.isTrue( structKeyExists( testEntity2.toStruct(), 'ID'  ) );
+
+		 }
 
 		 // executes after all tests
 		 function afterTests(){
