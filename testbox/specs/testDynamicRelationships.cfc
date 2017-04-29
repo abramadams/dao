@@ -17,9 +17,9 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		$assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
 		$assert.isTrue( product.isNew() );
 
-		product.load(2381);
+		product.load(1);
 
-		$assert.isTrue( product.getName() == 'ABRAM' );
+		$assert.isTrue( product.getName() == 'Gloves' );
 		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
 
 		$assert.isTrue( product.getProduct_Classes().getID() == 1 );
@@ -30,14 +30,14 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 	function loadEntityAndDynamicOneToManyChildEntityUsingFKNamingConventionAndSaveChildRecord() test{
 		var product = new com.database.Norm( table = "products", dao = request.dao, autoWire = true, debugMode = false );
 
-		request.dao.execute("update product_classes set name = 'Holstein' where ID = 1");
+		request.dao.execute("update product_classes set name = 'Apparel' where ID = 1");
 		$assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
 		$assert.isTrue( product.isNew() );
 
-		product.load(2381);
+		product.load(1);
 
-		$assert.isTrue( product.getName() == 'ABRAM' );
-		$assert.isTrue( product.getProduct_Classes().getName() == 'Holstein' );
+		$assert.isTrue( product.getName() == 'Gloves' );
+		$assert.isTrue( product.getProduct_Classes().getName() == 'Apparel' );
 
 		product.getProduct_Classes().setName( 'TEMP-TEST' );
 		$assert.isTrue( product.getProduct_Classes().getName() == 'TEMP-TEST' );
@@ -46,11 +46,11 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		var prodClassNameTest = request.dao.read("select name from product_classes where ID = 1");
 		$assert.isTrue( prodClassNameTest.name == 'TEMP-TEST' );
 
-		product.getProduct_Classes().setName( 'Holstein' );
+		product.getProduct_Classes().setName( 'Apparel' );
 
 		product.save();
 		prodClassNameTest = request.dao.read("select name from product_classes where ID = 1 ");
-		$assert.isTrue( prodClassNameTest.name == 'Holstein' );
+		$assert.isTrue( prodClassNameTest.name == 'Apparel' );
 
 
 	}
@@ -67,9 +67,9 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		$assert.isTrue( isInstanceOf( product, "com.database.Norm" ) );
 		$assert.isTrue( product.isNew() );
 
-		product.load(2381);
+		product.load(1);
 
-		$assert.isTrue( product.getName() == 'ABRAM' );
+		$assert.isTrue( product.getName() == 'Gloves' );
 		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
 		// writeDump(product.getProductClass().getID());abort;
 		$assert.isTrue( product.getProductClass().getID() == 1 );
@@ -82,9 +82,9 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		$assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
 		$assert.isTrue( company.isNew() );
 
-		company.load(23622);
+		company.load(5);
 
-		$assert.isTrue( company.getName() == 'K & M ATKINS' );
+		$assert.isTrue( company.getName() == 'MR R SHANKS' );
 		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
 		company.hasMany( table = "call_notes", fkColumn = "companies_ID", property = "CallNotes" );
 		$assert.isTrue( company.hasCallNotes() );
@@ -98,9 +98,9 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		$assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
 		$assert.isTrue( company.isNew() );
 
-		company.load(23622);
+		company.load(5);
 
-		$assert.isTrue( company.getName() == 'K & M ATKINS' );
+		$assert.isTrue( company.getName() == 'MR R SHANKS' );
 		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
 		company.hasManyCall_Notes();
 		// writeDump(company.toStruct());abort;

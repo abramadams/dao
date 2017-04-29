@@ -730,7 +730,7 @@ function ImplicitloadRecordByID() test{
 		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10 );
 		var qoq = this.dao.read(
 			sql = "select ID as MainId, products_ID from qry", qoq={qry:query});
-		var ret = testEntity.queryAsOData( data = qoq );
+		var ret = testEntity.queryAsOData( qry = qoq );
 		$assert.isTrue( ret.keyExists('__metadata') );
 
 	 }
@@ -747,10 +747,10 @@ function ImplicitloadRecordByID() test{
 	function testToStructWithEmptyRecord() test{
 		beforeEach();
 		var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
-		testEntity.loadById(0);
+		testEntity.loadById(1);
 		$assert.isTrue( structKeyExists( testEntity.toStruct(), 'ID'  ) );
 		var testEntity2 = new com.database.Norm( dao = this.dao, table = "orders" );
-		testEntity2.loadById(0);
+		testEntity2.loadById(1);
 		$assert.isTrue( structKeyExists( testEntity2.toStruct(), 'ID'  ) );
 
 	 }

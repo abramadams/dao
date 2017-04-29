@@ -2202,7 +2202,7 @@ component accessors="true" output="false" {
 		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
 		arguments.table = this.getTable();
-		arguments.name = hash(cols & where & orderby & limit);
+		arguments.name = hash( createUUID() );
 		arguments.columns = cols;
 		var record = variables.dao.read( argumentCollection:arguments );
 
@@ -3396,9 +3396,31 @@ component accessors="true" output="false" {
 	* "table" and "where" arguments to build the source query that will
 	* then be filtered by the oData filter criteria; as apposed to using
 	* Norm's defined table as the source.
+	* Params
+	* @qry: query object containing data to be serialized as oData
+	* @table: name of the table to use as the "base" in the oData struct
+	* @where: oData style filter criteria
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	* @forceLowercaseKeys: If true will return all keys as lowercase
 	**/
 	public function queryAsOData(
-								any qry,
+								required any qry,
 								string table,
 								string where = "",
 								string filter = "",
@@ -3416,7 +3438,7 @@ component accessors="true" output="false" {
 			qry = getDao().read( sql = "SELECT * FROM qry order by #orderby#", QoQ = {qry:qry} );
 		}
 		// serialize and return filtered query as oData object.
-		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
+		var data = serializeODataRows( isQuery( qry ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
 			meta[ "base" ] &= ":" & where;
@@ -3424,8 +3446,79 @@ component accessors="true" output="false" {
 		return serializeODataResponse( version, data, meta );
 
 	}
+
 	/**
-	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+	* Returns results of array of structs in oData format.  This
+	* essentially does what listAsOData does, except it allows the
+	* "table" and "where" arguments to build the source query that will
+	* then be filtered by the oData filter criteria; as apposed to using
+	* Norm's defined table as the source.
+	* Params
+	* @data: array of structs containing data to be serialized as oData
+	* @table: name of the table to use as the "base" in the oData struct
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	**/
+	public function arrayAsOData(
+								array data,
+								string table,
+								string where = "",
+								string filter = "",
+								string columns = "*",
+								string orderby = "",
+								string skip = "",
+								string top = "",
+								numeric version = getODataVersion(),
+								any map = "" ){
+
+		var $filter = parseODataFilter( filter );
+		// serialize and return filtered query as oData object.
+		var rows = serializeODataRows( data );
+		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
+		if( len(trim( where ) ) ){
+			meta[ "base" ] &= ":" & where;
+		}
+		return serializeODataResponse( version, rows, meta );
+
+	}
+	
+	/**
+	* Returns a list of the current entity collection (filtered/ordered based on query args) in an oData format.
+	* Params
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @excludeKeys = columns to exclude from results
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	* @forceLowercaseKeys: If true will return all keys as lowercase
 	**/
 	public function listAsOData(
 								string table = getTable(),

@@ -118,11 +118,11 @@
 
 
 			var arrPadding = [];
-			// need to make serializable
-			// Store Column Definition in structure for later use
-			if( structKeyExists( this.instance.tablemeta.columns, arguments.column ) ){
+			if( structKeyExists( this.instance.table, arguments.column ) ){
 				return;
 			}
+			// need to make serializable
+			// Store Column Definition in structure for later use
 			this.instance.tablemeta.columns[ arguments.column ] = {
 				sqltype = arguments.type,
 				type = getValidDataType( arguments.type ),

@@ -19,10 +19,19 @@ component{
 	/*this.ormenabled = !!( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) );
 	this.ormsettings={datasource="dao"};*/
 
+	public function onApplicatoinStart(){
+		setupDatabase();
+	}
 	// request start
 	public function onRequestStart( String targetPage ){
 		request.dao = new com.database.dao( dsn = "dao" );
-		// @TODO: Make database setup for each supported database engine
+
+		return true;
+	}
+
+	private function setupDatabase(){
+		
+		var start = getTickCount();
 		if ( request.dao.getDBtype()  == "mssql" ){
 			// MSSQL specific
 			request.dao.execute( "
@@ -111,7 +120,8 @@ component{
 					)
 				" );
 			request.dao.execute("TRUNCATE TABLE [test]");
-
+			
+			// TODO: Add MSSQL specific create tables for orders, order_items, companies, call_notes, products and product_clasess (See mysql create statements for definitions/data)
 
 		} else if ( request.dao.getDBtype() == "mysql" ){
 
@@ -205,16 +215,184 @@ component{
 			     PRIMARY KEY (`ID`)
 			   ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 			");
+
+
+			request.dao.execute("DROP TABLE IF EXISTS `products`");
+			request.dao.execute(
+				sql = "CREATE TABLE `products` (
+						`ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+						`product_classes_ID` int(11) unsigned NOT NULL DEFAULT '0',
+						`name` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+						`description` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+						`price` double DEFAULT NULL,
+						`cost` double DEFAULT NULL,
+						PRIMARY KEY (`ID`) USING BTREE
+						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;"
+			);
+			request.dao.execute(
+				sql = "
+					INSERT INTO products( ID, product_classes_ID, name, description, price, cost )
+					VALUES 
+						( 1, 1, 'Gloves', 'Leather work gloves', 15.00, 3.50 ),
+						( 2, 1, 'Pants', 'Heavy work pants', 45.00, 13.40 ),
+						( 3, 2, 'Jackhammer', 'Jackhammer', 345.00, 116.00 ),
+						( 4, 2, 'Drill', 'Drill', 150.00, 40.00 ),
+						( 5, 3, 'Demolition', 'Demolition', 50.00, 30.00 )
+			       "
+			);
+
+			request.dao.execute("DROP TABLE IF EXISTS `product_classes`");
+			request.dao.execute(
+				sql = "CREATE TABLE `product_classes` (
+						`ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+						`name` varchar(45) CHARACTER SET utf8 DEFAULT NULL,
+						`description` varchar(100) CHARACTER SET utf8 DEFAULT NULL,
+						PRIMARY KEY (`ID`)
+						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;"
+			);
+
+			request.dao.execute(
+				sql = "
+					INSERT INTO product_classes( ID, name, description)
+					VALUES 
+						( 1, 'Apparel', 'Clothing' ),
+						( 2, 'Equipment', 'Equipment' ),
+						( 3, 'Services', 'Non-taxable services' );
+			       "
+			);
+
+			
+			request.dao.execute("DROP TABLE IF EXISTS `companies`");
+			request.dao.execute(
+				sql = "CREATE TABLE `companies` (
+						`ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+						`name` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+						`account_reference` varchar(100) CHARACTER SET utf8 DEFAULT NULL,
+						`email_address` varchar(100) CHARACTER SET utf8 DEFAULT NULL,
+						PRIMARY KEY (`ID`)
+						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;"
+			);
+			request.dao.execute(
+				sql = "
+				INSERT INTO companies ( name, account_reference )
+				VALUES 
+					('M and D Coars and Co', 'C01099'),
+					('ALASTAIR FERGUSON', 'C01100'),
+					('E T Tomlinson & Son', 'C01101'),
+					('A N Other', 'C01102'),
+					('MR R SHANKS', 'C01103'),
+					('R MCCRACKEN', 'C01104'),
+					('R J V Kelso & Son', 'C01105'),
+					('OWEN MARTIN', 'C01106'),
+					('Ballyedmond Castle Farms Ltd', 'C01107'),
+					('W G Johnston', 'C01108'),
+					('G & S E McNiece', 'C01109'),
+					('James McAuley', 'C01110'),
+					('R.M. & R.A. Shepherd', 'C01111'),
+					('D & J Armstrong', 'C01113'),
+					('W Walker & Sons', 'C01115'),
+					('F G Jones & Son', 'C01119'),
+					('RICHARD CHARLES', 'C01120'),
+					('T N Beeston & Son', 'C01122'),
+					('Webber Dairying', 'C01124'),
+					('ST & EE Nickles', 'C01125'),
+					('M L Farming', 'C01127'),
+					('Fluscopike Farms', 'C01129'),
+					('Earl of Plymouth Estates Ltd', 'C01130'),
+					('D L & H & I R Davies', 'C01131'),
+					('Meinbank Farm', 'C01132'),
+					('H & E W Harrison', 'C01133')
+
+			       "
+			);
+
+			request.dao.execute("DROP TABLE IF EXISTS `orders`");
+			request.dao.execute(
+				sql = "
+					CREATE TABLE `orders` (
+						`ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+						`companies_ID` int(11) unsigned DEFAULT NULL,
+						`order_datetime` datetime DEFAULT NULL,
+						`total` double NOT NULL DEFAULT '0',
+						`users_ID` int(11) unsigned DEFAULT NULL,
+						PRIMARY KEY (`ID`)
+						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+					"
+			);
+			request.dao.execute(
+				sql = "
+					INSERT INTO orders ( companies_ID, order_datetime,  users_ID )
+					VALUES
+						(1, '2017-01-12', 1 ),
+						(3, '2017-01-22', 1 ),
+						(5, '2017-05-12', 1 ),
+						(7, '2017-08-01', 1 ),
+						(5, '2017-08-05', 1 ),
+						(2, '2016-11-12', 1 ),
+						(6, '2016-12-12', 1 ),
+						(7, '2017-01-12', 1 ),
+						(8, '2017-01-12', 1 ),
+						(10, '2017-01-12', 1 ),
+						(15, '2017-01-12', 1 ),
+						(9, '2017-01-12', 1 ),
+						(12, '2017-01-12', 1 ),
+						(3, '2017-01-12', 1 ),
+						(2, '2017-01-12', 1 ),
+						(6, '2017-01-12', 1 )
+				"	
+			);
+
+			request.dao.execute("DROP TABLE IF EXISTS `order_items`");
+			request.dao.execute(
+				sql = "CREATE TABLE `order_items` (
+						`ID` int(11) NOT NULL AUTO_INCREMENT,
+						`orders_ID` int(11) unsigned DEFAULT NULL,
+						`companies_ID` int(10) unsigned DEFAULT NULL,
+						`products_ID` int(11) unsigned DEFAULT NULL,
+						`item_price` double NOT NULL DEFAULT '0',
+						PRIMARY KEY (`ID`)
+						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;"
+			);
+			var orders = request.dao.read("orders");
+			var companies = request.dao.read("companies");
+			var products = request.dao.read("products");
+			for( var order in orders ){
+				var productId = randRange(1, products.recordCount );
+				request.dao.insert( "order_items", {orders_ID: order.id, companies_ID: randRange(1,companies.recordCount ), products_ID:productId, price:products.price[ productId ] } )
+			}
+
+			request.dao.execute("DROP TABLE IF EXISTS `call_notes`");
+			request.dao.execute(
+				sql = "
+					CREATE TABLE `call_notes` (
+					`ID` int(10) unsigned NOT NULL AUTO_INCREMENT,
+					`companies_ID` int(10) unsigned DEFAULT NULL,
+					`note` text,
+					`created_datetime` datetime DEFAULT NULL,
+					PRIMARY KEY (`ID`)
+					) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+				"
+			);
+			var callNotes = [
+				{companies_ID:5,note: 'abc', created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() }
+			];
+			request.dao.insert( "call_notes", callNotes );
+			
+			
 		}
 
 		// Model tables
 		var todoItem = new model.TodoItem( dao = request.dao, dropcreate = true, createTableIfNotExist = true );
 
-		local.start = getTickCount();
 
 
-		local.end = getTickCount();
-		writeLog('DB Setup took: ' & (local.end - local.start)/1000 & " seconds..." );
-		return true;
+		var end = getTickCount();
+		writeLog('DB Setup took: ' & (end - start)/1000 & " seconds..." );
 	}
 }
