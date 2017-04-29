@@ -1,7 +1,7 @@
 ﻿<!-----------------------------------------------------------------------
 ********************************************************************************
 Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
-www.coldbox.org | www.ortussolutions.com
+www.ortussolutions.com
 ********************************************************************************
 Author 	 		: Luis Majano
 Date     		: April 20, 2009
@@ -11,7 +11,7 @@ Description		:
 <cfcomponent output="false" hint="The guy in charge of creating mocks">
 
 	<cfscript>
-		instance = structnew();
+		variables.instance = structnew();
 	</cfscript>
 
 	<cffunction name="init" access="public" output="false" returntype="MockGenerator" hint="Constructor">
@@ -36,6 +36,7 @@ Description		:
 		<cfargument name="throwType" 	  		type="string" 	required="false" 	default="" hint="The type of the exception to throw"/>
 		<cfargument name="throwDetail" 	  		type="string" 	required="false" 	default="" hint="The detail of the exception to throw"/>
 		<cfargument name="throwMessage"	  		type="string" 	required="false" 	default="" hint="The message of the exception to throw"/>
+		<cfargument name="throwErrorCode"  		type="string"   required="false" default="" hint="The errorCode of the exception to throw"/>
 		<cfargument name="metadata" 	  		type="any" 		required="true" 	default="" hint="The function metadata"/>
 		<cfargument name="targetObject"	  		type="any" 		required="true" 	hint="The target object to mix in"/>
 		<cfargument name="callLogging" 	  		type="boolean" 	required="false" 	default="false" hint="Will add the machinery to also log the incoming arguments to each subsequent calls to this method"/>
@@ -43,7 +44,7 @@ Description		:
 		<cfargument name="callback" 			type="any" 		required="false"	hint="A callback to execute that should return the desired results, this can be a UDF or closure."/>
 		<!--- ************************************************************* --->
 		<cfscript>
-			var udfOut  		= createObject( "java", "java.lang.StringBuffer" ).init( '' );
+			var udfOut  		= createObject( "java", "java.lang.StringBuilder" ).init( '' );
 			var genPath 		= expandPath( instance.mockBox.getGenerationPath() );
 			var tmpFile 		= createUUID() & ".cfm";
 			var fncMD 			= arguments.metadata;
@@ -121,7 +122,7 @@ Description		:
 
 			// Exceptions? To Throw
 			if( arguments.throwException ){
-				udfOut.append('<cfthrow type="#arguments.throwType#" message="#arguments.throwMessage#" detail="#arguments.throwDetail#" />#instance.lb#');
+				udfOut.append('<cfthrow type="#arguments.throwType#" message="#arguments.throwMessage#" detail="#arguments.throwDetail#" errorCode="#arguments.throwErrorCode#" />#instance.lb#');
 			}
 
 			// Returns Something according to metadata?
@@ -141,13 +142,13 @@ Description		:
 				udfOut.append('
 				<cfif callbackLen neq 0>
 					<cfset fCallBack = this._mockCallbacks[ resultsKey ][ 1 ]>
-					<cfreturn fCallBack()>
+					<cfreturn fCallBack( argumentCollection = arguments )>
 				</cfif>
 				');
 				// Callback Args
 				udfOut.append('
 				<cfif not isSimpleValue( fCallBack )>
-					<cfreturn fCallBack()>
+					<cfreturn fCallBack( argumentCollection = arguments )>
 				</cfif>
 				');
 			}
@@ -201,11 +202,11 @@ Description		:
 	</cffunction>
 
 	<!--- generateCFC --->
-    <cffunction name="generateCFC" output="false" access="public" returntype="any" hint="Generate CFC's according to specs">
+	<cffunction name="generateCFC" output="false" access="public" returntype="any" hint="Generate CFC's according to specs">
 		<cfargument name="extends" 		type="string" required="false" default="" hint="The class the CFC should extend"/>
 		<cfargument name="implements" 	type="string" required="false" default="" hint="The class(es) the CFC should implement"/>
-    	<cfscript>
-			var udfOut 	= createObject("java","java.lang.StringBuffer").init('');
+		<cfscript>
+			var udfOut 	= createObject("java","java.lang.StringBuilder").init('');
 			var genPath = expandPath( instance.mockBox.getGenerationPath() );
 			var tmpFile = createUUID() & ".cfc";
 			var cfcPath = replace( instance.mockBox.getGenerationPath(), "/", ".", "all" ) & listFirst( tmpFile, "." );
@@ -252,14 +253,14 @@ Description		:
 				removeStub( genPath & tmpFile );
 				rethrow;
 			}
-    	</cfscript>
-    </cffunction>
+		</cfscript>
+	</cffunction>
 
-    <!--- generateMethodsFromMD --->
-    <cffunction name="generateMethodsFromMD" output="false" access="private" returntype="any" hint="Generates methods from functions metadata">
-    	<cfargument name="buffer" 	type="any" required="true" hint="The string buffer to append stuff to"/>
+	<!--- generateMethodsFromMD --->
+	<cffunction name="generateMethodsFromMD" output="false" access="private" returntype="any" hint="Generates methods from functions metadata">
+		<cfargument name="buffer" 	type="any" required="true" hint="The string buffer to append stuff to"/>
 		<cfargument name="md" 		type="any" required="true" hint="The metadata to generate"/>
-    	<cfscript>
+		<cfscript>
 			var local 	= {};
 			var udfOut  = arguments.buffer;
 
@@ -302,10 +303,12 @@ Description		:
 
 			// Check extends and recurse
 			if( structKeyExists( arguments.md, "extends") ){
-				generateMethodsFromMD( udfOut, arguments.md.extends );
+				for( var thisKey in arguments.md.extends ){
+					generateMethodsFromMD( udfOut, arguments.md.extends[ thisKey ] );
+				}
 			}
-    	</cfscript>
-    </cffunction>
+		</cfscript>
+	</cffunction>
 
 <!------------------------------------------- PRIVATE ------------------------------------------>
 

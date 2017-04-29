@@ -6,6 +6,11 @@
 			test = getMockBox().createEmptyMock( "testbox.tests.resources.Test" );
 		}
 
+		function testStubInheritedInterfaces(){
+			// If this can be created, then our test has passed.
+			var canBeMockedOne = getMockBox().createStub( implements = "tests.resources.NestedInterface" );
+		}
+
 		function testMockRealMethods(){
 			Test = getMockBox().createMock( "testbox.tests.resources.Test" );
 			test.getData();
@@ -310,14 +315,38 @@
 			// no arguments
 			var mocked = getMockBox().createStub().$("getAmigo").$callback( variables.testFunction );
 			$assert.isEqual( mocked.getAmigo(), testFunction() );
+			// test argument passing
+			$assert.isEqual( mocked.getAmigo( "luis" ), testFunction( "luis" ) );
 
 			// with arguments
 			var mocked = getMockBox().createStub().$("getAmigo").$args( "luis" ).$callback( variables.testFunction );
-			$assert.isEqual( mocked.getAmigo( "luis" ), testFunction() );
+			$assert.isEqual( mocked.getAmigo( "luis" ), testFunction( "luis" ) );
 		}
 
-		private function testFunction(){
-			return "Hola Amigo!";
+		function test$Throws(){
+			var mocked = getMockBox()
+				.createStub()
+				.$( "dontPassThrowToMe" )
+				.$args( "throw" )
+				.$throws(
+					message = "My Custom Exception Message",
+					type = "MyCustomException",
+					detail = "A detail message here."
+				);
+
+			$assert.notThrows(
+				target = function() { mocked.dontPassThrowToMe(); }
+			);
+
+			$assert.throws(
+				target = function() { mocked.dontPassThrowToMe( "throw" ); },
+				type = "MyCustomException",
+				message = "My Custom Exception Message"
+			);
+		}
+
+		private function testFunction(string amigo = "Amigo"){
+			return "Hola #arguments.amigo#!";
 		}
 	</cfscript>
 

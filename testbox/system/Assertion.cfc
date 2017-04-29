@@ -1,8 +1,7 @@
 /**
-********************************************************************************
-Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
-www.coldbox.org | www.ortussolutions.com
-********************************************************************************
+* Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
+* www.ortussolutions.com
+* ---
 * This object represents our Assertion style DSL for Unit style testing
 */
 component{
@@ -352,7 +351,7 @@ component{
 		if( aLength GT 0 ){ return this; }
 
 		// found, so throw it
-		arguments.message = ( len( arguments.message ) ? arguments.message : "The expected target is not empty, actual size [#aLength#]" );
+		arguments.message = ( len( arguments.message ) ? arguments.message : "The expected target is empty." );
 		fail( arguments.message );
 	}
 
@@ -645,10 +644,23 @@ component{
 			try{
 				return getMetadata( arguments.obj ).name;
 			}catch( any e ){
-				return "Uknown Object";
+				return "Unknown Object";
 			}
 		}
 		return arguments.obj.toString();
+	}
+
+	/**
+	* Assert something is JSON
+	* @actual.hint The actual data to test
+	* @message.hint The message to send in the failure
+	*/
+	function isJSON( required any actual, message="" ){
+		arguments.message = ( len( arguments.message ) ? arguments.message : "Expected [#arguments.actual#] to be json" );
+		if( !isJSON( arguments.actual ) ){
+			fail( arguments.message );
+		}
+		return this;
 	}
 
 /*********************************** PRIVATE Methods ***********************************/
