@@ -193,7 +193,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                     SELECT *
                     FROM eventLog
                     ",
-               offset = 1,
+               offset = 0,
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
@@ -202,7 +202,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      function pageTableResultsWithLimitAndOffset() hint="I test the query with server side paging" returntype="any" output="false" test{
           var pagedEvents = request.dao.read(
                table = "eventLog",
-               offset = 1,
+               offset = 0,
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
@@ -211,7 +211,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      function pageImpliedTableResultsWithLimitAndOffset() hint="I test the query with server side paging" returntype="any" output="false" test{
           var pagedEvents = request.dao.read(
                sql = "eventLog",
-               offset = 1,
+               offset = 0,
                limit = 5
           );
           $assert.isTrue( pagedEvents.recordCount == 5 );
@@ -229,8 +229,10 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                offset = 0,
                limit = 5
           );
-          writeDump([pagedEvents,events]);abort;
-          $assert.isTrue( events.ID[2] == pagedEvents.ID[1] );
+          if( pagedEvents.recordCount == pagedEvents.__fullCount || pagedEvents.recordCount != 5 ){
+               writeDump([pagedEvents,events]);abort;
+          }
+          $assert.isTrue( events.ID[1] == pagedEvents.ID[1] );
           $assert.isTrue( pagedEvents.recordCount == 5 );
           $assert.isTrue( pagedEvents.recordCount != pagedEvents.__fullCount );
      }
@@ -263,7 +265,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
-          var qry = queryNew("test,testDate", "varchar,datetime", data );
+          var qry = queryNew("test,testDate", "cf_sql_varchar,cf_sql_date", data );
           var test = request.dao.insert( table = "test", data = qry );
 
           $assert.isTrue( test.len() == 10 );
@@ -281,16 +283,18 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // function bulkUpdate() hint="I update data in the database.  I take a tabledef object containing the tablename and column values. I return the number of records updated." returntype="numeric" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
-     function delete() hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false" test{
-          var newRecordId = request.dao.execute("
-               INSERT INTO eventLog ( event, description, eventDate )
-               VALUES (:event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'})",
-               { event="test to be deleted", description = "This is a description from a named param", eventDate = now(), ID = 0 }
+     function delete() hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." output="false" test{
+          var newRecordId = request.dao.execute(sql =
+               "
+               INSERT INTO eventLog ( ID, event, description, eventDate )
+               VALUES (:ID, :event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'})",
+               params = { event="test to be deleted", description = "This is a description from a named param", eventDate = now(), ID = 10000 }
           );
-          var event = request.dao.read("select * from eventLog where ID = 0");
+
+          var event = request.dao.read("select * from eventLog where ID = 10000");
           $assert.isTrue( event.recordCount );
-          request.dao.delete( table = "eventLog", idField = "ID", recordID = 0 );
-          var event = request.dao.read("select * from eventLog where ID = 0");
+          request.dao.delete( table = "eventLog", idField = "ID", recordID = 10000 );
+          var event = request.dao.read("select * from eventLog where ID = 10000");
           $assert.isTrue( !event.recordCount );
      }
      // function markDeleted() hint="I mark the record as deleted.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." returntype="boolean" output="false" test{

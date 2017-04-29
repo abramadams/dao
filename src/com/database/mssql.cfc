@@ -182,7 +182,7 @@
 
 						SELECT #arguments.columns#
 						FROM (
-							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [$fullCount], #arguments.columns#
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
 							FROM #arguments.table#
 							<cfif len( trim( arguments.where ) )>
 							<!---
@@ -208,14 +208,14 @@
 							</cfif>
 							) t
 						<cfif val( arguments.limit ) GT 0>
-							WHERE [$fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
+							WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
 						</cfif>
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#getDsn()#">
 						SELECT #arguments.columns#
 							FROM (
-								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [$fullCount], #arguments.columns#
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
 								FROM #arguments.table#
 								<cfif len( trim( arguments.where ) )>
 								<!---
@@ -239,7 +239,7 @@
 								) t
 
 							<cfif val( arguments.limit ) GT 0>
-								WHERE [$fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
+								WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
 							</cfif>
 							<cfif len( trim( arguments.orderby ) )>
 								ORDER BY #arguments.orderby#

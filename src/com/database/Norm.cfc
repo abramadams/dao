@@ -317,7 +317,7 @@ component accessors="true" output="false" {
 	private function _loadTableDef( table, ignoreCache = false ){
 		// Pull from cache if it exists, and we aren't told not to
 		if( !ignoreCache ){
-			var tableDefFromCache = cacheGet( "tabledef-#table#" );
+			var tableDefFromCache = cacheGet( "#this.getDao().getDsn()#-tabledef-#table#" );
 			if( !isNull( tableDefFromCache )){
 				if( tableDefFromCache.getIsTable() ){
 					variables._tableDefs[ table ] = tableDefFromCache;
@@ -326,14 +326,14 @@ component accessors="true" output="false" {
 			}
 		}
 		if( structKeyExists( variables._tableDefs, table ) ){
-			cachePut( "tabledef-#table#", variables._tableDefs[ table ], createTimeSpan( 0, 0, 30, 0 ) );
+			cachePut( "#this.getDao().getDsn()#-tabledef-#table#", variables._tableDefs[ table ], createTimeSpan( 0, 0, 30, 0 ) );
 			return variables._tableDefs[ table ];
 		}
 		var tableDef = new tabledef( tableName = table, dsn = getDao().getDSN() );
 		if( tableDef.getIsTable() ){
 			variables._tableDefs[ table ] = tableDef;
 		}
-		cachePut( "tabledef-#table#", tableDef, createTimeSpan( 0, 0, 30, 0 ) );
+		cachePut( "#this.getDao().getDsn()#-tabledef-#table#", tableDef, createTimeSpan( 0, 0, 30, 0 ) );
 
 		return tableDef;
 	}
@@ -907,8 +907,8 @@ component accessors="true" output="false" {
 								querySetCell( qn, col, record[ col ][ rec ] );
 							}
 							if( cacheEntities ){
-								lock type="readonly" name="##-#qn[ idField ][ 1 ]#" timeout="3"{
-									var cachedObject = cacheGet( '#table#-#qn[ idField ][ 1 ]#' );
+								lock type="readonly" name="#this.getDao().getDsn()#-#qn[ idField ][ 1 ]#" timeout="3"{
+									var cachedObject = cacheGet( '#this.getDao().getDsn()#-#table#-#qn[ idField ][ 1 ]#' );
 								}
 							}
 							// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -953,8 +953,8 @@ component accessors="true" output="false" {
 							querySetCell( qn, col, record[ col ][ rec ] );
 						}
 						if( get__cacheEntities() ){
-							lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
-								var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
+							lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
+								var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
 							}
 						}
 						// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -1047,7 +1047,7 @@ component accessors="true" output="false" {
 			,string cfc = ""
 		){
 		// Pull from cache if it exists
-		var cacheName = "empty-NORM-#table#";
+		var cacheName = "#this.getDao().getDsn()#-empty-NORM-#table#";
 		// logIt('newObj $new() called for table: #table#');
 		var tableDef = _loadTableDef( table );
 		if( !tableDef.getIsTable() ){
@@ -1162,8 +1162,8 @@ component accessors="true" output="false" {
 		if( isSimpleValue( ID ) && len( trim( ID ) ) && get__cacheEntities() ){
 			// Load from cache if we've got it
 			// cacheremove( '#this.getTable()#-#ID#' );
-			lock type="readonly" name="#this.getTable()#-#ID#" timeout="3"{
-				var cachedObject = cacheGet( '#this.getTable()#-#ID#' );
+			lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#ID#" timeout="3"{
+				var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#ID#' );
 			}
 			// // logIt('Loaded #this.getTable()#-#ID# from cache');
 			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
@@ -1252,8 +1252,8 @@ component accessors="true" output="false" {
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
 				// First let's put this guy in our cache for faster retrieval.
 				if( get__cacheEntities() ){
-					lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-						cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+					lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+						cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 					}
 				}
 				// Save the pristine state of this entity instance
@@ -1500,8 +1500,8 @@ component accessors="true" output="false" {
 
 		if( isSimpleValue( ID ) && !this.isNew() && get__cacheEntities() ){
 			// Now cache this thing.  The next time we need to call it (within the cachedwithin timespan) we can just pull it from memory.
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		// Save the pristine state of this entity instance
@@ -1676,8 +1676,8 @@ component accessors="true" output="false" {
 		this.registerChildEntity( { name = propertyName, table = mapping.table, type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
 		// Update Cache
 		if( get__cacheEntities() ){
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		// logIt("newobject table: #newObj.getTable()#");
@@ -1741,8 +1741,8 @@ component accessors="true" output="false" {
 			return false;
 		}
 		if( get__cacheEntities() ){
-			lock type="readonly" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				var cachedObject = cacheGet( '#this.getTable()#-#this.getID()#' );
+			lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#' );
 			}
 			if( !isNull( cachedObject ) ){
 				return cachedObject;
@@ -1759,8 +1759,8 @@ component accessors="true" output="false" {
 
 		// Update Cache
 		if( get__cacheEntities() ){
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		return this;
@@ -1868,9 +1868,9 @@ component accessors="true" output="false" {
 
 		// Update Cache
 		if( get__cacheEntities()  ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+			cachePut( '#this.getDao().getDsn()#-#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
+			cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 		}
 		if( returnType is "struct" || returnType is "array" ){
@@ -1901,9 +1901,9 @@ component accessors="true" output="false" {
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-		}
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			}
 		}
 		return this;
 	}
@@ -2758,9 +2758,9 @@ component accessors="true" output="false" {
 
 		// Cache saved object
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-		}
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			}
 		}
 
 		return;

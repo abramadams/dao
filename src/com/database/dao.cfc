@@ -1391,17 +1391,18 @@
 			string fullCountName = "__fullCount"
 		){
 			var recordCount = qry.recordCount;
+			if( returnFullCount ){
+				var fullCount = qry.recordCount;
+				queryAddColumn( qry, fullCountName, listToArray( repeatString( recordCount & ",", fullCount ) ) );
+			}
+
 			if ( offset > 0 ){
 				// remove first n rows
 				qry.removeRows( 0, ( offset < recordCount ) ? offset : recordCount );
 			}
-			// writeDump([qry.recordCount,offset,limit]);abort;
 			if( limit > 0 && qry.recordCount && limit <= qry.recordCount ){
 				// remove last n rows
-				qry.removeRows( limit, qry.recordCount - limit );
-			}
-			if( returnFullCount ){
-				queryAddColumn( qry, fullCountName, listToArray( repeatString( recordCount & ",", qry.recordCount ) ) );
+				qry.removeRows( limit-1, qry.recordCount - limit );
 			}
 
 			return qry;
@@ -1542,7 +1543,8 @@
 
 			<cfelse>
 				<!--- Query of Query --->
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) ? limit : 9999999999999999999999999999999#">
+				<cfset var fullCount = QoQ[ listFirst( structKeyList( QoQ ) ) ].recordCount>
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0) ? limit : 9999999999999999999999999999999#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
@@ -1560,8 +1562,10 @@
 						ORDER BY #orderby#
 					</cfif>
 				</cfquery>
+				<cfif val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0)>
+					<cfset queryAddColumn( LOCAL[ name ], '__fullCount', listToArray( repeatString( fullCount & ",", LOCAL[ name ].recordCount ) ) ) />
+				<cfelseif len( trim( limit ) ) && len( trim( offset ) )>
 				<!--- DB Agnostic Limit/Offset for server-side paging --->
-				<cfif len( trim( limit ) ) && len( trim( offset ) )>
 					<cfset LOCAL[ arguments.name ] = pageRecords( LOCAL[ name ], offset, limit ) />
 				</cfif>
 
@@ -1578,7 +1582,7 @@
 		<cfif arguments.returnType eq 'array'>
 			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelseif arguments.returnType eq 'json'>
-			<cfreturn queryToJSON( LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
+			<cfreturn queryToJSON( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
 		<cfelse>
 			<cfscript>
 				var isNullisClosureValue = !isNull( map ) && isClosure( map );
