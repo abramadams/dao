@@ -605,8 +605,8 @@
 	    **/
 		public void function dropTable( required string table ) output = false{
 			getDao().execute( "
-				IF OBJECT_ID('#this.getTable()#', 'U') IS NOT NULL
-  				DROP TABLE [#this.getTable()#]
+				IF OBJECT_ID('#table#', 'U') IS NOT NULL
+  				DROP TABLE [#table#]
   			" );
 		}
 	</cfscript>

@@ -37,6 +37,7 @@ component accessors="true" output="false" {
 
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" norm_persistent="false";
+	property name="createTableIfNotExist" type="boolean" default="false" norm_persistent="false";
 	/* Relationship properties*/
 	property name="autoWire" type="boolean" norm_persistent="false" hint="If false, I prevent the load() method from auto wiring relationships.  Relationships can be bolted on after load, so this can be used for performance purposes.";
 	property name="dynamicMappings" type="struct" norm_persistent="false" hint="Defines alias to table name mappings.  So if you want the entity property to be OrderItems, but the table is order_items you would pass in { 'OrderItems' = 'order_items' } ";
@@ -111,7 +112,8 @@ component accessors="true" output="false" {
 			}
 
 		}
-		variables.dropcreate = arguments.dropcreate;
+		setDropcreate( dropcreate );
+		setCreateTableIfNotExist( createTableIfNotExist );
 		// used to introspect the given table.
         variables.meta =_getMetaData();
         // Convenience properties so developers can find out which version they are using.
@@ -150,7 +152,7 @@ component accessors="true" output="false" {
 		setDynamicMappingFKConvention( arguments.dynamicMappingFKConvention );
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
-		if( variables.dropcreate ){
+		if( getDropCreate() ){
 			// logIt('droppping #this.getTable()#');
 			dropTable();
 			// logIt('making #this.getTable()#');
@@ -305,6 +307,12 @@ component accessors="true" output="false" {
 		var tableDef = _loadTableDef( table );
 		if( tableDef.getIsTable() ){
 			variables.table = tableDef.getTableName();
+		}else if( getCreateTableIfNotExist() ){
+			// If the table does not exist and we were told to create if it doesn't, create it.
+			// writeDump(table);abort;
+			variables.table = table;
+			makeTable();
+			var tableDef = _loadTableDef( table );
 		}else{
 			throw( message = "Table #table# does not exist", type="NORM.setTable", detail="Table #table# does not exist in #getDao().getDSN()#");
 		}
@@ -1011,9 +1019,10 @@ component accessors="true" output="false" {
 				return this;
 			}
 		}
-
-		// throw error
-		throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
+		if( missingMethodName != '__tmpFunc' ){
+			// throw error
+			throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
+		}
 
 	}
 
@@ -3077,7 +3086,7 @@ component accessors="true" output="false" {
 			}
 		}
 
-		var tableDef = _loadTableDef( getTable );
+		var tableDef = _loadTableDef( this.getTable() );
 		/* var propLen = ArrayLen(variables.meta.properties);
 		var prop = [];
 		var col = {};
@@ -3135,12 +3144,14 @@ component accessors="true" output="false" {
 					comment = '',
 					isDirty = false
 				);
+
 			}
 
 		}
 
 		// create table and set the tabledef property
 		this.setTabledef( getDao().makeTable( tableDef ) );
+		this.setTable( getTable() );
 
 	}
 

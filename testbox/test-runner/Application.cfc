@@ -12,6 +12,7 @@ component{
 	this.mappings[ "/test" ] = getDirectoryFromPath( getCurrentTemplatePath() );
 	this.mappings[ "/com" ] = expandPath( '/src/com' );
 	this.mappings[ "/testbox" ] = expandPath( '/testbox' );
+	this.mappings[ "/model" ] = expandPath( '/model' );
 
 	this.datasource = "dao";
 	// any orm definitions go here.
@@ -206,8 +207,9 @@ component{
 			");
 		}
 
+		// Model tables
+		var todoItem = new model.TodoItem( dao = request.dao, dropcreate = true, createTableIfNotExist = true );
 
-		// MySQL
 		local.start = getTickCount();
 
 
