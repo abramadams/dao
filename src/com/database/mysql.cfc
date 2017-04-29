@@ -630,7 +630,7 @@
 	    **/
 		public tabledef function makeTable( required tabledef tabledef ) output = false{
 
-			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
+			var tableSQL = "CREATE TABLE IF NOT EXISTS #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
 			var primaryKeys = "";
 			var indexes = "";
@@ -650,7 +650,7 @@
 					case 'numeric':
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# int(#structKeyExists( col, 'length' ) ? col.length : '11'#) unsigned #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
 					break;
-					case 'date':
+					case 'date': case 'datetime': case 'timestamp':
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 					case 'tinyint':
@@ -663,7 +663,7 @@
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
 					break;
 					default:
-						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# #listFirst( col.sqltype, ' ' )# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #listRest( col.sqltype, ' ' )# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 				}
 
@@ -691,7 +691,6 @@
 				tableSQL &=  ', PRIMARY KEY (#primaryKeys#)';
 			}
 			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
-
 
 			getDao().execute( tableSQL );
 

@@ -3151,7 +3151,7 @@ component accessors="true" output="false" {
 
 		// create table and set the tabledef property
 		this.setTabledef( getDao().makeTable( tableDef ) );
-		this.setTable( getTable() );
+		variables.table = this.getTable();
 
 	}
 
