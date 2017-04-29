@@ -96,6 +96,10 @@ DATA = [
 insertedIDs = dao.insert( table = "users", data = DATA );
 // insertedIDs would be an array of auto-incremented PK values for each inserted record
 
+// The `dao.insert` function can also accept a query object as long as the query columns match the destination table columns
+DATA = dao.read("imported_users");
+insertedIDs = dao.insert( table = "users", data = DATA );
+
 // DAO has a method queryParam() that wraps your values in
 // appropriate cfqueryparam tags.  The method takes 4 args:
 // value - required

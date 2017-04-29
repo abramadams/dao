@@ -37,6 +37,7 @@ component accessors="true" output="false" {
 
 	/* Table make/reload options */
 	property name="dropcreate" type="boolean" default="false" norm_persistent="false";
+	property name="createTableIfNotExist" type="boolean" default="false" norm_persistent="false";
 	/* Relationship properties*/
 	property name="autoWire" type="boolean" norm_persistent="false" hint="If false, I prevent the load() method from auto wiring relationships.  Relationships can be bolted on after load, so this can be used for performance purposes.";
 	property name="dynamicMappings" type="struct" norm_persistent="false" hint="Defines alias to table name mappings.  So if you want the entity property to be OrderItems, but the table is order_items you would pass in { 'OrderItems' = 'order_items' } ";
@@ -111,7 +112,8 @@ component accessors="true" output="false" {
 			}
 
 		}
-		variables.dropcreate = arguments.dropcreate;
+		setDropcreate( dropcreate );
+		setCreateTableIfNotExist( createTableIfNotExist );
 		// used to introspect the given table.
         variables.meta =_getMetaData();
         // Convenience properties so developers can find out which version they are using.
@@ -150,7 +152,7 @@ component accessors="true" output="false" {
 		setDynamicMappingFKConvention( arguments.dynamicMappingFKConvention );
 		// For development use only, will drop and recreate the table in the database
 		// to give you a clean slate.
-		if( variables.dropcreate ){
+		if( getDropCreate() ){
 			// logIt('droppping #this.getTable()#');
 			dropTable();
 			// logIt('making #this.getTable()#');
@@ -305,6 +307,12 @@ component accessors="true" output="false" {
 		var tableDef = _loadTableDef( table );
 		if( tableDef.getIsTable() ){
 			variables.table = tableDef.getTableName();
+		}else if( getCreateTableIfNotExist() ){
+			// If the table does not exist and we were told to create if it doesn't, create it.
+			// writeDump(table);abort;
+			variables.table = table;
+			makeTable();
+			var tableDef = _loadTableDef( table );
 		}else{
 			throw( message = "Table #table# does not exist", type="NORM.setTable", detail="Table #table# does not exist in #getDao().getDSN()#");
 		}
@@ -317,7 +325,7 @@ component accessors="true" output="false" {
 	private function _loadTableDef( table, ignoreCache = false ){
 		// Pull from cache if it exists, and we aren't told not to
 		if( !ignoreCache ){
-			var tableDefFromCache = cacheGet( "tabledef-#table#" );
+			var tableDefFromCache = cacheGet( "#this.getDao().getDsn()#-tabledef-#table#" );
 			if( !isNull( tableDefFromCache )){
 				if( tableDefFromCache.getIsTable() ){
 					variables._tableDefs[ table ] = tableDefFromCache;
@@ -326,14 +334,14 @@ component accessors="true" output="false" {
 			}
 		}
 		if( structKeyExists( variables._tableDefs, table ) ){
-			cachePut( "tabledef-#table#", variables._tableDefs[ table ], createTimeSpan( 0, 0, 30, 0 ) );
+			cachePut( "#this.getDao().getDsn()#-tabledef-#table#", variables._tableDefs[ table ], createTimeSpan( 0, 0, 30, 0 ) );
 			return variables._tableDefs[ table ];
 		}
 		var tableDef = new tabledef( tableName = table, dsn = getDao().getDSN() );
 		if( tableDef.getIsTable() ){
 			variables._tableDefs[ table ] = tableDef;
 		}
-		cachePut( "tabledef-#table#", tableDef, createTimeSpan( 0, 0, 30, 0 ) );
+		cachePut( "#this.getDao().getDsn()#-tabledef-#table#", tableDef, createTimeSpan( 0, 0, 30, 0 ) );
 
 		return tableDef;
 	}
@@ -907,8 +915,8 @@ component accessors="true" output="false" {
 								querySetCell( qn, col, record[ col ][ rec ] );
 							}
 							if( cacheEntities ){
-								lock type="readonly" name="##-#qn[ idField ][ 1 ]#" timeout="3"{
-									var cachedObject = cacheGet( '#table#-#qn[ idField ][ 1 ]#' );
+								lock type="readonly" name="#this.getDao().getDsn()#-#qn[ idField ][ 1 ]#" timeout="3"{
+									var cachedObject = cacheGet( '#this.getDao().getDsn()#-#table#-#qn[ idField ][ 1 ]#' );
 								}
 							}
 							// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -953,8 +961,8 @@ component accessors="true" output="false" {
 							querySetCell( qn, col, record[ col ][ rec ] );
 						}
 						if( get__cacheEntities() ){
-							lock type="readonly" name="#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
-								var cachedObject = cacheGet( '#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
+							lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#qn[ getIDField() ][ 1 ]#" timeout="3"{
+								var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#qn[ getIDField() ][ 1 ]#' );
 							}
 						}
 						// logIt('is object cached? #yesNoFormat(!isNull(cachedObject))#');
@@ -1011,9 +1019,10 @@ component accessors="true" output="false" {
 				return this;
 			}
 		}
-
-		// throw error
-		throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
+		if( missingMethodName != '__tmpFunc' ){
+			// throw error
+			throw( message = "Missing method", type="variables", detail="The method named: #arguments.missingMethodName# did not exist in #getmetadata(this).path#.");
+		}
 
 	}
 
@@ -1047,7 +1056,7 @@ component accessors="true" output="false" {
 			,string cfc = ""
 		){
 		// Pull from cache if it exists
-		var cacheName = "empty-NORM-#table#";
+		var cacheName = "#this.getDao().getDsn()#-empty-NORM-#table#";
 		// logIt('newObj $new() called for table: #table#');
 		var tableDef = _loadTableDef( table );
 		if( !tableDef.getIsTable() ){
@@ -1162,8 +1171,8 @@ component accessors="true" output="false" {
 		if( isSimpleValue( ID ) && len( trim( ID ) ) && get__cacheEntities() ){
 			// Load from cache if we've got it
 			// cacheremove( '#this.getTable()#-#ID#' );
-			lock type="readonly" name="#this.getTable()#-#ID#" timeout="3"{
-				var cachedObject = cacheGet( '#this.getTable()#-#ID#' );
+			lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#ID#" timeout="3"{
+				var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#ID#' );
 			}
 			// // logIt('Loaded #this.getTable()#-#ID# from cache');
 			// if cachedObject is null that means the object didn't exist in cache, so we'll just move on with loading
@@ -1252,8 +1261,8 @@ component accessors="true" output="false" {
 				// If loading an existing entity, we can short-circuit the rest of this method since we've already loaded the entity
 				// First let's put this guy in our cache for faster retrieval.
 				if( get__cacheEntities() ){
-					lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-						cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+					lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+						cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 					}
 				}
 				// Save the pristine state of this entity instance
@@ -1500,8 +1509,8 @@ component accessors="true" output="false" {
 
 		if( isSimpleValue( ID ) && !this.isNew() && get__cacheEntities() ){
 			// Now cache this thing.  The next time we need to call it (within the cachedwithin timespan) we can just pull it from memory.
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		// Save the pristine state of this entity instance
@@ -1676,8 +1685,8 @@ component accessors="true" output="false" {
 		this.registerChildEntity( { name = propertyName, table = mapping.table, type = "one-to-many", childIDField = fkColumn, parentIDField = getIDField() } );
 		// Update Cache
 		if( get__cacheEntities() ){
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		// logIt("newobject table: #newObj.getTable()#");
@@ -1741,8 +1750,8 @@ component accessors="true" output="false" {
 			return false;
 		}
 		if( get__cacheEntities() ){
-			lock type="readonly" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				var cachedObject = cacheGet( '#this.getTable()#-#this.getID()#' );
+			lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				var cachedObject = cacheGet( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#' );
 			}
 			if( !isNull( cachedObject ) ){
 				return cachedObject;
@@ -1759,8 +1768,8 @@ component accessors="true" output="false" {
 
 		// Update Cache
 		if( get__cacheEntities() ){
-			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 			}
 		}
 		return this;
@@ -1868,9 +1877,9 @@ component accessors="true" output="false" {
 
 		// Update Cache
 		if( get__cacheEntities()  ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+		lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+			cachePut( '#this.getDao().getDsn()#-#newObj.getTable()#-#newObj.getID()#', newObj, getcachedWithin() );
+			cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
 		}
 		}
 		if( returnType is "struct" || returnType is "array" ){
@@ -1901,9 +1910,9 @@ component accessors="true" output="false" {
 		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-		}
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			}
 		}
 		return this;
 	}
@@ -2193,7 +2202,7 @@ component accessors="true" output="false" {
 		cols = reReplace( cols, "\#this.getDao().getSafeIdentifierStartChar()#\#this.getDao().getSafeIdentifierEndChar()#", "", "all" );
 		cols = arrayToList( listToArray( cols, ',', false ) );
 		arguments.table = this.getTable();
-		arguments.name = hash(cols & where & orderby & limit);
+		arguments.name = hash( createUUID() );
 		arguments.columns = cols;
 		var record = variables.dao.read( argumentCollection:arguments );
 
@@ -2758,9 +2767,9 @@ component accessors="true" output="false" {
 
 		// Cache saved object
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cachePut( '#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-		}
+			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+			}
 		}
 
 		return;
@@ -3077,7 +3086,7 @@ component accessors="true" output="false" {
 			}
 		}
 
-		var tableDef = _loadTableDef( getTable );
+		var tableDef = _loadTableDef( this.getTable() );
 		/* var propLen = ArrayLen(variables.meta.properties);
 		var prop = [];
 		var col = {};
@@ -3135,12 +3144,14 @@ component accessors="true" output="false" {
 					comment = '',
 					isDirty = false
 				);
+
 			}
 
 		}
 
 		// create table and set the tabledef property
 		this.setTabledef( getDao().makeTable( tableDef ) );
+		variables.table = this.getTable();
 
 	}
 
@@ -3385,9 +3396,31 @@ component accessors="true" output="false" {
 	* "table" and "where" arguments to build the source query that will
 	* then be filtered by the oData filter criteria; as apposed to using
 	* Norm's defined table as the source.
+	* Params
+	* @qry: query object containing data to be serialized as oData
+	* @table: name of the table to use as the "base" in the oData struct
+	* @where: oData style filter criteria
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	* @forceLowercaseKeys: If true will return all keys as lowercase
 	**/
 	public function queryAsOData(
-								any qry,
+								required any qry,
 								string table,
 								string where = "",
 								string filter = "",
@@ -3405,7 +3438,7 @@ component accessors="true" output="false" {
 			qry = getDao().read( sql = "SELECT * FROM qry order by #orderby#", QoQ = {qry:qry} );
 		}
 		// serialize and return filtered query as oData object.
-		var data = serializeODataRows( isQuery( qry  ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
+		var data = serializeODataRows( isQuery( qry ) ? getDao().queryToArray( qry = qry, map = map, forceLowercaseKeys = forceLowercaseKeys ) : qry );
 		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
 		if( len(trim( where ) ) ){
 			meta[ "base" ] &= ":" & where;
@@ -3413,8 +3446,79 @@ component accessors="true" output="false" {
 		return serializeODataResponse( version, data, meta );
 
 	}
+
 	/**
-	* Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
+	* Returns results of array of structs in oData format.  This
+	* essentially does what listAsOData does, except it allows the
+	* "table" and "where" arguments to build the source query that will
+	* then be filtered by the oData filter criteria; as apposed to using
+	* Norm's defined table as the source.
+	* Params
+	* @data: array of structs containing data to be serialized as oData
+	* @table: name of the table to use as the "base" in the oData struct
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	**/
+	public function arrayAsOData(
+								array data,
+								string table,
+								string where = "",
+								string filter = "",
+								string columns = "*",
+								string orderby = "",
+								string skip = "",
+								string top = "",
+								numeric version = getODataVersion(),
+								any map = "" ){
+
+		var $filter = parseODataFilter( filter );
+		// serialize and return filtered query as oData object.
+		var rows = serializeODataRows( data );
+		var meta = { "base": table, "page": val( skip ) && val( top ) ? ( skip / top ) + 1 : 1, "filter": $filter };
+		if( len(trim( where ) ) ){
+			meta[ "base" ] &= ":" & where;
+		}
+		return serializeODataResponse( version, rows, meta );
+
+	}
+	
+	/**
+	* Returns a list of the current entity collection (filtered/ordered based on query args) in an oData format.
+	* Params
+	* @filter: oData style filter criteria
+	* @select: list of columns to return - named "select" to be consistent with oData naming convention
+	* @columns: same as select
+	* @orderby: column name(s) to order by
+	* @skip: the offset or starting row to return of the data set (for paging)
+	* @top: number of records to return (for limiting return query size and/or paging)
+	* @excludeKeys = columns to exclude from results
+	* @version: the version of the oData protocol to serialize as (3 or 4)
+	* @cachedwithin: same as cfquery cachedwithin argument.  Caches query for the given timespan
+	* @map: a function to perform transformations on the returned recordset.  The provided function will fire for each
+	* 	index in the array and will be passed 3 arguments (note: arguments are positional, and named whatever you want):
+	* 		row - current row as a struct which will contain the current row as a struct.
+	* 		index - the numeric position of the row (1 == first record)
+	* 		cols - an array of column names included in the row
+	*   example: map = function( row, index, cols ){
+	* 				row.append( {"bla":"value"});
+	* 				return row;
+	* 			 };
+	* @forceLowercaseKeys: If true will return all keys as lowercase
 	**/
 	public function listAsOData(
 								string table = getTable(),

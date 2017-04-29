@@ -19,8 +19,8 @@
 *		Component	: dao.cfc (MySQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.73
-*	   	@updated 03/31/2017
+*		@version 0.0.74
+*	   	@updated 04/07/2017
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
@@ -219,7 +219,7 @@
 							select FOUND_ROWS() as found_rows;
 						</cfquery>
 						<cfquery name="__get" dbtype="query" result="results2_#name#" cachedwithin="#arguments.cachedwithin#">
-							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
+							SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
 						</cfquery>
 					</cfif>
 				<cfelse>
@@ -264,7 +264,7 @@
 								select FOUND_ROWS() as found_rows;
 							</cfquery>
 							<cfquery name="__get" dbtype="query" result="results_#name#">
-								SELECT '#count.found_rows#' __count, '#count.found_rows#' as [$fullCount], * FROM __get
+								SELECT '#count.found_rows#' __count, '#count.found_rows#' as [__fullCount], * FROM __get
 							</cfquery>
 						</cfif>
 
@@ -339,92 +339,101 @@
 
 		<cfreturn __get />
 	</cffunction>
+	<cfscript>
+	function write( required tabledef tabledef, boolean insertPrimaryKeys = false, boolean bulkInsert = false ) output = false hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." {
 
-	<cffunction name="write" hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
-		<cfargument name="tabledef" required="true" type="tabledef" hint="TableDef object containing data.">
-		<cfargument name="insertPrimaryKeys" required="false" type="boolean" default="false">
-
-		<cfset var curRow = 0 />
-		<cfset var current = [] />
-		<cfset var qry = "" />
-		<cfset var columns = "" />
-		<cfset var ins = "" />
-		<cfset var isnull = "" />
-		<cfset var cfsqltype = "cf_sql_varchar" />
-		<cfset var tablename = arguments.tabledef.getTableName() />
-		<cfset var col = "" />
-		<cfset var ret = [] />
+		var curRow = 0;
+		var columns = "";
+		var ins = "";
+		var isnull = "";
+		var cfsqltype = "cf_sql_varchar";
+		var tablename = tabledef.getTableName();
+		var col = "";
+		var ret = [];
 
 
-		<cfset qry = arguments.tabledef.getRows()/>
-		<cfif !arguments.insertPrimaryKeys>
-			<cfset columns = arguments.tabledef.getNonAutoIncrementColumns() />
-		<cfelse>
-			<cfset columns = arguments.tabledef.getColumns() />
-		</cfif>
-		<cfif !qry.recordCount>
-			<cfdump var="#arguments#" abort>
-		</cfif>
-		<cfoutput query="qry">
-			<!--- reset current row counter --->
-			<cfset curRow = 0>
+		var qry = arguments.tabledef.getRows();
+		if( !arguments.insertPrimaryKeys ){
+			columns = arguments.tabledef.getNonAutoIncrementColumns();
+		}else{
+			columns = arguments.tabledef.getColumns();
+		}
+		if( !qry.recordCount ){
+			throw( message = "No data to insert" );
+		}
 
-				<cfsavecontent variable="ins">
-					INSERT INTO #tablename# (#getSafeColumnNames(columns)#)
-						VALUES (
-						<cfloop list="#columns#" index="col">
-							<cfset isnull = "false">
-							<cfset curRow = curRow +1/>
-							<cfset current[curRow] = {}/>
-							<cfset current[curRow].colIndex = curRow/>
-							<cfset current[curRow].column = col/>
-							<cfset current[curRow].data = qry[col][currentRow]/>
-							<cfset current[curRow].cfsqltype = arguments.tabledef.getCFSQLType(col)/>
+		var ins = "";
+		for( var row in qry ){
+			if( qry.currentRow EQ 1 || !arguments.bulkInsert ){
+				ins &= "INSERT INTO #tablename# (#getSafeColumnNames(columns)#)
+						VALUES";
+			}
+			ins &= "(";
+			curRow = 0;
 
-							<!--- push the cfsqltype into a var scope variable that get's reset at the end of this loop --->
-							<cfset cfsqltype =  current[curRow].cfsqltype/>
-							<cfif current[curRow].cfsqltype is "cf_sql_date" or isDate(current[curRow].data) >
-								<cfset current[curRow].cfsqltype = "cf_sql_timestamp">
-							</cfif>
-							<cfif not len(trim(current[curRow].data))>
-								<cfif len(trim(arguments.tabledef.getColumnDefaultValue(col)))>
-									<cfset current[curRow].data = arguments.tabledef.getColumnDefaultValue(col)>
-								<cfelse>
-									<cfset current[curRow].data = arguments.tabledef.getColumnNullValue(col)>
-									<cfset isnull = "true">
-								</cfif>
-							</cfif>
-							<cfif not arguments.tabledef.isColumnNullable(col)>
-								<cfset isnull = "false">
-								<cfif ( current[curRow].cfsqltype contains "date" || current[curRow].cfsqltype contains "time" ) >
-									<cfif current[curRow].data eq 'CURRENT_TIMESTAMP'>
-										<cfset current[curRow].data = ''/>
-									<cfelseif current[curRow].data eq '0000-00-00 00:00:00'>
-										<cfset current[curRow].data = createTime(0,0,0)/>
-									</cfif>
-								</cfif>
-							</cfif>
-							<cfif curRow GT 1>,</cfif>
-							<cfif not len(trim(current[curRow].data))>
-								<cfset current[curRow].data = arguments.tabledef.getColumnNullValue(current[curRow].column)>
-								<cfif cfsqltype neq "cf_sql_boolean">
-									<cfset isnull = "true">
-								</cfif>
-							</cfif>
+			for( var col in columns ){
 
-							#getDao().queryParam(value=current[curRow].data,cfsqltype=cfsqltype,list='false',null=isnull)#
-							<cfset cfsqltype = "bad">
-						</cfloop>
-						)
-				</cfsavecontent>
+				isnull = "false";
+				curRow++;
 
-				<cfset ret.append( getDao().execute(ins) )/>
+				//  push the cfsqltype into a var scope variable that get's reset at the end of this loop
+				cfsqltype = tabledef.getCFSQLType(col);
+				if( cfsqltype == "cf_sql_date" || isDate( row[col] ) ){
+					cfsqltype = "cf_sql_timestamp";
+				}
+				if( !len( trim( row[col] ) ) ){
+					if( len( trim( tabledef.getColumnDefaultValue( col ) ) ) ){
+						row[col] = tabledef.getColumnDefaultValue( col );
+					}else{
+						row[col] = tabledef.getColumnNullValue( col );
+						isnull = "true";
+					}
+				}
+				if( !tabledef.isColumnNullable( col ) ){
+					isnull = "false";
+					if( ( cfsqltype contains "date" || cfsqltype contains "time" ) ){
+						if( row[col] == 'CURRENT_TIMESTAMP'){
+							row[col] = '';
+						}else if( row[col] == '0000-00-00 00:00:00' ){
+							row[col] = createTime( 0, 0, 0 );
+						}
+					}
+				}
+				if( curRow > 1){
+					ins &=",";
+				}
+				if( !len( trim( row[col] ) ) ){
+					row[col] = tabledef.getColumnNullValue( row[col] );
+					if( cfsqltype != "cf_sql_boolean" ){
+						isnull = "true";
+					}
+				}
 
+				ins &= getDao().queryParam( value = row[col], cfsqltype = cfsqltype, list = 'false', null = isnull );
+				cfsqltype = "bad";
+			}
+			ins &= ")";
+			if( qry.recordCount > qry.currentRow ){
+				if( !arguments.bulkInsert ){
+					ins &= chr(789);
+				}else{
+					ins &= ",";
+				}
+			}
+		}
 
-		</cfoutput>
+		if( !arguments.bulkInsert ){
+			var statements = listLen( ins, chr(789) );
+			for( var i = 1; i <= statements; i++){
+				ret.append( getDao().execute( listGetAt( ins, i, chr(789) ) ) );
+			}
+		}else{
+			ret.append( getDao().execute( ins ) );
+		}
 
-		<cfreturn ret.len() gt 1 ? ret : ret[ 1 ] />
-	</cffunction>
+		return ret.len() gt 1 ? ret : ret[ 1 ];
+	}
+	</cfscript>
 
 	<cffunction name="update" hint="I update all fields in the passed table.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value.  I am MySQL specific." returntype="any" output="false">
 		<cfargument name="tabledef" required="true" type="any" hint="TableDef object containing data.">
@@ -621,7 +630,7 @@
 	    **/
 		public tabledef function makeTable( required tabledef tabledef ) output = false{
 
-			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
+			var tableSQL = "CREATE TABLE IF NOT EXISTS #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
 			var primaryKeys = "";
 			var indexes = "";
@@ -641,7 +650,7 @@
 					case 'numeric':
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# int(#structKeyExists( col, 'length' ) ? col.length : '11'#) unsigned #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
 					break;
-					case 'date':
+					case 'date': case 'datetime': case 'timestamp':
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# datetime #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 					case 'tinyint':
@@ -654,7 +663,7 @@
 						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# text #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & (col.default ? 1 : 0) & "'": ''# #structKeyExists(col,'generator') && col.generator eq 'increment' ? ' AUTO_INCREMENT' : ''#';
 					break;
 					default:
-						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# #col.type# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
+						tmpstr = '#getSafeIdentifierStartChar()##col.name##getSafeIdentifierEndChar()# #listFirst( col.sqltype, ' ' )# #structKeyExists( col, 'length' ) ? '(' & col.length & ')' : '(255)'# #listRest( col.sqltype, ' ' )# #( col.isPrimaryKey || col.isIndex ) ? 'NOT' : ''# NULL #structKeyExists(col,'default') ? "DEFAULT '" & col.default & "'": ''#';
 					break;
 				}
 
@@ -683,7 +692,6 @@
 			}
 			tableSQL &= ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
 
-
 			getDao().execute( tableSQL );
 
 			return tabledef;
@@ -694,7 +702,7 @@
 	    * I drop a table based on the passed in table name.
 	    **/
 		public void function dropTable( required string table ) output = false{
-			getDao().execute( "DROP TABLE IF EXISTS `#this.getTable()#`" );
+			getDao().execute( "DROP TABLE IF EXISTS `#table#`" );
 		}
 	</cfscript>
 </cfcomponent>
