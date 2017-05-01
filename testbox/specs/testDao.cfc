@@ -22,6 +22,12 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var records = request.dao.read("users");
 
           $assert.typeOf( "query", records );
+     
+     }
+     function readBySQLWithoutWhereClause() test{
+          var records = request.dao.read("select * from users");
+
+          $assert.typeOf( "query", records );
      }
      function readWithNamedParams() test{
           var records = request.dao.read("

@@ -1,5 +1,5 @@
 /**
-* This tests the BDD functionality in TestBox. This is CF10+, Railo4+
+* This tests the BDD functionality in TestBox.
 */
 component extends="testbox.system.BaseSpec"{
 
@@ -55,6 +55,17 @@ component extends="testbox.system.BaseSpec"{
 				expect( coldbox ).toBe( 1 );
 			},labels="luis");
 
+			it( "can satisfy truth tests", function(){
+				expect(	1 ).toSatisfy( function( num ){ return arguments.num > 0; } );
+				expect(	0 ).notToSatisfy( function( num ){ return arguments.num > 0; } );
+			});
+
+			it( "can validate json", function(){
+				var data = serializeJSON( { name = "luis", when = now() } );
+				expect( "luis" ).notToBeJSON();
+				expect(	data ).toBeJSON();
+			});
+
 			// more than 1 expectation
 			it("can have more than one expectation test", function(){
 				coldbox = coldbox * 8;
@@ -91,14 +102,14 @@ component extends="testbox.system.BaseSpec"{
 			});
 
 			// acf dynamic skips
-			it( title="can have tests that execute if the right environment exists (railo only)", body=function(){
-				expect( server ).toHaveKey( "railo" );
-			}, skip=( !isRailo() ));
+			it( title="can have tests that execute if the right environment exists (Lucee only)", body=function(){
+				expect( server ).toHaveKey( "Lucee" );
+			}, skip=( !isLucee() ));
 
-			// railo dynamic skips
+			// Lucee dynamic skips
 			it( title="can have tests that execute if the right environment exists (acf only)", body=function(){
-				expect( server ).notToHaveKey( "railo" );
-			}, skip=( isRailo() ));
+				expect( server ).notToHaveKey( "Lucee" );
+			}, skip=( isLucee() ));
 
 			// specs with a random skip closure
 			it(title="can have a skip that is executed at runtime", body=function(){
@@ -120,6 +131,25 @@ component extends="testbox.system.BaseSpec"{
 				expect( 1 ).toBeLT( 10 );
 				expect( 10 ).toBeLTE( 10 );
 			});
+
+            it( "can test a collection", function(){
+                expectAll( [ 2, 4, 6, 8] ).toSatisfy( function(x){ return 0 == x%2; });
+                expectAll( { a:2, b:4, c:6} ).toSatisfy( function(x){ return 0 == x%2; });
+                // and we can chain matchers
+                expectAll( [ 2, 4, 6, 8 ] )
+                    .toBeGTE( 2 )
+                    .toBeLTE( 8 );
+            });
+
+            it( "can fail any element of a collection", function() {
+                try{
+                    // we need to verify the expectation fails
+                    expectAll( [2,4,10,8] ).toBeLT( 10 );
+                    fail( "expectAll() failed to detect a bad element" );
+                }catch( any e ){
+                    expect( e.message ).toBe( "The actual [10] is not less than [10]" );
+                }
+            });
 
 		});
 
@@ -199,13 +229,13 @@ component extends="testbox.system.BaseSpec"{
 		});
 
 		// Skip by env suite
-		describe(title="A railo only suite", body=function(){
+		describe(title="A Lucee only suite", body=function(){
 
-			it("should only execute for railo", function(){
-				expect( server ).toHaveKey( "railo" );
+			it("should only execute for Lucee", function(){
+				expect( server ).toHaveKey( "Lucee" );
 			});
 
-		}, skip=( !isRailo() ));
+		}, skip=( !isLucee() ));
 
 		// xdescribe() skips the entire suite
 		xdescribe("A suite that is skipped via xdescribe()", function(){
@@ -217,7 +247,7 @@ component extends="testbox.system.BaseSpec"{
 		describe("A calculator test suite", function(){
 			// before each spec in THIS suite group
 			beforeEach(function(){
-				// using request until railo fixes their closure bugs
+				// using request until Lucee fixes their closure bugs
 				request.calc = calc = new testbox.tests.resources.Calculator();
 			});
 
@@ -278,8 +308,8 @@ component extends="testbox.system.BaseSpec"{
 
 	}
 
-	private function isRailo(){
-		return ( structKeyExists( server, "railo" ) );
+	private function isLucee(){
+		return ( structKeyExists( server, "lucee" ) );
 	}
 
 }

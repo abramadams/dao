@@ -1,7 +1,7 @@
 ﻿<!-----------------------------------------------------------------------
 ********************************************************************************
 Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
-www.coldbox.org | www.ortussolutions.com
+www.ortussolutions.com
 ********************************************************************************
 Author 	 		: Luis Majano
 Date     		: April 20, 2009
@@ -18,7 +18,7 @@ Description		:
 		<cfscript>
 			var tempDir =  "/testbox/system/stubs";
 
-			instance = structnew();
+			variables.instance = structnew();
 
 			// Setup the generation Path
 			if( len(trim(arguments.generationPath)) neq 0 ){
@@ -34,7 +34,6 @@ Description		:
 				instance.generationPath = instance.generationPath & "/";
 			}
 
-			instance.version 		= "3.1.0+00008";
 			instance.mockGenerator 	= createObject("component","testbox.system.mockutils.MockGenerator").init( this, true );
 
 			return this;
@@ -55,11 +54,6 @@ Description		:
 	<cffunction name="setGenerationPath" access="public" returntype="void" output="false" hint="Override the mocks generation path">
 		<cfargument name="generationPath" type="string" required="true">
 		<cfset instance.generationPath = arguments.generationPath>
-	</cffunction>
-
-	<!--- Get MockBox Version --->
-	<cffunction name="getVersion" access="public" returntype="string" output="false" hint="Get the MockBox version">
-		<cfreturn instance.version>
 	</cffunction>
 
 <!------------------------------------------- MOCK CREATION METHODS ------------------------------------------>
@@ -263,8 +257,8 @@ Description		:
 		</cfif>
 
 		<cfthrow type="MockFactory.IllegalStateException"
-			     message="No current method name set"
-			     detail="This method was probably called without chaining it to a $() call. Ex: obj.$().$results(), or obj.$('method').$args().$results()">
+				 message="No current method name set"
+				 detail="This method was probably called without chaining it to a $() call. Ex: obj.$().$results(), or obj.$('method').$args().$results()">
 	</cffunction>
 
 	<!--- $callback --->
@@ -292,8 +286,32 @@ Description		:
 		</cfif>
 
 		<cfthrow type="MockFactory.IllegalStateException"
-			     message="No current method name set"
-			     detail="This method was probably called without chaining it to a $() call. Ex: obj.$().$callback(), or obj.$('method').$args().$callback()">
+				 message="No current method name set"
+				 detail="This method was probably called without chaining it to a $() call. Ex: obj.$().$callback(), or obj.$('method').$args().$callback()">
+	</cffunction>
+
+	<!--- $throws --->
+	<cffunction name="$throws" output="false" access="public" returntype="any" hint="Use this method to return an exception when called.  Can only be called when chained to a $() or $().$args() call.  Results will be recycled on a multiple of their lengths according to how many times they are called, simulating a state-machine algorithm. Injected as: $throws()">
+		<cfscript>
+			if( len( this._mockCurrentMethod ) ){
+				var args = arguments;
+				return this.$callback( function(){ 
+					throw(
+						type  		= structKeyExists( args, "type" ) ? args.type : "",
+						message  	= structKeyExists( args, "message" ) ? args.message : "",
+						detail  	= structKeyExists( args, "detail" ) ? args.detail : "",
+						errorCode 	= structKeyExists( args, "errorCode" ) ? args.errorCode : "0"
+					); 
+				} );
+			}
+
+			throw( 
+				type 	= "MockFactory.IllegalStateException",
+				message = "No current method name set",
+				detail 	= "This method was probably called without chaining it to a $() call. Ex: obj.$().$throws(), or obj.$('method').$args().$throws()"
+			);
+
+		</cfscript>
 	</cffunction>
 
 	<!--- $args --->
@@ -326,6 +344,7 @@ Description		:
 		<cfargument name="throwType" 	  		type="string"   required="false" default="" hint="The type of the exception to throw"/>
 		<cfargument name="throwDetail" 	  		type="string"   required="false" default="" hint="The detail of the exception to throw"/>
 		<cfargument name="throwMessage"	  		type="string"   required="false" default="" hint="The message of the exception to throw"/>
+		<cfargument name="throwErrorCode"  		type="string"   required="false" default="" hint="The errorCode of the exception to throw"/>
 		<cfargument name="callLogging" 	  		type="boolean"  required="false" default="false" hint="Will add the machinery to also log the incoming arguments to each subsequent calls to this method"/>
 		<cfargument name="preserveArguments" 	type="boolean"  required="false" default="false" hint="If true, argument signatures are kept, else they are ignored. If true, BEWARE with $args() matching as default values and missing arguments need to be passed too."/>
 		<cfargument name="callback" 			type="any" 		required="false" hint="A callback to execute that should return the desired results, this can be a UDF or closure."/>
@@ -422,15 +441,15 @@ Description		:
 	</cffunction>
 
 	<!--- $reset --->
-    <cffunction name="$reset" output="false" access="public" returntype="any" hint="Reset all mock counters and logs on the targeted mock. Injected as $reset">
-    	<cfscript>
+	<cffunction name="$reset" output="false" access="public" returntype="any" hint="Reset all mock counters and logs on the targeted mock. Injected as $reset">
+		<cfscript>
 			for( var item in this._mockMethodCallCounters ){
 				this._mockMethodCallCounters[ item ]	= 0;
 				this._mockCallLoggers[ item ]			= [];
-            }
+			}
 			return this;
 		</cfscript>
-    </cffunction>
+	</cffunction>
 
 <!------------------------------------------- UTILITY METHODS ------------------------------------------>
 
@@ -513,8 +532,8 @@ Description		:
 					serializedArgs &= toString( argOrderedTree[ arg ] );
 				}
 				else if( isObject( argOrderedTree[ arg ] ) and isInstanceOf( argOrderedTree[ arg ], "Component" ) ){
-					// If an object and CFC, just use serializeJSON
-					serializedArgs &= serializeJSON( argOrderedTree[ arg ] );
+					// If an object and CFC, get its unique identity hash code
+					serializedArgs &= getIdentityHashCode( argOrderedTree[ arg ] );
 				}
 				else{
 					// Get obj rep
@@ -561,6 +580,7 @@ Description		:
 			obj.$getProperty	 	= variables.$getProperty;
 			// Mock Results
 			obj.$results			= variables.$results;
+			obj.$throws             = variables.$throws;
 			obj.$callback 			= variables.$callback;
 			// Mock Arguments
 			obj.$args				= variables.$args;
@@ -579,6 +599,14 @@ Description		:
 			obj.$reset				= variables.$reset;
 			// Mock Box
 			obj.mockBox 			= this;
+		</cfscript>
+	</cffunction>
+
+	<cffunction name="getIdentityHashCode" access="private" returntype="string" output="false">
+		<cfargument name="target" type="any" required="true" />
+		<cfscript>
+			var system = createObject("java", "java.lang.System");
+			return system.identityHashCode(arguments.target);
 		</cfscript>
 	</cffunction>
 

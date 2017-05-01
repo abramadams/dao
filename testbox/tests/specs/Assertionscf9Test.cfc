@@ -1,4 +1,4 @@
-component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="testbox.system.BaseSpec"{
+component displayName="TestBox xUnit suite for CF9" labels="lucee,cf" extends="testbox.system.BaseSpec"{
 
 /*********************************** LIFE CYCLE Methods ***********************************/
 
@@ -15,7 +15,7 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 	}
 
 	function teardown(){
-		structClear( request );
+		structDelete( request, "foo" );
 	}
 
 /*********************************** Test Methods ***********************************/
@@ -66,8 +66,8 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 		$assert.fail( "This Test should fail" );
 	}
 
-	boolean function isRailo(){
-		return structKeyExists( server, "railo" );
+	boolean function isLucee(){
+		return structKeyExists( server, "lucee" );
 	}
 
 	function testThatShouldFail(){
@@ -142,21 +142,21 @@ component displayName="TestBox xUnit suite for CF9" labels="railo,cf" extends="t
 		queryAddRow(testQuery);
 		querySetCell(testQuery,'column_a','1');
 		querySetCell(testQuery,'column_b','2');
-			    		
+		
 		a = new Query(
-			    sql = "SELECT column_a ,column_b
+				sql = "SELECT column_a ,column_b
 						FROM testQuery",
-			    dbtype = "query",
-			    testQuery = testQuery
-	    	).execute().getResult();
-			    		
+				dbtype = "query",
+				testQuery = testQuery
+			).execute().getResult();
+		
 		b = new Query(
-			    sql = "SELECT column_b ,column_a
+				sql = "SELECT column_b ,column_a
 						FROM testQuery",
-			    dbtype = "query",
-			    testQuery = testQuery
-	    	).execute().getResult(); 
-	    						
+				dbtype = "query",
+				testQuery = testQuery
+			).execute().getResult(); 
+		
 		$assert.isEqual(a, b);
 	}
 

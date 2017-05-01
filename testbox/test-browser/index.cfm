@@ -13,7 +13,6 @@
 <cfparam name="url.path" default="/">
 
 <!--- Decodes & Path Defaults --->
-<cfset url.path = urlDecode( url.path )>
 <cfif !len( url.path )>
 	<cfset url.path = "/">
 </cfif>
@@ -91,8 +90,9 @@
 	.box{ border:1px solid gray; margin: 10px 0px; padding: 10px; background-color: #f5f5f5}
 	.pull-right{ float: right;}
 	.pull-left{ float: left;}
+	.clear { clear: both; }
 	#tb-runner{ min-height: 155px}
-	#tb-runner #tb-left{ width: 17%; margin-right: 10px; margin-top: 0px; height: 135px; float:left;}
+	#tb-runner #tb-left{ width: 17%; margin-right: 10px; margin-top: 0px; float:left;}
 	#tb-runner #tb-right{ width: 80%; }
 	#tb-runner fieldset{ padding: 10px; margin: 10px 0px; border: 1px dotted gray;}
 	#tb-runner input{ padding: 5px; margin: 2px 0px;}
@@ -148,7 +148,7 @@
 <input type="hidden" name="opt_run" id="opt_run" value="true">
 
 	<div id="tb-left" class="centered">
-		<img src="TestBoxLogo125.png" alt="TestBox" id="tb-logo"/><br>v#testbox.getVersion()#<br>
+		<img src="http://www.ortussolutions.com/__media/testbox-185.png" alt="TestBox" id="tb-logo"/><br>v#testbox.getVersion()#<br>
 
 		<a href="index.cfm?action=runTestBox&path=#URLEncodedFormat( url.path )#" target="_blank"><button class="btn-red" type="button">Run All</button></a>
 	</div>
@@ -184,7 +184,7 @@
 		</fieldset>
 
 	</div>
-
+	<div class="clear"></div>
 </form>
 </div>
 

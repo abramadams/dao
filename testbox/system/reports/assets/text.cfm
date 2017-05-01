@@ -13,7 +13,7 @@ Global Stats (#results.getTotalDuration()# ms)
 ->[Errors: #results.getTotalError()#]
 ->[Skipped: #results.getTotalSkipped()#]
 ->[Labels Applied: #arrayToList( results.getLabels() )#]
-<cfloop array="#bundleStats#" index="thisBundle">
+<cfloop array="#variables.bundleStats#" index="thisBundle">
 =============================================================
 #thisBundle.path# (#thisBundle.totalDuration# ms)
 =============================================================
@@ -73,12 +73,12 @@ Legend:
 #repeatString( "    ", arguments.level )#(#getStatusBit( local.thisSpec.status )#)#local.thisSpec.name# (#local.thisSpec.totalDuration# ms) #chr(13)#
 <cfif local.thisSpec.status eq "failed">
 	-> Failure: #local.thisSpec.failMessage##chr(13)#
-	-> Failure Origin: #local.thisSpec.failorigin.toString()# #chr(13)##chr(13)#
+	<!--- -> Failure Origin: #local.thisSpec.failorigin.toString()# #chr(13)##chr(13)# --->
 </cfif>
 	
 <cfif local.thisSpec.status eq "error">
 	-> Error: #local.thisSpec.error.message##chr(13)#
-	-> Exception Trace: #local.thisSpec.error.toString()# #chr(13)##chr(13)#
+	-> Exception Trace: #local.thisSpec.error.stackTrace# #chr(13)##chr(13)#
 </cfif>
 </cfloop>
 

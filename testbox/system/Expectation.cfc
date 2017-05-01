@@ -1,8 +1,7 @@
 /**
-********************************************************************************
-Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
-www.coldbox.org | www.ortussolutions.com
-********************************************************************************
+* Copyright Since 2005 TestBox Framework by Luis Majano and Ortus Solutions, Corp
+* www.ortussolutions.com
+* ---
 * The Expectation CFC holds a current expectation with all the required matcher methods to provide you
 * with awesome BDD expressions and testing.
 */
@@ -389,7 +388,7 @@ component accessors="true"{
 	* @needle The substring to find in a string or the value to find in an array
 	* @message The message to send in the failure
 	*/
-	function toIncludeWithCase( required any target, required any needle, message="" ){
+	function toIncludeWithCase( required any needle, message="" ){
 		arguments.target = this.actual;
 		if( this.isNot ){
 			variables.assert.notIncludesWithCase( argumentCollection=arguments );
@@ -456,6 +455,41 @@ component accessors="true"{
 		} else {
 			variables.assert.isLTE( this.actual, arguments.target, arguments.message );
 		}
+		return this;
+	}
+
+	/**
+	* Assert that the actual value is JSON
+	* @message The message to send in the failure
+	*/
+	function toBeJSON( message="" ){
+		arguments.message = ( len( arguments.message ) ? arguments.message : "The actual [#this.actual#] is not valid JSON" );
+		if( this.isNot ){
+			if( isJSON( this.actual ) ){
+				fail( arguments.message );
+			}
+		} else {	
+			variables.assert.isJSON( this.actual, arguments.message );
+		}
+		return this;
+	}
+
+	/**
+	* Assert that the actual value passes a given truth test (function/closure)
+	* @target The target truth test function/closure
+	* @message The message to send in the failure
+	*/
+	function toSatisfy( required any target, message="" ){
+		arguments.message = ( len( arguments.message ) ? arguments.message : "The actual [#this.actual#] does not pass the truth test" );
+		
+		var isPassed = arguments.target( this.actual );
+		if( this.isNot ){ 
+			isPassed = !isPassed;
+		}
+		if( !isPassed ){
+			fail( arguments.message );
+		}
+
 		return this;
 	}
 
