@@ -19,8 +19,8 @@
 *		Component	: dao.cfc (MSSQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.70
-*	   	@updated 4/7/2017
+*		@version 0.0.71
+*	   	@updated 5/15/2017
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
@@ -295,7 +295,7 @@
 
 				//  push the cfsqltype into a var scope variable that get's reset at the end of this loop
 				cfsqltype = tabledef.getCFSQLType(col);
-				if( cfsqltype == "cf_sql_date" || isDate( row[col] ) ){
+				if( cfsqltype == "cf_sql_date" && isDate( row[col] ) ){
 					cfsqltype = "cf_sql_timestamp";
 				}
 				if( !len( trim( row[col] ) ) ){

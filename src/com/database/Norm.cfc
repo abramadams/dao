@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.10
+*   @version 0.2.11
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 02/10/2017
+*   @updated 05/15/2017
 *   @author Abram Adams
 **/
 
@@ -1520,7 +1520,10 @@ component accessors="true" output="false" {
 		// Though the below doesn't really create a deep pristine copy, which is what we want, it will serve
 		// the purposes of comparing for changes at the top level as structCopy will copy by val the top
 		// level keys/values, then by ref on everything beyond that.
-		variables._pristine = structCopy( this );
+		try{
+			// From time-to-time this errors with a NullPointerException.  Not sure why...
+			variables._pristine = structCopy( this );
+		}catch(any e){}
 		// variables._pristine = duplicate( this );
 		// Fire the afterLoad the event handler
 		// logIt( 'Executing afterLoad event for #getTable()#' );
@@ -3496,7 +3499,7 @@ component accessors="true" output="false" {
 		return serializeODataResponse( version, rows, meta );
 
 	}
-	
+
 	/**
 	* Returns a list of the current entity collection (filtered/ordered based on query args) in an oData format.
 	* Params
@@ -3658,9 +3661,9 @@ component accessors="true" output="false" {
 	    	// strip any quotes if they exist, then wrap in %
 	    	val = "%#trim( val.reReplace( "['|""](.*?)['|""]", '\1' ) )#%";
 	    }
-	    var paramedValue = '$queryParam( value = "#val#", list = "#value.len() > 1#" )$';
+	    var paramedValue = '$queryParam( value = "#val#", list = "#value.len() gt 1#" )$';
 
-	    return "( #field# #!bool ? 'NOT' : ''# #inLike##inLike == 'IN' ? '(' : ''# #paramedValue# #inLike == 'IN' ? ')' : ''# )";
+	    return "( #field# #!bool ? 'NOT' : ''# #inLike##inLike eq 'IN' ? '(' : ''# #paramedValue# #inLike eq 'IN' ? ')' : ''# )";
 	}
 
 	/**

@@ -193,6 +193,10 @@
 		return this.instance.table;
 	}
 
+	public struct function getRow( rowNumber ){
+		return queryGetRow( this.instance.table, rowNumber );
+	}
+
 	public numeric function getRowCount(){
 		return this.instance.table.recordcount;
 	}
@@ -222,7 +226,7 @@
 
 	public function getDummyType( required string type ){
 		var dummyType = "Varchar";
-		switch ( arguments.type ){
+		switch ( type ){
 			// Integer | BigInt | Double | Decimal | VarChar | Binary | Bit | Time | Date]
 			case 4: case 5: case "-6":
 				dummyType = "Integer";

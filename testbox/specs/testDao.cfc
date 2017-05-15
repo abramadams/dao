@@ -22,7 +22,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var records = request.dao.read("users");
 
           $assert.typeOf( "query", records );
-     
+
      }
      function readBySQLWithoutWhereClause() test{
           var records = request.dao.read("select * from users");
@@ -248,9 +248,33 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // function write() hint="I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value." returntype="any" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
-     // function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
-     //      $assert.fail('test not implemented yet');
-     // }
+     function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
+
+          request.dao.execute("truncate test");
+          var data = { "test": i & "  " & createUUID(), "testDate": now() };
+          var test = request.dao.insert( table = "test", data = data );
+
+          $assert.isTrue( test.len() == 1 );
+
+          var retrieve = request.dao.read( "test" );
+          $assert.isTrue( retrieve.recordCount == 1 );
+     }
+
+     function insertWithOnFinish() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
+
+          request.dao.execute("truncate test");
+          var testData = i & "  " & createUUID();
+          var data = { "test": testData, "testDate": now() };
+          var test = request.dao.insert( table = "test", data = data, onFinish = function( table, data, id ){
+               return data.test == testData;
+          } );
+
+          $assert.isTrue( test.len() == 1 );
+
+          var retrieve = request.dao.read( "test" );
+          $assert.isTrue( retrieve.recordCount == 1 );
+     }
+
      function bulkInsertArray() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
           var data = [];
           request.dao.execute("truncate test");

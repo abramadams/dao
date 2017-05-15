@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.92
-		@updated 4/7/2017
+		@version 0.0.94
+		@updated 5/15/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -82,6 +82,10 @@
 	<cfproperty name="tableDefs" type="struct">
 	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
 	<cfproperty name="nullValue" hint="The value to pass in if you want the queryParam to consider it null.  Default is $null">
+	<cfproperty name="SINGLEQUOTE" type="string" hint="Placeholder for escaped single quote character">
+	<cfproperty name="DOUBLEQUOTE" type="string" hint="Placeholder for escaped double quote character">
+	<cfproperty name="EQUALS" type="string" hint="Placeholder for escaped equals character">
+	<cfproperty name="COLON" type="string" hint="Placeholder for escaped equals character">
 
 	<cfset _resetCriteria() />
 	<cfscript>
@@ -119,6 +123,12 @@
 			setWriteTransactionLog( arguments.writeTransactionLog );
 
 			setNullValue( nullValue );
+
+			// CONSTANTS - Used for escaping characters in query params
+			setSINGLEQUOTE( chr( 901 ) );
+			setDOUBLEQUOTE( chr( 902 ) );
+			setEQUALS( chr( 903 ) );
+			setCOLON( chr( 904 ) );
 
 			// auto-detect the database type.
 			if ( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
@@ -159,8 +169,10 @@
 			_interface = listToArray( _interface, '.' );
 			arrayDeleteAt( _interface, arrayLen( _interface ) );
 			arrayAppend( _interface, "IDAOConnector" );
-			_interface = arrayToList( _interface, '.' ) ;
-			if( !isInstanceOf(conn,_interface) ){
+			_interface = arrayToList( _interface, '.' );
+			// Adobe is so stupid... isInstanceOf doesn't work on ACF
+			var connMeta = getMetaData( conn );
+			if( !isInstanceOf(conn,_interface) && !connMeta.implements.keyExists( "IDAOConnector" ) ){
 				throw( message = "Database Connector: ""#variables.dbType#"" must implement ""#_interface#"".", type = "DAO.init.InvalidConnector" );
 			}
 
@@ -239,7 +251,8 @@
 
 				// Iterate through each column in the table and either set the value with what's in the arguments.data struct
 				// or set it to the default value defined by the table itself.
-				for( var column in listToArray( columns ) ){
+				var columnList = listToArray( columns );
+				for( var column in columnList ){
 					param name="dataRow.#column#" default="#LOCAL.table.getColumnDefaultValue( column )#";
 					if ( structKeyExists( dataRow, column ) ){
 						if( column == LOCAL.table.getPrimaryKeyColumn()
@@ -869,6 +882,7 @@
 					var tmpEndString = mid(str, len(tmpStartString) + endPos + 3,len(str));
 
 					tmpString = reReplaceNoCase(tmpString,'&quot;',"'",'all');
+					tmpString = reReplaceNoCase( tmpString, '\"', getDOUBLEQUOTE(),'all');
 					var eval_string = evaluate(tmpString);
 					// if eval_string is an array, convert it to a list.
 					if( isArray( eval_string ) ){
@@ -895,6 +909,14 @@
 		* I parse queryParam calls in the passed SQL string.  See queryParam() for syntax.
 		**/
 		public function parseQueryParams( required any str, struct params = {} ){
+			for( var param in params ){
+				if( isSimpleValue( params[param] ) ){
+					params[param] = reReplaceNoCase( params[param], '"', getDOUBLEQUOTE() );
+					params[param] = reReplaceNoCase( params[param], "'", getSINGLEQUOTE() );
+					params[param] = reReplaceNoCase( params[param], "=", getEQUALS() );
+					params[param] = reReplaceNoCase( params[param], ":", getCOLON() );
+				}
+			}
 			str &= " ";// pad with trailing space for simpler regex.
 			// This function wll parse the passed SQL string to replace $queryParam()$ with the evaluated
 			// <cfqueryparam> tag before passing the SQL statement to cfquery (dao.read(),execute()).  If the
@@ -991,9 +1013,10 @@
 					// The values to be param'd could be in an IN() list, so we need to parse
 					// those out differently.
 					// First, protect any escaped single quotes:
-					tmpString = reReplaceNoCase( tmpString, "\\'","\&quote;", "all" );
+					tmpString = reReplaceNoCase( tmpString, "\\'",getSINGLEQUOTE(), "all" );
+					// tmpString = reReplaceNoCase( tmpString, '\\"',getDOUBLEQUOTE(), "all" );
 					// Now protect date ojbects
-					tmpString = reReplaceNoCase( tmpString, "{ts '(.*?)'}","{ts &quote;\1&quote;}", "all" );
+					tmpString = reReplaceNoCase( tmpString, "{ts '(.*?)'}","{ts #getSINGLEQUOTE()#\1#getSINGLEQUOTE()#}", "all" );
 					// Now scrube the passed in queryparam args if present (makes later regex easier)
 					tmpString = reReplaceNoCase( tmpString, "cfsqltype(\s*?)="," cfsqltype=", "all" );
 					tmpString = reReplaceNoCase( tmpString, "null(\s*?)="," null=", "all" );
@@ -1013,9 +1036,12 @@
 						tmpString &= ', list="true"';
 					}
 
-					// Now restore any escaped single quotes:
-					tmpString = reReplaceNoCase( tmpString, "\\&quote;","\'", "all" );
-					tmpString = reReplaceNoCase( tmpString, "{ts &quote;(.*?)&quote;}","{ts '\1'}", "all" );
+					// Now restore any quotes or doublequotes as escaped characters:
+					tmpString = reReplaceNoCase( tmpString, getSINGLEQUOTE(),"\'", "all" );
+					tmpString = reReplaceNoCase( tmpString, getDOUBLEQUOTE(),'\"', "all" );
+					tmpString = reReplaceNoCase( tmpString, '[^=|\s]"("|\s+)','\"\1', "all" );
+
+					tmpString = reReplaceNoCase( tmpString, "{ts #getSINGLEQUOTE()#(.*?)#getSINGLEQUOTE()#}","{ts '\1'}", "all" );
 					// Fixes bug in parameterizeSQL() regex.
 					tmpString = reReplaceNoCase( tmpString, 'value="=','value="', "all" );
 
@@ -1027,6 +1053,10 @@
 
 					// wrap the keys in quotes to preserve case
 					tmpString = "{" & reReplaceNoCase( tmpString, "(\s*)(\w*)(\s|,*?)=", """\2"":", "all" ) & "}";
+
+					// Now restore any equals signs or colon characters
+					tmpString = reReplaceNoCase( tmpString, getEQUALS(),'=', "all" );
+					tmpString = reReplaceNoCase( tmpString, getCOLON(),':', "all" );
 
 					if( !isJSON( tmpString ) ){
 						throw( errorcode="881", message="Invalid QueryParam", type="DAO.parseQueryParams.InvalidQueryParam",
@@ -1047,7 +1077,7 @@
 													cfsqltype = structKeyExists( tmpString, 'cfsqltype' ) ? tmpString.cfsqltype : '',
 													list= structKeyExists( tmpString, 'list' ) ? tmpString.list : false,
 													null = structKeyExists( tmpString, 'null' ) ? tmpString.null :
-														reReplace( tmpString.value, '"|''', '', 'all') == this.getNullValue()
+														reReplace( tmpString.value, '"|''', '', 'all') eq this.getNullValue()
 														? true : false
 												);
 					// This can be any kind of object, but we are hoping it is a struct (see queryParam())
@@ -1219,13 +1249,13 @@
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
+					arrayAppend( this._criteria.clause, "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value eq getNullValue()))#" );
 				}
 			}else{
 				if( operator == "in" ){
 					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
-					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value==getNullValue()))#" );
+					arrayAppend( this._criteria.clause, "#_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value eq getNullValue()))#" );
 				}
 			}
 			arrayAppend( this._criteria.callStack, { _appendToWhere = { andOr = andOr, column = column, operator = operator, value = value } } );
@@ -1509,7 +1539,8 @@
 								--->
 								<!--- /Parse out the queryParam calls inside the where statement --->
 								<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
-								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
+								<cfset var statementLen = arrayLen( tmpSQL.statements )/>
+								<cfloop from="1" to="#statementLen#" index="idx">
 									<cfset var SqlPart = tmpSQL.statements[idx].before />
 									#preserveSingleQuotes( SqlPart )#
 									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -1544,7 +1575,7 @@
 			<cfelse>
 				<!--- Query of Query --->
 				<cfset var fullCount = QoQ[ listFirst( structKeyList( QoQ ) ) ].recordCount>
-				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0) ? limit : 9999999999999999999999999999999#">
+				<cfquery name="LOCAL.#arguments.name#" dbtype="query" maxrows="#val(limit) && (!structKeyExists( arguments, 'offset' ) || offset eq 0) ? limit : 2147483647#">
 					<cfset tmpSQL = parameterizeSQL( arguments.sql, arguments.params )/>
 					<cfset structAppend( variables, arguments.QoQ )/>
 					<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
@@ -1562,7 +1593,7 @@
 						ORDER BY #orderby#
 					</cfif>
 				</cfquery>
-				<cfif val(limit) && (!structKeyExists( arguments, 'offset' ) || offset == 0)>
+				<cfif val(limit) && (!structKeyExists( arguments, 'offset' ) || offset eq 0)>
 					<cfset queryAddColumn( LOCAL[ name ], '__fullCount', listToArray( repeatString( fullCount & ",", LOCAL[ name ].recordCount ) ) ) />
 				<cfelseif len( trim( limit ) ) && len( trim( offset ) )>
 				<!--- DB Agnostic Limit/Offset for server-side paging --->
@@ -1586,12 +1617,12 @@
 		<cfelse>
 			<cfscript>
 				var isNullisClosureValue = !isNull( map ) && isClosure( map );
-				var columns = listToArray( LOCAL[ arguments.name ].columnList );
+				LOCAL.columns = listToArray( LOCAL[ arguments.name ].columnList );
 				if( isNullisClosureValue ){
 					var i = 0;
 					for( var rec in LOCAL[ arguments.name ] ){
 						i++;
-						var tmpRec = map( row = rec, index = i, cols = columns );
+						var tmpRec = map( row = rec, index = i, cols = LOCAL.columns );
 						// If the return value is not a row struct, it means it was deleted.
 						// This really should be abstracted to a "reduce" function, but I think
 						// it's worth adding to map in this context
@@ -1604,7 +1635,7 @@
 						var newCols = rec.keyList().listToArray();
 						for( var newCol in newCols ){
 							if( !queryColumnExists( LOCAL[ arguments.name ], newCol ) ){
-								queryAddColumn( LOCAL[ arguments.name ], newCol );
+								queryAddColumn( LOCAL[ arguments.name ], newCol, rec );
 							}
 							var col = forceLowercaseKeys ? newCol.lcase() : newCol;
 							querySetCell( LOCAL[ arguments.name ], col, rec[ col ], i );
@@ -1652,7 +1683,6 @@
 				<!--- First thing to do is replace the <cfqueryparam with a delimiter chr(999) --->
 				<cfset LOCAL.tmpSQL = parseQueryParams( str = arguments.sql, params = params )>
 				<!--- Now we build the query --->
-
 				<cfquery datasource="#variables.dsn#" result="LOCAL.result">
 					<!--- The first position of the tmpSQL list will be the first section of SQL code --->
 					#listFirst(preserveSingleQuotes(LOCAL.tmpSQL),chr(998))#
@@ -1754,7 +1784,7 @@
 			</cfif>
 			<cfcatch type="database">
 				<cfif findNoCase('Invalid data',cfcatch.Message)>
-					<cfheader statuscode="500"/>
+					<!--- <cfheader statuscode="500"/> --->
 					<cfthrow errorcode="801" type="DAO.Execute.InvalidDataType" detail="Invalid Data Type" message="The value: &quot;#cfcatch.value#&quot; was expected to be of type: &nbsp;#listLast(cfcatch.sql_type,'_')#.  Please correct the values and try again.">
 				<cfelse>
 					<cfrethrow>
@@ -1767,7 +1797,8 @@
 						message="There was an error updating the database.  In order to save '0000-00-00 00:00:00' as a date/time you must enable this behavior in your JDBC connection string by adding: ""zeroDateTimeBehavior=convertToNull"".  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF."
 						detail="In order to save '0000-00-00 00:00:00' as a date you must add ""zeroDateTimeBehavior=convertToNull"" to your JDBC connection string.  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF. Attempted Query: #renderSQLforView(sql)# :: #cfcatch.message#">
 				<cfelse>
-					<cfthrow errorcode="802" type="DAO.Execute.UnexpectedError" detail="Unexpected Error: #renderSQLforView(sql)#"  message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
+					<cfdump var="#cfcatch#" abort>
+					<cfthrow errorcode="802" type="DAO.Execute.UnexpectedError" detail="Unexpected Error: #renderSQLforView(sql)#:::Params:#serializeJSON(arguments.params)#"  message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 				</cfif>
 				<cfset ret = 0/>
 			</cfcatch>
