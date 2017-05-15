@@ -260,7 +260,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.isTrue( retrieve.recordCount == 1 );
      }
 
-     function insertWithOnFinish() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
+     function insertWithOnFinish() hint="I insert data into a table in the database then call an onFinish function." returntype="any" access="public" output="false" test{
 
           request.dao.execute("truncate test");
           var testData = i & "  " & createUUID();
@@ -304,9 +304,18 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 10 );
      }
-     // function update() hint="I update data in a table in the database." returntype="any" access="public" output="false" test{
-     //      $assert.fail('test not implemented yet');
-     // }
+     function update() hint="I update data in a table in the database." returntype="any" access="public" output="false" test{
+
+          request.dao.execute("truncate test");
+          var data = { "test": "test data here", "testDate": now() };
+          var test = request.dao.insert( table = "test", data = data );
+          var retrieve = request.dao.read( "test" );
+          data.test = "new test data";
+
+          request.dao.update( table = "test", data = data, id = test );
+          var retrieve = request.dao.read( "test" );
+          $assert.isTrue( retrieve.test == "new test data" );
+     }
      // function updateTable() hint="I update data in the database.  I take a tabledef object containing the tablename and column values. I return the record's Primary Key value." returntype="numeric" output="false" test{
      //      $assert.fail('test not implemented yet');
      // }
