@@ -1091,7 +1091,7 @@ component accessors="true" output="false" {
 		}
 		newEntity._setIsNew( true );
 		// Cache the empty instance for later retrieval
-		lock type="exclusive" name="#cacheName#" timeout="1"{
+		cfthread( action = "run", name = createUUID() & "-" & table, cacheName = cacheName, newEntity = newEntity ){
 			cachePut( cacheName, newEntity );
 		}
 

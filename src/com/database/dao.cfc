@@ -1039,7 +1039,7 @@
 					// Now restore any quotes or doublequotes as escaped characters:
 					tmpString = reReplaceNoCase( tmpString, getSINGLEQUOTE(),"\'", "all" );
 					tmpString = reReplaceNoCase( tmpString, getDOUBLEQUOTE(),'\"', "all" );
-					tmpString = reReplaceNoCase( tmpString, '[^=|\s]"("|\s+)','\"\1', "all" );
+					// tmpString = reReplaceNoCase( tmpString, '[^=|\s]"("|\s+)','\"\1', "all" );
 
 					tmpString = reReplaceNoCase( tmpString, "{ts #getSINGLEQUOTE()#(.*?)#getSINGLEQUOTE()#}","{ts '\1'}", "all" );
 					// Fixes bug in parameterizeSQL() regex.
