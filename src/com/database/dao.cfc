@@ -219,7 +219,7 @@
 		/**
 		* I insert data into the database.  I take a tabledef object containing the tablename and column values. I return the new record's Primary Key value.
 		**/
-		public function write( required tabledef tabledef, boolean insertPrimaryKeys ){
+		public function write( required tabledef tabledef, boolean insertPrimaryKeys = false ){
 			return getConn().write( tabledef, insertPrimaryKeys );
 		}
 
@@ -1428,11 +1428,11 @@
 
 			if ( offset > 0 ){
 				// remove first n rows
-				qry.removeRows( 0, ( offset < recordCount ) ? offset : recordCount );
+				qry.removeRows( javaCast( "int", 0 ), javaCast( "int", ( offset < recordCount ) ? offset : recordCount ) );
 			}
 			if( limit > 0 && qry.recordCount && limit <= qry.recordCount ){
 				// remove last n rows
-				qry.removeRows( limit-1, qry.recordCount - limit );
+				qry.removeRows( javaCast( "int", limit ), javaCast( "int", qry.recordCount - limit ) );
 			}
 
 			return qry;

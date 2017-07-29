@@ -526,6 +526,13 @@ component accessors="true" output="false" {
 			// writeDump([propName , value.getID(), e, this]);abort;
 		}
 	}
+	// Generic set/get functions
+	public void function set( required string property, required any value ){
+		_setter( value, property );
+	}
+	public void function get( required string property ){
+		return this[ property ];
+	}
 
 	/**
 	* Convenience method for synthesised removers.
@@ -2178,9 +2185,9 @@ component accessors="true" output="false" {
 	* is specified I will return the record matching that ID.  If not, I will return
 	* the record of the currently instantiated entity.
 	**/
-    public query function get( any ID ){
-        return getRecord( ID );
-    }
+    // public query function get( any ID ){
+    //     return getRecord( ID );
+    // }
 
     /**
     * The 'where' argument should be the entire SQL where clause, i.e.: "where a=queryParam(b) and b = queryParam(c)"
