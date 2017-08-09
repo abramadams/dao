@@ -16,7 +16,7 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.2.11
+*   @version 0.3.0
 *   @dependencies { "dao" : ">=0.0.80" }
 *   @updated 05/15/2017
 *   @author Abram Adams
@@ -115,7 +115,7 @@ component accessors="true" output="false" {
 		setDropcreate( dropcreate );
 		setCreateTableIfNotExist( createTableIfNotExist );
 		// used to introspect the given table.
-        variables.meta =_getMetaData();
+        variables.meta = _getMetaData();
         // Convenience properties so developers can find out which version they are using.
         if( structKeyExists( variables.meta.extends, 'version' ) ){
 	        set_Norm_Version( variables.meta.extends.version );
@@ -996,7 +996,7 @@ component accessors="true" output="false" {
 							tmpNewEntity = tmpNewEntity.toJSON();
 						}
 
-						arrayAppend( recordArray, tmpNewEntity );
+						arrayAppend( recordArray, duplicate( tmpNewEntity ) );
 					}
 				}
 				if( returnType is "json" ){
@@ -1161,7 +1161,7 @@ component accessors="true" output="false" {
 	*
 	**/
 	public any function load( required any ID, boolean lazy = true, string parentTable = getParentTable() ){
-		var props = variables.meta.properties;
+		var props = variables.keyExists( 'meta' ) ? variables.meta.properties : _getMetaData();
 		// Fire the beforeLoad the event handler
 		// logIt( 'Executing beforeLoad event for #getTable()#' );
 		if( isNull( this.beforeLoad ) ){
@@ -1175,7 +1175,7 @@ component accessors="true" output="false" {
 		// the chache's life as long as you'd like.  Note that the cached object is only updated when relationships
 		// are added via hasMany or belongsTo, or the entity is persisted to the database (.save() is called )
 
-		if( isSimpleValue( ID ) && len( trim( ID ) ) && get__cacheEntities() ){
+		if( isSimpleValue( ID ) && len( trim( ID ) ) && !!val(get__cacheEntities()) ){
 			// Load from cache if we've got it
 			// cacheremove( '#this.getTable()#-#ID#' );
 			lock type="readonly" name="#this.getDao().getDsn()#-#this.getTable()#-#ID#" timeout="3"{

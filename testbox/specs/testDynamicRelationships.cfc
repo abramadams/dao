@@ -88,7 +88,43 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
 		company.hasMany( table = "call_notes", fkColumn = "companies_ID", property = "CallNotes" );
 		$assert.isTrue( company.hasCallNotes() );
-		// writeDump(company.getCallNotes());
+		// writeDump(company.getCallNotes().toStruct());
+
+	}
+
+    function loadEntityByCFCAndDynamicManyToOneChildEntity() test{
+		var company = new Company();
+
+		$assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
+		$assert.isTrue( company.isNew() );
+
+		company.load(5);
+
+		$assert.isTrue( company.getName() == 'MR R SHANKS' );
+
+		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
+		$assert.isTrue( company.hasCallNotes() );
+		// writeDump( company.getCallNotes().toStruct() );
+		$assert.isTrue( company.getCallNotes().len() == 7 );
+		$assert.isTrue( company.getCallNotes()[5].getID() == 5 );
+
+	}
+
+    function loadEntityByCFCAndDynamicManyToOneChildEntityAsArray() test{
+		var company = new CompanyArray();
+
+		$assert.isTrue( isInstanceOf( company, "com.database.Norm" ) );
+		$assert.isTrue( company.isNew() );
+
+		company.load(5);
+
+		$assert.isTrue( company.getName() == 'MR R SHANKS' );
+
+		// Now see if the child entities were loaded (dynamically by <table>_ID pattern)
+		$assert.isTrue( company.hasCallNotes() );
+		// writeDump( company.getCallNotes().toStruct() );
+		$assert.isTrue( company.getCallNotes().len() == 7 );
+		$assert.isTrue( company.getCallNotes()[5].Id == 5 );
 
 	}
 

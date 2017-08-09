@@ -303,7 +303,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		 var testEntity = new model.EventLog( dao = this.dao );
 
 		 // change event to 'test'
-		 var list = testEntity.get( 208 );
+		 var list = testEntity.getRecord( 208 );
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "query", list );
@@ -318,7 +318,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 		 testEntity.load( 208 );
 		 // change event to 'test'
-		 var list = testEntity.get();
+		 var list = testEntity.getRecord();
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "query", list );
@@ -569,7 +569,7 @@ function ImplicitloadRecordByID() test{
 		 var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
 
 		 // change event to 'test'
-		 var list = testEntity.get( 208 );
+		 var list = testEntity.getRecord( 208 );
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "query", list );
@@ -584,7 +584,7 @@ function ImplicitloadRecordByID() test{
 
 		 testEntity.load( 208 );
 		 // change event to 'test'
-		 var list = testEntity.get();
+		 var list = testEntity.getRecord();
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "query", list );

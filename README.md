@@ -758,10 +758,13 @@ __Order Entity Facade: model/Order.cfc__
 * I define relationships and preset defaults for the orders entity
 **/
 component accessors="true" output="false" table="orders" extends="com.database.Norm" {
+	// REQUIRED
+	public init(){
+		super.init();
+	}
 
+	// Load relationships, etc.. here
 	public any function load(){
-		// For convenience, we'll just pump in the dao here (pretend it lives in the application scope)
-		setDAO( application.dao );
 
 		// Define alias mappings.  This needs to happen before the entity is loaded, because the
 		// load method needs this mapping to build the entity relationships.
