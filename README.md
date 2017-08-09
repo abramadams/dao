@@ -7,7 +7,8 @@ Dao & Norm
 Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box.
 
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
-
+# 0.3.x Breaking Changes
+* Changed `get` function to a generic property getter `get('propertyName')` rather than a data fetching method.  If using `entity.get(1)` to get the record with ID of 1, use `entity.getRecord(1)` instead.
 # New in 0.2.x
 This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
 
@@ -50,7 +51,7 @@ The second part, NORM (Norm.cfc) adds a layer of ORM type functionality, plus a 
 Copy the "database" folder `(/src/com/database)` into your project (or into the folder you place your components)
 
 # DAO Examples:
-```javascript
+```ActionScript
 // create instance of DAO - must feed it a datasource name
 dao = new com.database.dao( dsn = "myDatasource" ); // note: dbtype is optional and defaults to MySQL
 // Also note that if a default datasource was specified in Application.cfc you do not need to pass it in.
@@ -177,7 +178,7 @@ users = dao.read("
 # DAO Query Return Types
 With the DAO `read()` function you can return data as a __Query__ object, a __Array of Structs__ or a __JSON__ string.
 See example below:
-```javascript
+```ActionScript
 users = dao.read( sql = "
 		SELECT first_name, last_name
 		FROM users
@@ -195,7 +196,7 @@ users = dao.read( sql = "
 # Query Params
 As described above, there are several ways to parameterize your values (for performance and security reasons you should always parameterize values passed into SQL).  Each method ultimately results in the same thing, but has a slightly different path.  Which method you choose will largely depend on vanity more than practicality.  The methods are:
 * Inline call to queryParam()
-```javascript
+```ActionScript
 user = dao.read("
 	SELECT * FROM users
 	WHERE userID = #dao.queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )#
@@ -203,14 +204,14 @@ user = dao.read("
 ```
 This method evaluates the parameters at compile time, so in the above example `myUserIdVariable` must already exist.
 * Inline placeholders - $queryParam()$
-```javascript
+```ActionScript
 user = dao.read("
 	SELECT * FROM users
 	WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$
 ");
 ```
 This method will evaluate the parameters at runtime.  This means that in the above, `myUserIdVariable` doesn't get evaluated until the query is run.  This allows parameterized SQL to be stored in a file, or database and executed later.  It also allows building parameterized SQL strings that refer to variables that don't exist in the current context, but is then passed into a method that will have those variables.  Contrived example:
-```javascript
+```ActionScript
 sql = "SELECT * FROM users
 WHERE userID = $queryParam( value = myUserIdVariable, type = 'int', list = false, null = false )$";
 someFunction( sql );
@@ -221,7 +222,7 @@ function someFunction( sql ){
 }
 ```
 * Named parameters - :paramName{ options }
-```javascript
+```ActionScript
 user = dao.read("
 	SELECT * FROM users
 	WHERE userID = :userId{ type = 'int' }
@@ -235,30 +236,30 @@ This method is sort of a hybrid of both the other methods.  It allows you to hav
 Each method takes the following options:
 * `value` - the value of the parameter
 * `type` - the data type of the parameter (can be adobe's cf\_sql\_{type} or equivilent shorthand ):
- - cf_sql_double __or__ double
- - cf_sql_bit __or__ bit
- - cf_sql_bigint
- - cf_sql_bit
- - cf_sql_char
- - cf_sql_blob
- - cf_sql_clob
- - cf_sql_date __or__ datetime,date
- - cf_sql_decimal __or__ decimal
- - cf_sql_double
- - cf_sql_float
- - cf_sql_idstamp
- - cf_sql_integer __or__ int,integer,numeric,number,
- - cf_sql_longvarchar
- - cf_sql_money __or__ money
- - cf_sql_money4
- - cf_sql_numeric
- - cf_sql_real
- - cf_sql_smallint
- - cf_sql_time
- - cf_sql_timestamp __or__ timestamp
- - cf_sql_tinyint
- - cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
- - __SHORTHAND__ == just drop off the *cf\_sql\_ * prefix.
+	* cf_sql_double __or__ double
+	* cf_sql_bit __or__ bit
+	* cf_sql_bigint
+	* cf_sql_bit
+	* cf_sql_char
+	* cf_sql_blob
+	* cf_sql_clob
+	* cf_sql_date __or__ datetime,date
+	* cf_sql_decimal __or__ decimal
+	* cf_sql_double
+	* cf_sql_float
+	* cf_sql_idstamp
+	* cf_sql_integer __or__ int,integer,numeric,number,
+	* cf_sql_longvarchar
+	* cf_sql_money __or__ money
+	* cf_sql_money4
+	* cf_sql_numeric
+	* cf_sql_real
+	* cf_sql_smallint
+	* cf_sql_time
+	* cf_sql_timestamp __or__ timestamp
+	* cf_sql_tinyint
+	* cf_sql_varchar __or__ varchar,char,text,memo,nchar,nvarchar,ntext
+	* __SHORTHAND__ == just drop off the *cf\_sql\_ * prefix.
 * `list` - True/False.  If the value is a list to be included in an IN() clause.  If true, the __value__ argument can either be a string list or an array.
 * `null` - True/False.  If true, the __value__ is considered null.
 
@@ -266,7 +267,7 @@ Each method takes the following options:
 * `sql` (String) = The actual SQL statement you wish to run.
 * `params` (Struct) = A struct of key/value pairs where Key is the parameter's name used in the SQL statement and the value is the resulting value.
 Example
-```
+```ActionScript
 usersByFirstName = dao.read(
 	sql="SELECT * FROM users where Name = :userFirstName",
 	params = {userFirstName:session.user.getFirstName()}
@@ -275,7 +276,7 @@ usersByFirstName = dao.read(
 * `name` (String) = Name of Query (required for cachedwithin)
 * `QoQ` (Struct) = A struct of key/value pairs where the Key is the query's name as used in the SQL statement and the value is the actual query object.
 Example
-```
+```ActionScript
 filtered = dao.read(
 	sql="SELECT * FROM filteredUsers",
 	QoQ = {filteredUsers:usersByFirstName}
@@ -284,14 +285,14 @@ filtered = dao.read(
 * `cachedwithin` (Timespan) = createTimeSpan() value to cache this query
 * `table` (String) = Table name to select from. Used only if not using `SQL` argument
 Example
-```
+```ActionScript
 users = dao.read( table = "users" )
 //OR
 users = dao.read("users");
 ```
 * `columns` (String) = List of valid column names for select statement. Used only if not using `SQL` argument
 Example
-```
+```ActionScript
 users = dao.read( table = "users", columns = "Id,firstName,LastName" );
 ```
 * `where` (String) = Where clause. Used only if not using `SQL` argument
@@ -318,7 +319,7 @@ DAO can automatically fire a callback method upon completion each data modifying
  * table = Name of the table from which data was deleted
  * id = The value of the primary key that was deleted
 In addition to the DAO supplied argumetns, you can also pass in an argument named callbackArgs to the insert/update/delete function.  These will be passed in along with the DAO supplied data to your handler method.
-```javascript
+```ActionScript
 DATA = {
 	"id" = 123,
 	"last_name" = "Bond"
@@ -346,7 +347,7 @@ public function afterUpdate( response ){
 
 # Query of Queries
 With DAO you can also query an existing query result.  Simply pass the query in as the QoQ argument ( struct consisting of `name_to_use` = `query_name` ), then write your SQL as if you would normally write a query of queries.
-```javascript
+```ActionScript
 users = dao.read("users");
 johns = dao.read( sql = "
 		SELECT first_name, last_name
@@ -364,7 +365,7 @@ New as of version 0.0.57 ( June 6, 2014 ) you can now perform LINQ'ish queries v
 to build criteria in an OO and platform agnostic way.  This will also be the only query language available
 when communicating with a non-RDBMS data store (i.e. couchbase, mongoDB, etc...)
 Here's an example of how to use this new feature:
-```javascript
+```ActionScript
 // build the query criteria
 var query = request.dao.from( "eventLog" )
 					.where( "eventDate", "<", now() )
@@ -397,7 +398,7 @@ ORDER BY eventDate desc
 
 You can also specify the desired return type (supports the same return types as `read()`: __Query__, __Array__, __JSON__).
 To do so, simply call the .returnAs() method in the chain, like so:
-```javascript
+```ActionScript
 var query = dao.from( "eventLog" )
 				.where( "eventDate", "<", now() )
 				.returnAs('array')
@@ -406,7 +407,7 @@ var query = dao.from( "eventLog" )
 ## Joins
 With Entity Queries there are also a couple ways to define `joins`.
 * Directly define the join in the `from()` call:
-```javascript
+```ActionScript
 var query = request.dao.from(
 		table = "pets",
 		columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName",
@@ -414,7 +415,7 @@ var query = request.dao.from(
 	.where( "pets.ID", "=", 93 );
 ```
 * With the `join()` function:
-```javascript
+```ActionScript
 var query = request.dao.from(
 		table = "pets",
 		columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName" )
@@ -422,7 +423,7 @@ var query = request.dao.from(
 	.where( "pets.ID", "=", 93 ).run();
 ```
 When defining a join will want to supply the `columns` argument to properly alias your columns.  The above examples supply all of the columns in the `from()` function, however you can also supply the columns directly in the join, either as a key in the `joins` array when passing the `joins` argument to the `from()` function, or as the `columns` argument to the `join()` function.  The benefit of this method is that you can define the columns as they are joined, which may be in different parts of your code.  Here's an example:
-```javascript
+```ActionScript
 var query = request.dao.from( table = "pets")
 	.join(
 		type = "LEFT",
@@ -443,7 +444,7 @@ var query = request.dao.from(
 	.where( "pets.ID", "=", 93 ).run();
 ```
 The above will return every column in the _pets_ table, and only the `ID` and `first_name` from the _users_ table (aliased).  With either method you can also specify the `columns` in the `from()` function to limit the columns from the main table to be returned:
-```javascript
+```ActionScript
 var query = request.dao.from(
 		table = "pets",
 		columns = "pets.ID as petId, pets.firstName as petName"
@@ -464,7 +465,7 @@ The second part of this library is an ORM'sh implementation of entity management
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
 the following examples:
 
-```javascript
+```ActionScript
 // create instance of dao ( could be injected via your favorite DI library )
 dao = new dao( dsn = "myDatasource" );
 
@@ -519,7 +520,7 @@ That's the very basics of Entity management in DAO.  It get's real interesting w
 relationships.  By-in-large I have adopted the property syntax used by CF ORM to define
 entity properties and describe relationships.  Example:
 
-```javascript
+```ActionScript
 /* Pet.cfc */
 component norm_persistent="true" table="pets" extends="com.database.Norm" accessors="true" {
 
@@ -541,7 +542,7 @@ component norm_persistent="true" table="pets" extends="com.database.Norm" access
 }
 ```
 When in development you can have dao create your tables for you by passing the dropcreate = true to the initializer.  Exmaple:
-```javascript
+```ActionScript
 	user = new User( dao = dao, dropCreate = true );
 ```
 This will inspect your CFC properties and create a table based on those details.  This supports having different property names vs column names, table names, data types, etc...
@@ -573,7 +574,7 @@ Norm supports almost the same ORM entity events as Adobe ColdFusion does (it in 
 > Each event also receives the current entity as an argument.  This is important for injected event handlers as it allows you to get/set properties on the current entity within the handler.
 
 These can be defined within a CFC, or injected after the fact.  Examples:
-```javascript
+```ActionScript
 	// Entity CFC
 	component extends="com.database.Norm"{
 		...
@@ -595,7 +596,7 @@ These can be defined within a CFC, or injected after the fact.  Examples:
 
 ## Dynamic Entities
 Sometimes it's a pain in the arse to create entity CFCs for every single table in your database.  You must create properties for each field in the table, then keep it updated as your model changes.  This feature will allow you to define an entity class with minimal effort.  Here's an example of a dynamic entity CFC:
-```javascript
+```ActionScript
 /* EventLog.cfc */
 component norm_persistent="true" table="eventLog" extends="com.database.Norm"{
 }
@@ -611,20 +612,20 @@ CREATE TABLE `eventLog` (
 );
 ```
 When I instantiate the EventLog.cfc with:
-```javascript
+```ActionScript
 eventLog = new model.EventLog( dao = dao );
 ```
 I'll get an instance of EventLog as if the CFC had included the following properties:
-```javascript
+```ActionScript
 property name="ID" fieldtype="id" generator="increment";
 property name="event" type="string";
 property name="description" type="string";
 property name="eventDate" type="date";
 ```
-To make this work, just make sure you set the table attribute to point to the actual table in the database, extend Norm and set the persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.
+To make this work, just make sure you set the table attribute to point to the actual table in the database, extend Norm and set the norm_persistent=true.  When you then create an instance of that CFC, the table (eventLog in the above example) will be examined and all the fields in that table will be injected into your instance - along with all the getters/setters.  This even works with identity fields (i.e. Primary Keys) and auto generated (i.e. increment) fields.
 
 You can also mix and match.  You can statically define properties:
-```javascript
+```ActionScript
 component norm_persistent="true" table="eventLog" extends="com.database.Norm" accessors="true"{
 	property name="description" type="string";
 }
@@ -633,13 +634,13 @@ And DAO will just inject the rest of the columns.  This is handy in cases where 
 
 ### Dynamic Entity - A step further
 In some cases it may best to create entity CFCs that extend Norm, but... for dynamic entities you don't necessarily have to.  Here's what we could have done above without having to create EventLog.cfc:
-```javascript
+```ActionScript
 eventLog = new com.database.Norm( dao = dao, table = 'eventLog' );
 ```
 That would have returned an entity instance with all the properties from the eventLog table.  It will also attempt to auto-wire related entities ( which is not an exclusive feature of dynamic entities itself, but a feature of any object that extends Norm : See more below about dynamic relationships ).
 
 Now, if you are on CF10+ or Railo 4.x or Lucee 4.x and you have a default datasource setup in Application.cfc (this.datasource) you can omit the dao argument:
-```javascript
+```ActionScript
 eventLog = new com.database.Norm( 'eventLog' );
 ```
 However, doing so will create a new instance of DAO for each instance of Norm.  It is often more peformant to create a singleton instance and store it in a global scope, then pass that in.
@@ -656,7 +657,7 @@ our Pets.cfc example we define a one-to-many relationship of "offspring" which m
 ## Dynamic Relationships
 Now, I'm lazy, so wiring up relationships is kind of a bother.  Many times we're just working with simple one-to-many or many-to-one relationships.  Using a convention over configuration approach, this lib will look for and inject related entities when the object is loaded.  So, if you have an "orders" table, that has a "customers_ID" field which is a foriegn key to the "customers" table, we can automatically join the two when you load the "orders" entity.  This can also be configured to use a custom naming convention by passing in the `dynamicMappingFKConvention` property during init, or setting it afterwards.  See:
 ### MANY-TO-ONE Relationship
-```javascript
+```ActionScript
 var order = new com.database.Norm( dao = dao, table = 'orders');
 order.load(123); // load order with ID of 123
 writeDump( order.getCustomers().getName() );
@@ -671,36 +672,36 @@ var order = new com.database.Norm( dao = dao, table = 'orders', dynamicMappingFK
 ```
 ### ONE-TO-MANY Relationship
 Now say you you have an order_items table that contains all the items on an order ( realted via order_items.orders_ID ( adheres to the `dynamicMappingFKConvention` property described above ) ).  Using the same ```order``` object created above, we could do this:
-```javascript
+```ActionScript
 writeDump( order.getOrder_Items() );
 ```
 That would dump an array of "order_item" entity objects, one for each order_items record associated with order 123.  Note that we didn't need to create a single CFC file, or define any relationships, or create any methods.  Sometimes, however, you don't want the objects.  You just need the data in a struct format.
-```javascript
+```ActionScript
 writeDump( order.getOrder_ItemsAsArray() );
 ```
 That will dump an array of struct representation of the order_items associated with order 123.  Awesome, I know.  However, when writing an API, you sometimes need just JSON:
-```javascript
+```ActionScript
 writeDump( order.getOrder_ItemsAsJSON() );
 ```
 There you have it.  A JSON representation of your data.  Ok, now say you just want to retrieve order 123 and return it, and all of it's related data as a struct.  This is a little trickier since the dynamic relationships need to know something about your related data.  We achieved that above by using the table name and return types in the method call ( get `Order_Items` as `JSON` ).  If you just want to load the data and return it with all child data, you need to define what you want back:
-```javascript
+```ActionScript
 order.hasMany( 'order_items' );
 order.toStruct();// or order.toJSON();
 ```
 The `hasMany` method can also specify the primary key ( if other than `<table>_ID` ), and an alias for the property that is injected into the parent.  So if you wanted to reference the `order_items` as say, `orderItem` you could do this:
-```javascript
+```ActionScript
 order.hasMany( table = 'order_items', property = 'orderItems' );
 order.getOrderItems().toStruct();
 ```
 In addition, the `hasMany` method can take a `where` argument that is used to filter the child entities.  For instance, if you have a column in your order_items table called `status`, in which the value 1 means it's active and 99 means it's deleted you could define your hasMany relationship like:
-```javascript
+```ActionScript
 order.hasMany( table = 'order_items', property = 'orderItems', where = 'status != 99' );
 order.getOrderItems().toStruct();
 ```
 This would only return "active" order_items.
 
 The `hasMany` method is great for defining one-to-many relationships that can't be/aren't defined by naming conventions, but there's also a way to define many-to-one relationships in this manner; the `belongsTo` method.
-```javascript
+```ActionScript
 order.belongsTo( table = 'customers', property = 'company', fkField = 'customerID' );
 writeDump( order.getCompany() );
 ```
@@ -710,7 +711,7 @@ This may not be as useful as the `hasMany` method, as these many-to-one relation
 Now, there are also ways to create user friendly aliases for your related entity properties.  You do this by supplying the optional `dynamicMappings` argument to the Norm's init method.  The dynamicMappings argument expects a struct containing `key` and `value` pairs of mappings wher the `key` is the desired property name for one-to-many or column name for many-to-one relationships and the `value` is the actual table name (or a struct, explained later).
 
 So for instance if you would rather use orderItems instead of order_items you could pass in the "dynamicMappings" argument to the init method.
-```javascript
+```ActionScript
 dynamicMappings = { "orderItems" = "order_items" };
 order = new com.database.Norm( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
 order.load( 123 );
@@ -719,14 +720,14 @@ writeDump( order.getOrderItems() );
 That would dump an array of entities representing the `order_items` records that are related to the order #123
 
 The above is a simple mapping of property name to a table - a one-to-many relationship mapping.  We can also specify mappings to auto-generate relationships using a non-standard naming convention.  As mentioned previously, the auto-wiring of many-to-one relationships happens if we encounter a field/property named `<table>_ID`.  However, sometimes you may have a field tha doesn't follow this pattern.  If you do, you can specify it in mappings and we'll auto-wire it with the rest.  For example, say you have a `customers` table which has a `default_payment_terms` field that is a FK to a table called `payment_terms`, here's how we could handle that with simple dynamicMappings:
-```javascript
+```ActionScript
 dynamicMappings = { "default_payment_terms" = "payment_terms" };
 order = new com.database.Norm( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
 order.load( 123 );
 writeDump( order.getDefault_Payment_Terms() );
 ```
 There you have it.  This would dump the payment_terms entity that was related to the default_payment_terms value.  But, what if you don't want the property to be called default_payment_terms?  Simple, we can supply a struct as the `value` part of the mapping.  The struct consists of two keys: `table` and `property`.  So, if we wanted the `defualt_payment_terms` to be `defaultPaymentTerms` all we'd have to do is:
-```javascript
+```ActionScript
 dynamicMappings = { "default_payment_terms" = { table = "payment_terms", property = "defaultPaymentTerms" } };
 order = new com.database.Norm( dao = dao, table = 'orders', dynamicMappings = dynamicMappings );
 order.load( 123 );
@@ -736,7 +737,7 @@ This will dump the exact same as the previous example.  This is only necessary o
 
 __NOTE:__ It is also important to note that the dynamicMappings are passed into any object instantiated during the load() method.  So if you have a dynamicMapping on the order entity, when you load it and it crawls through auto-wiring the order_items, customers, etc... it will apply the same mappings throughout.  So as the example above, the property `defaultPaymentTerms` would be used anytime a property/column named `default_payment_terms` was encoutnerd.
 Here's an example of a more real-world dynamicMapping:
-```javascript
+```ActionScript
 dynamicMappings = {
 	"company" = "customers",
 	"users_ID" = { "table" = "users", property = "User" },
@@ -753,7 +754,7 @@ writeDump( order.getCompany().getUser() );
 Although you can definitely define your relationships on the fly using naming conventions, the dynamicMappings property, and hasMany/belongsTo methods it may not always be the best practice.  Take for example the code snippet above where we are setting all of those dynamic mappings.  It's likely that everywhere you need the `order` entity you'll probably want those mappings to exist (and be consistent).  To accomplish this you'll want a hybrid aproach using a facade CFC.  Here's a sample of how that could look:
 
 __Order Entity Facade: model/Order.cfc__
-```javascript
+```ActionScript
 /**
 * I define relationships and preset defaults for the orders entity
 **/
@@ -788,7 +789,7 @@ component accessors="true" output="false" table="orders" extends="com.database.N
 }
 ```
 With the above, I can simply instantiate the Order entity like so:
-```javascript
+```ActionScript
 order = new model.Order();
 writeDump( order.getCompany().getUser() );
 writeDump( order.getOrderItems() );
@@ -800,7 +801,7 @@ entities, or are loading a collection of entities that have related entities.  W
 with a customized getter that will first instantiate/load the child object, then return it's value.  This way, only child entities that are actually used/referenced will be loaded.
 
 To lazy load, you simply use the dynamic load method, prefixed with "lazy"
-```javascript
+```ActionScript
 pet = new Pet( dao ).lazyLoadAll();
 // then, if I only need the first name of the "user" for the second pet I'd just:
 ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the that pet's user object.
@@ -810,7 +811,7 @@ ownerName = pet[2].getFirstName();  // That would trigger the "load" on only the
 Each property in a Norm object can be validated using the ``validateProperty()`` or you can validate the entire object by calling ``validate()`` on the Norm object.  By default this will validate against the ``type`` attribute on the property definition.  This attribute is either hard coded via ``property`` tag, or dynamically via the DB column definition (if object initialized dynamically - apposed to via cfc definition).
 
 To provide custom validation, you'll need to define the property in a CFC.  You don't need to spell out the entire model object in the cfc, just the properties you want custom validation on.  For example:
-```javascript
+```ActionScript
 /* Events.cfc */
 component norm_persistent="true" table="events" extends="com.database.Norm"{
 	property name="priority" type="range" min="0" max="3";
@@ -831,7 +832,7 @@ Currently we support the following oData methods:
 
 * __getODataMetaData__ - Returns oData metadata that describes the entire server model ( for oData $metadata endpoint )
 * __listAsOData__ - Returns a list of the requested collection (filtered/ordered based on query args) in an oData format.
-```javascript
+```ActionScript
 // FROM BREEZEJS SAMPLE: Taffy Resource for "get" verb to return an array of items matching the oData formated filter criteria
 remote function get(string $filter = "" ,string $orderby = "", string $skip = "", string $top = ""){
 	var todo = new com.database.Norm( table = "TodoItem" );
@@ -851,10 +852,10 @@ remote function get(string $filter = "" ,string $orderby = "", string $skip = ""
 ```
 * __toODataJSON__ - Convenience function to return JSON representation of the current entity with additional oData keys.
 * __oDataSave__ - Accepts an array of oData entities and perform the appropriate DB interactions based on the metadata and returns the Entity struct with the following:
- * 	__Entities__: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
- * 	__KeyMappings__: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
- * 	__Errors__ (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
- ```javascript
+	* 	__Entities__: An array of entities that were sent to the server, with their values updated by the server. For example, temporary ID values get replaced by server-generated IDs.
+ 	* 	__KeyMappings__: An array of objects that tell oData which temporary IDs were replaced with which server-generated IDs. Each object has an EntityTypeName, TempValue, and RealValue.
+ 	* 	__Errors__ (optional): An array of EntityError objects, indicating validation errors that were found on the server. This will be null if there were no errors. Each object has an ErrorName, EntityTypeName, KeyValues array, PropertyName, and ErrorMessage.
+ ```ActionScript
  // FROM BREEZEJS SAMPLE: Taffy Resource for "post" verb to save one or more "TodoItem" records.
 	remote function post(){
 		var todo = new com.database.Norm( table = "TodoItem" );
@@ -870,7 +871,7 @@ Check out the daotest.cfm and entitytest.cfm files for a basic examples of the v
 # Railo/Lucee Notes
 In order to use the DAO caching options with Railo/Lucee you'll need to enable a default cache in the Railo/Lucee Administrator.  Otherwise you'll end up with an error like: `there is no default object cache defined, you need to define this default cache in the Railo/Lucee Administrator`
 Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under `Services > Cache` and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
-```javascript
+```ActionScript
 this.cache.object = "your_cache_name_here";
 ```
 > NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.
