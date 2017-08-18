@@ -20,8 +20,8 @@
 		Component	: dao.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-		@version 0.0.94
-		@updated 5/15/2017
+		@version 0.0.95
+		@updated 8/18/2017
 		Description	: Generic database access object that will
 		control all database interaction.  This component will
 		invoke database specific functions when needed to perform
@@ -881,9 +881,11 @@
 					var tmpString = mid(str,startPos,endPos);
 					var tmpEndString = mid(str, len(tmpStartString) + endPos + 3,len(str));
 
-					tmpString = reReplaceNoCase(tmpString,'&quot;',"'",'all');
-					tmpString = reReplaceNoCase( tmpString, '\"', getDOUBLEQUOTE(),'all');
-					var eval_string = evaluate(tmpString);
+					tmpString = reReplaceNoCase( tmpString,'&quot;',"'",'all' );
+					tmpString = reReplaceNoCase( tmpString, '\"', getDOUBLEQUOTE(), 'all' );
+					tmpString = reReplaceNoCase( tmpString, '\:', getCOLON(), 'all' );
+					// var eval_string = evaluate(tmpString);
+					var eval_string = isDefined("#tmpString#") ? arguments.params[ tmpString.listLast('.') ] : '';
 					// if eval_string is an array, convert it to a list.
 					if( isArray( eval_string ) ){
 						eval_string = arrayToList( eval_string );
@@ -946,12 +948,35 @@
 			//		{ firstName = 'Jim%', email = session.user.email isAdmin = session.user.isAdmin, userIds = "1,2,4,77" }
 			// );
 
+			// Let's inspect the possible named parameters to see if they are really parameters or just the existence
+			// of :somevalue in the value string.  If the parameter variable exists we're assuming :somevalue was a
+			// named parameter, otherwise we'll treat it as a literal string.
+			var possibleParams = str.refind( '(:(?![0-9|\s])\w[^\{]*?)(?=\s|\)|,|$)', 0, true );
+			if( possibleParams.keyExists('pos') && possibleParams.pos[1] > 0 ){
+				// possible parameter found, let's inspect each one
+				possibleParams.pos.each( function( pos, index ){
+					// Match results will find each instance twice because of regex grouping. We only need to inspect once each
+					if( index mod 2 ){
+						var tmpParamPrestine = str.mid( pos, possibleParams.len[ index ] );
+						var tmpParam = str.mid( pos, possibleParams.len[ index ] );
+						tmpParam = " " & tmpParam;
+						var tmpParam = tmpParam.listRest(':');
+						tmpParam = trim( tmpParam );
+						// If the parameter exists in the params struct, we'll normalize the param syntax to :name{}
+						if( len( trim( tmpParam ) ) && params.keyExists( tmpParam ) ){
+							str = reReplaceNoCase( str, tmpParamPrestine,'#tmpParamPrestine#{}', 'all' );
+						}
+					}
+				});
+			}
+
+
 			// pull out : in values.
 			str = reReplaceNoCase( str, 'value=\#chr( 777 )#(.*?)(:+)(.*?)\#chr( 777 )#', 'value=#chr( 777 )#\1#chr(765)#\3#chr( 777 )#','all' );
 			// pull out the : in date object values that can break the named param regex
 			str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 			// now parse named params
-			str = reReplaceNoCase( str, '((\s|\t|\(|,):)\s*(?![0-9])(\w[^\{]*?)(?=\s|\)|,|$)','\1\3{}','all');
+			str = reReplaceNoCase( str, '((\s|\t|\(|,):)(?![0-9|\s])(\w[^\{]*?)(?=\s|\)|,|$)','\1\3{}','all');
 			str = reReplaceNoCase( str, '(\s|\t|\(|,):(\w*?)\{(.*?)\}','\1$queryParam(%%%="##arguments.params.\2##",\3)$','all');
 
 			str = reReplace(str,',\)',')','all');
@@ -1287,8 +1312,12 @@
 		/**
 		* I return the query as an array of structs.  Not super efficient with large recordsets,
 		* but returns a useable data set as apposed to the aweful job serializeJSON does with queries.
+		* @qry is the query object we wish to convert to an array of structs
+		* @map is an optional function that will be executed against every record in the qry results ( basically an array map function )
+		* @forceLowercaseKeys true or false.  If false will try to retain the original case, but often derived queries will have uppercase keys because ColdFusion
+		* @returnEmptyStruct true or false.  If false will return empty array if qry.recordcount is zero.  If true will return a single item array containing a struct mirroring the query columns with empty data.
 		**/
-		public function queryToArray( required query qry, any map, boolean forceLowercaseKeys = false ){
+		public function queryToArray( required query qry, any map, boolean forceLowercaseKeys = false, returnEmptyStruct = false ){
 			var queryArray = [];
 
 			// Using getMetaData instead of columnList to preserve case. Using qry.getMetaData().getColumnLabels()
@@ -1341,38 +1370,52 @@
 			var i = 0;
 			var isNullisClosureValue = !isNull( map ) && isClosure( map );
 			var tempListToArray = listToArray( qry.columnList );
-			for( var rec in qry ){
-				i++;
-				var cols = {};
-				// if supplied, run query through map closure for custom processing
+			if( qry.recordCount ){
+				for( var rec in qry ){
+					i++;
+					var cols = {};
+					// if supplied, run query through map closure for custom processing
 
-				if( isNullisClosureValue ){
-					var tmpRec = map( row = rec, index = i, cols = colList );
-					// If the return value is not a row struct, it means it was deleted.
-					// This really should be abstracted to a "reduce" function, but I think
-					// it's worth adding to map in this context
-					if( !isDefined( 'tmpRec' ) || !isStruct( tmpRec ) ) {
-						queryDeleteRow( qry, i );
-						continue;
-					}
-					rec = tmpRec;
+					if( isNullisClosureValue ){
+						var tmpRec = map( row = rec, index = i, cols = colList );
+						// If the return value is not a row struct, it means it was deleted.
+						// This really should be abstracted to a "reduce" function, but I think
+						// it's worth adding to map in this context
+						if( !isDefined( 'tmpRec' ) || !isStruct( tmpRec ) ) {
+							queryDeleteRow( qry, i );
+							continue;
+						}
+						rec = tmpRec;
 
-					// rec = map( rec, i, tempListToArray );
-					// Add any cols that may have been added during the map transformation
-					var newCols = listToArray( structKeyList( rec ) );
-					for( var newCol in newCols ){
-						if( !arrayFindNoCase( colList, newCol ) ){
-							arrayAppend( colList, newCol );
+						// rec = map( rec, i, tempListToArray );
+						// Add any cols that may have been added during the map transformation
+						var newCols = listToArray( structKeyList( rec ) );
+						for( var newCol in newCols ){
+							if( !arrayFindNoCase( colList, newCol ) ){
+								arrayAppend( colList, newCol );
+							}
 						}
 					}
-				}
 
+					for( var col in colList ){
+						if( structKeyExists( rec, col ) ){
+							if( forceLowercaseKeys ){
+								structAppend( cols, {'#lcase(col)#' = rec[col] } );
+							}else{
+								structAppend( cols, {'#col#' = rec[col] } );
+							}
+						}
+					}
+					arrayAppend( queryArray, cols );
+				}
+			}else if( returnEmptyStruct ){
+				var cols = {};
 				for( var col in colList ){
-					if( structKeyExists( rec, col ) ){
+					if( structKeyExists( qry, col ) ){
 						if( forceLowercaseKeys ){
-							structAppend( cols, {'#lcase(col)#' = rec[col] } );
+							structAppend( cols, {'#lcase(col)#' = "" } );
 						}else{
-							structAppend( cols, {'#col#' = rec[col] } );
+							structAppend( cols, {'#col#' = "" } );
 						}
 					}
 				}
@@ -1453,6 +1496,7 @@
 		<cfargument name="offset" required="false" type="any" hint="Offset queried recordset." default="">
 		<cfargument name="orderby" required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default="">
 		<cfargument name="returnType" required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query">
+		<cfargument name="returnEmptyStruct" required="false" type="boolean" hint="If false will return empty array if qry.recordcount is zero.  If true will return a single item array containing a struct mirroring the query columns with empty data.  Only used if returnType == array or json" default="false">
 		<cfargument name="file" required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default="">
 		<cfargument name="map" required="false" type="any" hint="A function to be executed for each row in the results ( only used if returnType == array )" default="">
 		<cfargument name="forceLowercaseKeys" required="false" type="boolean" hint="Forced struct keys to lowercase ( only used if returnType == array )" default="false">
@@ -1611,9 +1655,9 @@
 			<cfthrow errorcode="882" type="DAO.Read.InvalidQueryType" detail="Invalid Query Type for ""DAO.read()""" message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements.">
 		</cfif>
 		<cfif arguments.returnType eq 'array'>
-			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
+			<cfreturn queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys, returnEmptyStruct = returnEmptyStruct )  />
 		<cfelseif arguments.returnType eq 'json'>
-			<cfreturn queryToJSON( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys )  />
+			<cfreturn queryToJSON( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys, returnEmptyStruct = returnEmptyStruct )  />
 		<cfelse>
 			<cfscript>
 				var isNullisClosureValue = !isNull( map ) && isClosure( map );

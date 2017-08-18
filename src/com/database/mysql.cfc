@@ -19,8 +19,8 @@
 *		Component	: dao.cfc (MySQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.75
-*	   	@updated 05/15/2017
+*		@version 0.0.76
+*	   	@updated 08/18/2017
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
@@ -517,7 +517,8 @@
 				<!---</cftransaction>--->
 			</cfoutput>
 			<cfcatch type="any">
-				<cfdump var="#[arguments,qry,cfcatch]#" abort>
+				<!--- <cfset writeLog('woah, error: #cfcatch.details#')/> --->
+				<!--- <cfdump var="#[arguments,qry,cfcatch]#" abort> --->
 				<cfthrow errorcode="803-mysql.update" type="dao.custom.error" detail="Unexpected Error #cfcatch.detail#" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
