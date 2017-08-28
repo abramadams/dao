@@ -375,15 +375,15 @@
 
 				isnull = "false";
 				curRow++;
-
+				var defaultValue = tabledef.getColumnDefaultValue( col );
 				//  push the cfsqltype into a var scope variable that get's reset at the end of this loop
 				cfsqltype = tabledef.getCFSQLType(col);
 				if( cfsqltype == "cf_sql_date" && isDate( row[col] ) ){
 					cfsqltype = "cf_sql_timestamp";
 				}
 				if( !len( trim( row[col] ) ) ){
-					if( len( trim( tabledef.getColumnDefaultValue( col ) ) ) ){
-						row[col] = tabledef.getColumnDefaultValue( col );
+					if( len( trim( defaultValue ) ) ){
+						row[col] = defaultValue;
 					}else{
 						row[col] = tabledef.getColumnNullValue( col );
 						isnull = "true";
@@ -404,7 +404,7 @@
 				}
 				if( !len( trim( row[col] ) ) ){
 					row[col] = tabledef.getColumnNullValue( row[col] );
-					if( cfsqltype != "cf_sql_boolean" ){
+					if( cfsqltype != "cf_sql_boolean" && !len( trim( defaultValue ) ) ){
 						isnull = "true";
 					}
 				}
