@@ -20,7 +20,7 @@
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
 *		@version 0.0.76
-*	   	@updated 08/18/2017
+*	   	@updated 08/28/2017
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		control all MySQL specific database interaction.
