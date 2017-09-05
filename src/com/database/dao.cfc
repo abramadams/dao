@@ -86,6 +86,7 @@
 	<cfproperty name="DOUBLEQUOTE" type="string" hint="Placeholder for escaped double quote character">
 	<cfproperty name="EQUALS" type="string" hint="Placeholder for escaped equals character">
 	<cfproperty name="COLON" type="string" hint="Placeholder for escaped equals character">
+	<cfproperty name="POUND" type="string" hint="Placeholder for escaped pound sign character">
 
 	<cfset _resetCriteria() />
 	<cfscript>
@@ -129,6 +130,7 @@
 			setDOUBLEQUOTE( chr( 902 ) );
 			setEQUALS( chr( 903 ) );
 			setCOLON( chr( 904 ) );
+			setPOUND( chr( 905 ) );
 
 			// auto-detect the database type.
 			if ( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) ){
@@ -752,6 +754,8 @@
 			var tempList = "";
 			var tempCFSQLType = "";
 			var tempParam = "";
+			// strip out #'s in params so we don't try to parse them later.
+			arguments.params = deSerializeJSON( reReplace( serializeJSON( params ), '##',getPOUND(), 'all' ) );
 			var tmpSQL = parseQueryParams( arguments.sql, arguments.params );
 
 			LOCAL.statements = [];
@@ -821,6 +825,8 @@
 				tmp.before = preserveSingleQuotes( tmp.before );
 				tempParam = listRest( sqlFrag, chr( 998 ) );
 				tempParam = preserveSingleQuotes( tempParam );
+				// Put #'s back into the value (stripped out previously to prevent cfml parsing)
+				tempParam = reReplace( tempParam, getPOUND(), '##', 'all' );
 
 				// These will return the position and length of the name, cfsqltype and value.
 				// We use these to extract the values for the actual cfqueryparam
@@ -859,7 +865,6 @@
 				if( tmp.null && ( listLast( trim( tmp.before ), " " ) == '!=' ||  listLast( trim( tmp.before ), " " ) == '<>' ) ){
 					tmp.before = listDeleteAt( tmp.before, listLen( tmp.before, ' ' ), ' ' ) & " IS NOT ";
 				}
-
 				arrayAppend( LOCAL.statements, tmp );
 				// Reset tmp struct
 				tmp = {};
@@ -873,7 +878,6 @@
 				if ( startPos ){
 					startPos = startPos + 1;
 					var endPos = findnocase(chr(35),str,startPos) - startPos;
-
 					if ( !endPos ){
 						throw("Closing ## Not specified!");
 					}
