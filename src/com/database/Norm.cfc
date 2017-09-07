@@ -64,6 +64,13 @@ component accessors="true" output="false" {
 	_tableDefs = {};
 	_aliases = {};
 
+
+	/* *************************************************************************** */
+	/* Mixins for extended functionality (i.e. oData )							   */
+	/* *************************************************************************** */
+	include "oData.cfm";
+
+
 	public any function init( 	string table = "",
 								string parentTable = "",
 								string idField = "ID",
@@ -3202,8 +3209,4 @@ component accessors="true" output="false" {
 		}
 	}
 
-	/* *************************************************************************** */
-	/* Mixins for extended functionality (i.e. oData )							   */
-	/* *************************************************************************** */
-	include "oData.cfm";
 }
