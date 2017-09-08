@@ -145,7 +145,7 @@
 		*						.beginGroup("AND")
 		*							.orPredicate( orPredicates )
 		*							.beginGroup("OR")
-		*								.orPredicate( andPredicates )
+		*								.andPredicate( andPredicates )
 		*							.endGroup()
 		*						.endGroup()
 		*						.run();

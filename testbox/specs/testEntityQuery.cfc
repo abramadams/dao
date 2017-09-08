@@ -187,7 +187,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 					.beginGroup("AND")
 						.orPredicate( orPredicates )
 						.beginGroup("OR")
-							.orPredicate( andPredicates )
+							.andPredicate( andPredicates )
 						.endGroup()
 					.endGroup();
 		$assert.typeOf( "struct", query.getCriteria() );

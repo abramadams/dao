@@ -461,6 +461,55 @@ Which will only return pets.ID and pets.firstName (aliased) from the pets table 
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
 
+## Predicates
+These are simply where clauses that you can build independently from the linq query chain.
+For instance you may build a series of predicates over time that you then feed into the linq (Entity Query).
+The following methods are provided to create and use predicates:
+* `predicate( column, operator, value )` - Convenience method to return a struct representation of the predicate/clause `{column:column, operator:operator, value:value }`
+* `orPredicate( predicate )` - Adds a single or array of predicates to an `OR` group.
+* `andPredicate( predicate )` - Adds a single or array of predicates to an `AND` group.
+i.e.:
+```ActionScript
+var predicate = dao.predicate("columnName", "=", "123" );
+var predicate2 = dao.predicate("SecondcolumnName", "=", "abc" );
+var results = dao.from("myTable").where(predicate).andWhere(predicate).run();
+```		
+You could also group and pass in multiple as arrays
+i.e.
+```ActionScript
+var predicates = [
+	dao.predicate("columnName", "=", "123" ),
+	dao.predicate("SecondcolumnName", "=", "abc" )
+];	
+var results = dao.from("myTable").where(1,"=",1).andWhere(predicates).run();
+```
+These are also usefull for nested groups such as the following SQL:
+```SQL
+WHERE 1 = 1
+AND ( column1 = 1 OR column2 = "a" OR ( column3 = "c" AND column4 = "d") )
+```
+This would be represented in entity query/linq as:
+```ActionScript
+var orPredicates = [
+	dao.predicate("column1", "=", "1" ),
+	dao.predicate("column2", "=", "a" )
+];
+var andPredicates = [
+	dao.predicate("column3",=,"c"),
+	dao.predicate("column4",=,"d")
+];
+var results = dao.from("myTable")
+		.where(1,"=",1)
+		.andWhere(predicates)
+		.beginGroup("AND")
+			.orPredicate( orPredicates )
+			.beginGroup("OR")
+				.andPredicate( andPredicates )
+			.endGroup()
+		.endGroup()
+		.run();		
+```
+
 # NORM - The ORM'sh side of DAO
 The second part of this library is an ORM'sh implementation of entity management.  It internally uses the
 dao.cfc (and dbtype specific CFCs), but provides an object oriented way of playing with your model.  Consider
