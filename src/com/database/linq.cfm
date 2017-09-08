@@ -50,7 +50,23 @@
 			return newDao;
 		}
 
-		public function where( required string column, required string operator, required string value ){
+		public function where( any column = "", string operator, string value, any predicate ){
+			if( !isSimpleValue( column ) ){
+				predicate = column;
+			}else if(
+				isSimpleValue( column )
+				&& !arguments.keyExists( 'predicate' )
+				&& ( !arguments.keyExists( 'operator' ) || !arguments.keyExists( 'value' ) )
+			){
+				throw('Arguments Operator and Value must be passed in unless passing in a predicate');
+			}else if( isSimpleValue( column ) && !len( trim( column ) ) && predicate.size() != 0 ){
+				column = predicate;
+			}
+			if( isStruct( column ) ){
+				arguments.operator = column.operator;
+				arguments.value = column.value;
+				arguments.column = column.column;
+			}
 			// There can be only one where.
 			if ( arrayLen( this._criteria.clause ) && left( this._criteria.clause[ 1 ] , 5 ) != "WHERE" ){
 				this._criteria.clause.prepend( "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#" );
@@ -60,12 +76,110 @@
 			this._criteria.callStack.append( { where = { column = column, operator = operator, value = value } } );
 			return this;
 		}
-		public function andWhere( required string column, required string operator, required string value ){
-			return _appendToWhere( andOr = "AND", column = column, operator = operator, value = value );
+		public function andWhere( any column, string operator, string value, struct predicate = {} ){
+			arguments.andOr = "AND";
+			_andOrWhere( argumentCollection:arguments );
+			return this;
 		}
 
-		public function orWhere( required string column, required string operator, required string value ){
-			return _appendToWhere( andOr = "OR", column = column, operator = operator, value = value );
+		public function orWhere( any column, string operator, string value, struct predicate = {} ){
+			arguments.andOr = "OR";
+			_andOrWhere( argumentCollection:arguments );
+			return this;
+		}
+
+		private function _andOrWhere(  any column = "", string operator, string value, any predicate, required string andOr ){
+			if( !isSimpleValue( column ) ){
+				predicate = column;
+			}else if(
+				isSimpleValue( column )
+				&& !arguments.keyExists( 'predicate' )
+				&& ( !arguments.keyExists( 'operator' ) || !arguments.keyExists( 'value' ) )
+			){
+				throw('Arguments Operator and Value must be passed in unless passing in a predicate');
+			}else if( isSimpleValue( column ) && !len( trim( column ) ) && predicate.size() != 0 ){
+				column = predicate;
+			}
+			if( isStruct( column ) ){
+				_appendToWhere( andOr = andOr, column = column.column, operator = column.operator, value = column.value );
+			}else if( isArray( column ) ){
+				column.each(function(col){
+					_appendToWhere( andOr = andOr, column = col.column, operator = col.operator, value = col.value );
+				});
+			}else{
+				_appendToWhere( andOr = andOr, column = column, operator = operator, value = value );
+			}
+			return this;
+		}
+
+		/**
+		* PREDICATES - These are simply where clauses that you can build independently from the linq query chain.
+		* For instance you may build a series of predicates over time that you then feed into the linq (Entity Query).
+		* i.e.
+		* var predicate = dao.predicate("columnName", "=", "123" );
+		* var predicate2 = dao.predicate("SecondcolumnName", "=", "abc" );
+		* var results = dao.from("myTable").where(predicate).andWhere(predicate).run();
+		*
+		* You could also group and pass in multiple as arrays
+		* i.e.
+		* var predicates = [
+		*			dao.predicate("columnName", "=", "123" ),
+		*			dao.predicate("SecondcolumnName", "=", "abc" )
+		* ];
+		* var results = dao.from("myTable").where(1,"=",1).andWhere(predicates).run();
+		*
+		* These are also usefull for nested groups such as the following SQL:
+		*	WHERE 1 = 1
+		* 	AND ( column1 = 1 OR column2 = "a" OR ( column3 = "c" AND column4 = "d") )
+		* This would be represented in entity query/linq as:
+		* var orPredicates = [
+		*			dao.predicate("column1", "=", "1" ),
+		*			dao.predicate("column2", "=", "a" )
+		* ];
+		* var andPredicates = [
+		*			dao.predicate("column3",=,"c"),
+		*			dao.predicate("column4",=,"d")
+		* ];
+		* var results = dao.from("myTable").where(1,"=",1)
+		*						.andWhere(predicates)
+		*						.beginGroup("AND")
+		*							.orPredicate( orPredicates )
+		*							.beginGroup("OR")
+		*								.orPredicate( andPredicates )
+		*							.endGroup()
+		*						.endGroup()
+		*						.run();
+		*
+		**/
+		public function predicate( required any column, string operator = "", string value = "" ){
+			if( isArray( column ) && column.size() == 3 ){
+				return { column: column[1], operator:column[2], value: column[3] };
+			}
+			return arguments;
+		}
+		public array function predicates( required array predicates ){
+			return arguments.predicates;
+		}
+		public function andPredicate( required predicate ){
+			_andOrPredicate( predicate = predicate, andOr = "AND" );
+			return this;
+		}
+		public function orPredicate( required predicate ){
+			_andOrPredicate( predicate = predicate, andOr = "OR" );
+			return this;
+		}
+		private function _andOrPredicate( required predicate, required andOr ){
+			var group = false;
+			if( this._criteria.keyExists('callStack') && this._criteria.callStack.size() ){
+				this._criteria.clause.append( "(" );
+				group = true;
+			}else{
+				this._criteria.callStack = [];
+			}
+			_andOrWhere( argumentCollection:arguments );
+			if( group ){
+				endGroup();
+			}
 		}
 
 		/**
@@ -73,7 +187,7 @@
 		* If "AND" is passed, it will return AND (
 		* Must be closed by endGroup()
 		**/
-		public function beginGroup( string operator = "AND"){
+		public function beginGroup( string operator = ""){
 
 			this._criteria.clause.append( "#operator# ( " );
 			this._criteria.callStack.append( { beginGroup = { operator = operator } } );
@@ -147,15 +261,31 @@
 
 		// EntityQuery "helper" functions
 		public function _appendToWhere( required string andOr, required string column, required string operator, required string value ){
+			if( trim( right( trim( this._criteria.clause[ arrayLen( this._criteria.clause ) ] ), 1 ) ) == "(" ){
+				this._criteria.clause[ arrayLen( this._criteria.clause ) ] = '#andOr# (';
+			}
+			if( operator == "contains" ){
+				operator = "like";
+				value = "%#value#%";
+			}
+
 			if ( arrayLen( this._criteria.clause )
-				&& ( left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 5 ) != "AND ("
-				&& left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 4 ) != "OR (" ) ){
+				&& (
+					   left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 5 ) != "AND ("
+					&& left( this._criteria.clause[ arrayLen( this._criteria.clause ) ] , 4 ) != "OR ("
+				)
+			){
 				if( operator == "in" ){
 					this._criteria.clause.append( "#andOr# #_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{
 					this._criteria.clause.append( "#andOr# #_getSafeColumnName( column )# #operator# #queryParam(value=value,null=(value eq getNullValue()))#" );
 				}
 			}else{
+				if( right( trim( this._criteria.clause[ arrayLen( this._criteria.clause )-1 ] ), 1 ) == "(" ){
+					this._criteria.clause[ arrayLen( this._criteria.clause ) ] = ' ( ';
+				}else{
+					this._criteria.clause[ arrayLen( this._criteria.clause ) ] = ' #andOr# (';
+				}
 				if( operator == "in" ){
 					this._criteria.clause.append( "#_getSafeColumnName( column )# #operator# ( #queryParam(value=value,list=true)# )" );
 				}else{

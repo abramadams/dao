@@ -114,14 +114,105 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 					.orderBy("eventDate desc");
 		$assert.typeOf( "struct", query.getCriteria() );
 		var results = query.run();
-
-
+        $assert.typeOf( "query", results );
+		// writeDump({testRUnNoLimit:results});
+	}
+	function testGroupedPredicates() test{
+		var predicates = [
+			request.dao.predicate( "event", "=", "delete" ),
+			request.dao.predicate( "event", "=", "insert" )
+		];
+		var predicates2 = request.dao.predicate( "ID", ">=", 1 );
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.andPredicate( predicates2 )
+					.orPredicate( predicates )
+					.orderBy("eventDate desc");
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
         $assert.typeOf( "query", results );
 
-        results = query.from("TodoItem").where(1,"=",1).andWhere("isArchived","=",1).run();
-		// writeDump(results);
+		// writeDump({testGroupedPredicates:results});
+	}
 
+	function testGroupedPredicatesOverTime() test{
+		var predicates = [
+			request.dao.predicate( "event", "=", "delete" ),
+			request.dao.predicate( "event", "=", "insert" )
+		];
+		var predicates2 = request.dao.predicate( "ID", ">=", 1 );
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.andPredicate( predicates2 )
+					.orderBy("eventDate desc");
+		query.orPredicate( predicates );
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+        $assert.typeOf( "query", results );
+        // writeDump({testGroupedPredicatesOverTime:results});
 
+	}
+	function testAndOrGroupedPredicates() test{
+		var predicates = [
+			request.dao.predicate( "event", "=", "delete" ),
+			request.dao.predicate( "event", "contains", "insert" )
+		];
+		var predicates2 = request.dao.predicate( "ID", ">=", 1 );
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.andPredicate( predicates2 )
+					.beginGroup("AND")
+						.orPredicate( predicates )
+					.endGroup()
+					.orderBy("eventDate desc");
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+        $assert.typeOf( "query", results );
+        // writeDump({testAndOrGroupedPredicates:results});
+
+	}
+	function testNestedGroupedPredicates() test{
+		var orPredicates = [
+			request.dao.predicate( "event", "=", "delete" ),
+			request.dao.predicate( "event", "contains", "insert" )
+		];
+		var andPredicates = [
+			request.dao.predicate( "event", "!=", "sam" ),
+			request.dao.predicate( "event", "!=", "bam" )
+		];
+		var predicates2 = request.dao.predicate( "ID", ">=", 1 );
+		var query = request.dao.from( "eventLog" )
+					.where( 1, "=", 1 )
+					.beginGroup("AND")
+						.orPredicate( orPredicates )
+						.beginGroup("OR")
+							.orPredicate( andPredicates )
+						.endGroup()
+					.endGroup();
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+        $assert.typeOf( "query", results );
+        // writeDump({testNestedGroupedPredicates:results});
+
+	}
+	function testWhereAsPredicate() test{
+		var predicate = request.dao.predicate( "event", "=", "delete" );
+		var query = request.dao.from( "eventLog" ).where( predicate );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+        $assert.typeOf( "query", results );
+	}
+	function testSinglePredicate() test{
+		var predicate = request.dao.predicate( "event", "=", "delete" );
+		var query = request.dao.from( "eventLog" )
+			.where( 1, "=", 1 )
+			.andWhere( predicate );
+
+		$assert.typeOf( "struct", query.getCriteria() );
+		var results = query.run();
+        $assert.typeOf( "query", results );
 	}
 
 	function returnAsQuery() test{
