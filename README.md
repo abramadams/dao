@@ -9,6 +9,7 @@ Dao/Norm is a duo of libraries that provide a simple yet full featured interface
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 # 0.3.x Breaking Changes
 * Changed `get` function to a generic property getter `get('propertyName')` rather than a data fetching method.  If using `entity.get(1)` to get the record with ID of 1, use `entity.getRecord(1)` instead.
+* Split out LINQ and oData features into mixin files (`linq.cfm` and `oData.cfm` respetively).  If updating from a previous version, simply make sure you deploy all files in the `/src/com/database` folder to your target.
 # New in 0.2.x
 This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
 
@@ -459,6 +460,55 @@ Which will only return pets.ID and pets.firstName (aliased) from the pets table 
 
 This new syntax will provide greater separation of your application layer and the persistence layer as it deligates
 to the underlying "connector" (i.e. mysql.cfc) to parse and perform the actual query.
+
+## Predicates
+These are simply where clauses that you can build independently from the linq query chain.
+For instance you may build a series of predicates over time that you then feed into the linq (Entity Query).
+The following methods are provided to create and use predicates:
+* `predicate( column, operator, value )` - Convenience method to return a struct representation of the predicate/clause `{column:column, operator:operator, value:value }`
+* `orPredicate( predicate )` - Adds a single or array of predicates to an `OR` group.
+* `andPredicate( predicate )` - Adds a single or array of predicates to an `AND` group.
+i.e.:
+```ActionScript
+var predicate = dao.predicate("columnName", "=", "123" );
+var predicate2 = dao.predicate("SecondcolumnName", "=", "abc" );
+var results = dao.from("myTable").where(predicate).andWhere(predicate).run();
+```		
+You could also group and pass in multiple as arrays
+i.e.
+```ActionScript
+var predicates = [
+	dao.predicate("columnName", "=", "123" ),
+	dao.predicate("SecondcolumnName", "=", "abc" )
+];	
+var results = dao.from("myTable").where(1,"=",1).andWhere(predicates).run();
+```
+These are also usefull for nested groups such as the following SQL:
+```SQL
+WHERE 1 = 1
+AND ( column1 = 1 OR column2 = "a" OR ( column3 = "c" AND column4 = "d") )
+```
+This would be represented in entity query/linq as:
+```ActionScript
+var orPredicates = [
+	dao.predicate("column1", "=", "1" ),
+	dao.predicate("column2", "=", "a" )
+];
+var andPredicates = [
+	dao.predicate("column3",=,"c"),
+	dao.predicate("column4",=,"d")
+];
+var results = dao.from("myTable")
+		.where(1,"=",1)
+		.andWhere(predicates)
+		.beginGroup("AND")
+			.orPredicate( orPredicates )
+			.beginGroup("OR")
+				.andPredicate( andPredicates )
+			.endGroup()
+		.endGroup()
+		.run();		
+```
 
 # NORM - The ORM'sh side of DAO
 The second part of this library is an ORM'sh implementation of entity management.  It internally uses the
