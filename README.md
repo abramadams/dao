@@ -495,8 +495,8 @@ var orPredicates = [
 	dao.predicate("column2", "=", "a" )
 ];
 var andPredicates = [
-	dao.predicate("column3",=,"c"),
-	dao.predicate("column4",=,"d")
+	dao.predicate("column3","=","c"),
+	dao.predicate("column4","=","d")
 ];
 var results = dao.from("myTable")
 		.where(1,"=",1)
