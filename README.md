@@ -472,7 +472,7 @@ i.e.:
 ```ActionScript
 var predicate = dao.predicate("columnName", "=", "123" );
 var predicate2 = dao.predicate("SecondcolumnName", "=", "abc" );
-var results = dao.from("myTable").where(predicate).andWhere(predicate).run();
+var results = dao.from("myTable").where(predicate).andWhere(predicate2).run();
 ```		
 You could also group and pass in multiple as arrays
 i.e.
