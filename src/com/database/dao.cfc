@@ -96,7 +96,7 @@
 		/* Mixins for extended functionality (i.e. linq )							   */
 		/* *************************************************************************** */
 		// Adds linq style query functions (i.e. from().where()...)
-		include template="linq.cfm";
+		include "linq.cfm";
 
 
 		/**
