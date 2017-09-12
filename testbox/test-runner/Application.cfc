@@ -30,10 +30,52 @@ component{
 	}
 
 	private function setupDatabase(){
-		
+
 		var start = getTickCount();
 		if ( request.dao.getDBtype()  == "mssql" ){
 			// MSSQL specific
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'pets' AND xtype = 'U' )
+					TRUNCATE TABLE [pets]
+				" );
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'users' AND xtype = 'U' )
+					CREATE TABLE users (
+						ID int NOT NULL IDENTITY (1, 1),
+						_id varchar(45) NOT NULL,
+					    user_name varchar(50) DEFAULT NULL,
+					    password varchar(50) DEFAULT NULL,
+					    first_name varchar(60) DEFAULT NULL,
+					    last_name varchar(60) DEFAULT NULL,
+					    email varchar(255) DEFAULT NULL,
+					    status int(11) DEFAULT NULL,
+					    crated_datetime datetime DEFAULT NULL,
+					    modified_datetime datetime DEFAULT NULL
+					)
+				" );
+			request.dao.execute("TRUNCATE TABLE [users]");
+				var userInsertArray = [
+					"('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com')",
+				   	"('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com')",
+			   		"('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')"
+			   	];
+			for( var insert in userInsertArray ){
+				request.dao.execute("
+					INSERT INTO users(
+				       `ID`,
+				       `user_name`,
+				       `password`,
+				       `first_name`,
+				       `last_name`,
+				       `status`,
+				       `created_datetime`,
+				       `modified_datetime`,
+				       `_id`,
+				       `email`)
+				   VALUES #insert#
+				");
+			}
+
 			request.dao.execute( "
 				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'eventLog' AND xtype = 'U' )
 					CREATE TABLE eventLog (
@@ -81,23 +123,41 @@ component{
 			request.dao.insert( "pets", petsData );
 
 			request.dao.execute( "
-				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'users' AND xtype = 'U' )
-					CREATE TABLE users (
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'test' AND xtype = 'U' )
+					CREATE TABLE test (
 						ID int NOT NULL IDENTITY (1, 1),
-						_id varchar(45) NOT NULL,
-					    user_name varchar(50) DEFAULT NULL,
-					    password varchar(50) DEFAULT NULL,
-					    first_name varchar(60) DEFAULT NULL,
-					    last_name varchar(60) DEFAULT NULL,
-					    email varchar(255) DEFAULT NULL,
-					    status int(11) DEFAULT NULL,
-					    crated_datetime datetime DEFAULT NULL,
-					    modified_datetime datetime DEFAULT NULL
+						test varchar(50) NULL,
+						testDate date NULL
 					)
 				" );
-			request.dao.execute("TRUNCATE TABLE [users]");
+			request.dao.execute("TRUNCATE TABLE [test]");
+
+			// TODO: Add MSSQL specific create tables for orders, order_items, companies, call_notes, products and product_clasess (See mysql create statements for definitions/data)
+
+		} else if ( request.dao.getDBtype() == "mysql" ){
+
+			// MySQL specific
+
+			request.dao.execute("DROP TABLE IF EXISTS `pets`");
+
+			request.dao.execute("DROP TABLE IF EXISTS `users`");
 			request.dao.execute("
-				INSERT INTO users(
+				 CREATE TABLE `users` (
+				   `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+				   `user_name` varchar(50) DEFAULT NULL,
+				   `password` varchar(50) DEFAULT NULL,
+				   `first_name` varchar(60) DEFAULT NULL,
+				   `last_name` varchar(60) DEFAULT NULL,
+				   `status` int(11) unsigned DEFAULT NULL,
+				   `created_datetime` datetime NOT NULL DEFAULT current_timestamp,
+				   `modified_datetime` datetime NULL,
+				   `_id` varchar(200) DEFAULT NULL,
+				   `email` varchar(255) DEFAULT NULL,
+				   PRIMARY KEY (`ID`)
+				 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+
+			");
+			request.dao.execute("REPLACE INTO users(
 			       `ID`,
 			       `user_name`,
 			       `password`,
@@ -108,24 +168,12 @@ component{
 			       `modified_datetime`,
 			       `_id`,
 			       `email`)
-			   VALUES ('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '170d1f48-b141-80a8-2a9a9e252d69d2cd', 'jbond@spymail.com')
-			");
-
-			request.dao.execute( "
-				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'test' AND xtype = 'U' )
-					CREATE TABLE test (
-						ID int NOT NULL IDENTITY (1, 1),
-						test varchar(50) NULL,
-						testDate date NULL
-					)
-				" );
-			request.dao.execute("TRUNCATE TABLE [test]");
-			
-			// TODO: Add MSSQL specific create tables for orders, order_items, companies, call_notes, products and product_clasess (See mysql create statements for definitions/data)
-
-		} else if ( request.dao.getDBtype() == "mysql" ){
-
-			// MySQL specific
+			   VALUES
+			   	('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com'),
+			   	('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com'),
+			   	('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')
+			   "
+			);
 			request.dao.execute("DROP TABLE IF EXISTS `eventLog`");
 			request.dao.execute("
 			   CREATE TABLE `eventLog` (
@@ -148,18 +196,19 @@ component{
 							('219', 'test named params', 'This is a description from a named param', '2014-12-30 08:38:46'),
 							('220', 'test insert', '', '2014-12-30 08:38:46')
 			");
-			request.dao.execute("DROP TABLE IF EXISTS `pets`");
 			request.dao.execute("
 			   CREATE TABLE `pets` (
-			     `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
-			     `_id` varchar(45) NOT NULL,
-			     `userID` varchar(255) DEFAULT NULL,
-			     `firstName` varchar(255) DEFAULT NULL,
-			     `lastName` varchar(255) DEFAULT NULL,
-			     `createdDate` datetime DEFAULT NULL,
-			     `modifiedDate` datetime DEFAULT NULL,
-			     PRIMARY KEY (`ID`,`_id`)
-			   ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+				   `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+				   `_id` varchar(45) NOT NULL,
+				   `userID` int(11) unsigned NOT NULL,
+				   `firstName` varchar(255) DEFAULT NULL,
+				   `lastName` varchar(255) DEFAULT NULL,
+				   `createdDate` datetime DEFAULT NULL,
+				   `modifiedDate` datetime DEFAULT NULL,
+				   PRIMARY KEY (`ID`,`_id`),
+				   KEY `userID` (`userID`),
+				  FOREIGN KEY (`userID`) REFERENCES `users`(`ID`)
+				 ) ENGINE=InnoDB AUTO_INCREMENT=501 DEFAULT CHARSET=utf8;
 			");
 			request.dao.execute("REPLACE INTO pets(
 			                            `ID`,
@@ -171,47 +220,20 @@ component{
 			                            `modifiedDate`)
 			                  VALUES
 			                  ('93', '7d5a4d53-0a80-6eaf-db2acdaf5ed86568', '1', 'dog', '', CURRENT_DATE,CURRENT_DATE),
-			                  ('94', 'fbf08c9d-e8de-01f7-7c89d8b41b258aac', '8', 'dog', 'frog', CURRENT_DATE,CURRENT_DATE),
-			                  ('95', 'fc059ee0-96ce-a99b-7c0f26be24e3271a', '12', 'dog', 'mog', CURRENT_DATE,CURRENT_DATE),
-			                  ('96', 'fc0601c7-9f0b-fae9-0eb0b9ad5ac0ea93', '15', 'corn', 'dag', CURRENT_DATE,CURRENT_DATE),
-			                  ('97', 'fc070c5c-9943-6503-a10e73bd72ab1125', '18', 'chicken', 'cat', CURRENT_DATE,CURRENT_DATE),
-			                  ('98', 'fc0f2f26-efb3-fd03-1fb7a5e794be17f2', '21', 'beef', 'rat', CURRENT_DATE,CURRENT_DATE),
-			                  ('99', 'fc108acf-0c05-7303-62273152f581f444', '24', 'dog', '', CURRENT_DATE,CURRENT_DATE)
+			                  ('94', 'fbf08c9d-e8de-01f7-7c89d8b41b258aac', '1', 'dog', 'frog', CURRENT_DATE,CURRENT_DATE),
+			                  ('95', 'fc059ee0-96ce-a99b-7c0f26be24e3271a', '1', 'dog', 'mog', CURRENT_DATE,CURRENT_DATE),
+			                  ('96', 'fc0601c7-9f0b-fae9-0eb0b9ad5ac0ea93', '1', 'corn', 'dag', CURRENT_DATE,CURRENT_DATE),
+			                  ('97', 'fc070c5c-9943-6503-a10e73bd72ab1125', '1', 'chicken', 'cat', CURRENT_DATE,CURRENT_DATE),
+			                  ('98', 'fc0f2f26-efb3-fd03-1fb7a5e794be17f2', '1', 'beef', 'rat', CURRENT_DATE,CURRENT_DATE),
+			                  ('99', 'fc108acf-0c05-7303-62273152f581f444', '1', 'dog', '', CURRENT_DATE,CURRENT_DATE)
 			");
 
-			request.dao.execute("DROP TABLE IF EXISTS `users`");
-			request.dao.execute("CREATE TABLE `users` (
-			     `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
-			     `user_name` varchar(50) CHARACTER SET utf8 DEFAULT NULL,
-			     `password` varchar(50) CHARACTER SET utf8 DEFAULT NULL,
-			     `first_name` varchar(60) CHARACTER SET utf8 DEFAULT NULL,
-			     `last_name` varchar(60) CHARACTER SET utf8 DEFAULT NULL,
-			     `status` int(11) unsigned DEFAULT NULL,
-			     `created_datetime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			     `modified_datetime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-			     `_id` varchar(200) DEFAULT NULL,
-			     `email` varchar(255) DEFAULT NULL,
-			     PRIMARY KEY (`ID`)
-			   ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
-			");
-			request.dao.execute("REPLACE INTO users(
-			       `ID`,
-			       `user_name`,
-			       `password`,
-			       `first_name`,
-			       `last_name`,
-			       `status`,
-			       `created_datetime`,
-			       `modified_datetime`,
-			       `_id`,
-			       `email`)
-			   VALUES ('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '170d1f48-b141-80a8-2a9a9e252d69d2cd', 'jbond@spymail.com')"
-			);
+
 			request.dao.execute("DROP TABLE IF EXISTS `test`");
 			request.dao.execute("CREATE TABLE `test` (
 			     `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
 			     `test` varchar(50) CHARACTER SET utf8 DEFAULT NULL,
-			     `testDate` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			     `testDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			     PRIMARY KEY (`ID`)
 			   ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 			");
@@ -232,7 +254,7 @@ component{
 			request.dao.execute(
 				sql = "
 					INSERT INTO products( ID, product_classes_ID, name, description, price, cost )
-					VALUES 
+					VALUES
 						( 1, 1, 'Gloves', 'Leather work gloves', 15.00, 3.50 ),
 						( 2, 1, 'Pants', 'Heavy work pants', 45.00, 13.40 ),
 						( 3, 2, 'Jackhammer', 'Jackhammer', 345.00, 116.00 ),
@@ -254,14 +276,14 @@ component{
 			request.dao.execute(
 				sql = "
 					INSERT INTO product_classes( ID, name, description)
-					VALUES 
+					VALUES
 						( 1, 'Apparel', 'Clothing' ),
 						( 2, 'Equipment', 'Equipment' ),
 						( 3, 'Services', 'Non-taxable services' );
 			       "
 			);
 
-			
+
 			request.dao.execute("DROP TABLE IF EXISTS `companies`");
 			request.dao.execute(
 				sql = "CREATE TABLE `companies` (
@@ -275,7 +297,7 @@ component{
 			request.dao.execute(
 				sql = "
 				INSERT INTO companies ( name, account_reference )
-				VALUES 
+				VALUES
 					('M and D Coars and Co', 'C01099'),
 					('ALASTAIR FERGUSON', 'C01100'),
 					('E T Tomlinson & Son', 'C01101'),
@@ -339,7 +361,7 @@ component{
 						(3, '2017-01-12', 1 ),
 						(2, '2017-01-12', 1 ),
 						(6, '2017-01-12', 1 )
-				"	
+				"
 			);
 
 			request.dao.execute("DROP TABLE IF EXISTS `order_items`");
@@ -383,8 +405,8 @@ component{
 				{companies_ID:5,note: createUUID(), created_datetime:now() }
 			];
 			request.dao.insert( "call_notes", callNotes );
-			
-			
+
+
 		}
 
 		// Model tables

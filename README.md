@@ -752,7 +752,7 @@ This would only return "active" order_items.
 
 The `hasMany` method is great for defining one-to-many relationships that can't be/aren't defined by naming conventions, but there's also a way to define many-to-one relationships in this manner; the `belongsTo` method.
 ```ActionScript
-order.belongsTo( table = 'customers', property = 'company', fkField = 'customerID' );
+order.belongsTo( table = 'customers', property = 'company', fkColumn = 'customerID' );
 writeDump( order.getCompany() );
 ```
 This may not be as useful as the `hasMany` method, as these many-to-one relationships can easily be defined using dynamicMappings (discussed below), but it can bind these relationships after the entity has been loaded, where dynamicMappings occur during load.

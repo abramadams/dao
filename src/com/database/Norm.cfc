@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.3.1
+*   @version 0.3.2
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 08/18/2017
+*   @updated 09/12/2017
 *   @author Abram Adams
 **/
 
@@ -537,7 +537,7 @@ component accessors="true" output="false" {
 	public void function set( required string property, required any value ){
 		_setter( value, property );
 	}
-	public void function get( required string property ){
+	public any function get( required string property ){
 		return this[ property ];
 	}
 
@@ -687,8 +687,8 @@ component accessors="true" output="false" {
 
 				} catch ( any e ){
 					if( e.type != 'NORM' ){
-						throw(e.detail);
 						// writeDump(["test",e,mapping]);abort;
+						throw(e.message?:e.detail);
 					}
 					rethrow;
 					// writeDump(["another test",arguments,e,mapping,variables]);abort;
@@ -1826,7 +1826,7 @@ component accessors="true" output="false" {
 											? propertyname[ 'property' ]
 											: arguments.property;
 		}
-		fkValue = isNull( fkvalue ) ? variables[ fkColumn ] : fkValue;
+		fkValue = isNull( fkvalue ) ? get( fkColumn ) : fkValue;
 
 		// Reverse lookup for an alias name in the dynamicMappings.  This is used in case the load() method
 		// is auto-wiring relationships and doesn't know that a column has a mapping.
@@ -1858,8 +1858,12 @@ component accessors="true" output="false" {
 		}
 		newObj.setTable( mapping.table );
 
+		// Set the fkValue to the fkColumn value if fkValue wasn't supplied or is empty
+		if( isNull( fkValue ) || !len( trim( fkValue ) ) ){
+			fkValue = this[fkColumn];
+		}
 		// Load data into new object
-		// // logIt('Loading dynamic many-to-one relationship entity #table#[#mapping.table#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #isSimpleValue( variables[fkColumn] ) ? variables[fkColumn] : 'complex object'#. Lazy? #yesNoFormat(getParentTable() eq mapping.table)#');
+		// logIt('Loading dynamic many-to-one relationship entity #table#[#mapping.table#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #isSimpleValue( this[fkColumn] ) ? this[fkColumn] : 'complex object'# || #fkValue#. Lazy? #yesNoFormat(getParentTable() eq mapping.table)#');
 		if( len( trim( fkValue ) ) ){
 			newObj.load( ID = fkValue, lazy = true, where = where, parentTable = this.getTable() );
 		}
@@ -1916,15 +1920,30 @@ component accessors="true" output="false" {
 			,string returnType = "object"
 			,string where = ""
 	){
-		variables[ property ] = this[ property ] = _getManyToOne(
-															table = lcase( arguments.table ),
-															fkColumn = arguments.fkColumn,
-															property = arguments.property,
-															pkColumn = arguments.pkColumn,
-															returnType = arguments.returnType,
-															where = arguments.where
-													);
-		this[ "set" & property ] = variables[ "set" & property ] = _setter;
+		if( !this.isNew() ){
+			variables[ property ] = this[ property ] = _getManyToOne(
+																table = lcase( arguments.table ),
+																fkColumn = arguments.fkColumn,
+																property = arguments.property,
+																pkColumn = arguments.pkColumn,
+																returnType = arguments.returnType,
+																where = arguments.where
+														);
+			this[ "set" & property ] = variables[ "set" & property ] = _setter;
+		}else{
+			variables[table] = this[table] =
+			variables[property] = this[property] =
+			variables[ "get" & table ] = this[ "get" & table ] =
+			variables[ "get" & property ] = this[ "get" & property ] = _closure_getManyToOne(
+																			table = lcase( arguments.table ),
+																			fkColumn = arguments.fkColumn,
+																			fkValue = get(arguments.fkColumn),
+																			property = arguments.property,
+																			pkColumn = arguments.pkColumn,
+																			returnType = arguments.returnType,
+																			where = arguments.where
+																		);
+		}
 		// Update Cache
 		if( get__cacheEntities() ){
 			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
@@ -2628,6 +2647,7 @@ component accessors="true" output="false" {
 			// entity instance before we persist to the database.  The second
 			// pass will save the one-to-many related entities as those require
 			// that this record have an ID first.
+			// logIt('Saving the children');
 			_saveTheChildren();
 
 			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
@@ -2678,6 +2698,7 @@ component accessors="true" output="false" {
             // This is the second pass of the child save routine.
             // This pass will pick up those one-to-many relationships and
             // persist the data with the new parent ID (this parent)
+            // logIt('Saving the children with the parent id of #tempID#');
 			_saveTheChildren( tempID );
 
 			// Run afterInsert function.
@@ -2726,7 +2747,7 @@ component accessors="true" output="false" {
 			// once since the parent ID (this parent) already exists.
 			// Runing this routine now will inject the child ID(s) into
 			// this entity instance.
-			// logIt('All the Children...');
+			// logIt('All the Children of #parentTable#...');
 			_saveTheChildren( parentTable = parentTable );
 			// logIt('All the Children saved...');
 			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
@@ -2820,8 +2841,8 @@ component accessors="true" output="false" {
 						if( isClosure( child ) ) child = child();
 						child.onMissingMethod( 'set#col.fkcolumn#', {1:tempID} );
 					}catch (any e){
-						writeDump(['Error in _setter',e,child, arguments, variables[ col.name ] ]);abort;
-
+						writeDump(['Error in _setter',e,child, arguments, variables[ col.name ] ]);
+						rethrow;
 					}
 					// call the child's save routine;
 					var threadName = "childSave#createUUID()#";
@@ -2832,20 +2853,24 @@ component accessors="true" output="false" {
 					// logIt('_savethechildren: DONE Saving child [#child.getTable()#] record for #this.getTable()#:#tempID#');
 
 				}
-				thread action="join" name="#threadNames#";
+				if( threads.listLen() ){
+					thread action="join" name="#threads#";
+				}
 
 			}else if( structKeyExists( col, 'fieldType' )
 				&& col.fieldType eq 'many-to-one'
 				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
 				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
-				// // logIt('_savethechildren: yes, a many-to-one');
+				// logIt('_savethechildren: yes, a many-to-one');
 				//**************************************************************************************************
 				// MANY TO ONE.   This will and persist the child record to the back end storage (DB)
 				//**************************************************************************************************
 				var child = variables[ col.name ];
 
+				// logIt('child:#col.name#');
 				// Only save the child object if there were changes.
 				if( isObject( child ) && child.isDirty() ) {
+					// logIt('saving child:#col.name#');
 					child.save( parentTable = this.getTable() );
 				}
 
@@ -2865,7 +2890,8 @@ component accessors="true" output="false" {
 					}
 
 				}catch (any e){
-					writeDump(['Error in _saveTheChildren',e,col,variables]);abort;
+					writeDump(['Error in _saveTheChildren',e,col,variables]);
+					rethrow;
 				}
 			}
 		}

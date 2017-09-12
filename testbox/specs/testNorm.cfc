@@ -249,6 +249,41 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 	 }
 
+	 function saveExistingParentEntityWithChildren() test{
+		beforeEach();
+		var user = new com.database.Norm( table = 'users', dao = this.dao, autoWire = true );
+
+		// change event to 'test'
+		user.load(1);
+		var modifiedDate = now();
+		user.setModifiedDate(modifiedDate);
+		user.save();
+		$assert.isTrue( user.getModifiedDate() == modifiedDate );
+	 }
+
+	function saveExistingChildEntity() test{
+		beforeEach();
+		var pet = new com.database.Norm( table = 'pets', dao = this.dao, autoWire = false, debugMode = true );
+		pet.belongsTo( table = 'users', property = 'user', fkColumn = 'userID' );
+		// change event to 'test'
+		pet.load(93);
+		var modifiedDate = now();
+		pet.setModifiedDate(modifiedDate);
+		pet.save();
+		$assert.isTrue( pet.getModifiedDate() == modifiedDate );
+		var user = pet.getUser();
+		// writeDump(user);abort;
+		user.setmodified_datetime( modifiedDate );
+		// writeDump(pet.toStruct());abort;
+		pet.save();
+
+		$assert.isTrue( user.getmodified_datetime() == modifiedDate );
+		// secondary check directly against database
+		var userCheck = this.dao.read(sql="SELECT * FROM users WHERE ID = :userId",params={userId:pet.getUserId()});
+		$assert.isTrue( userCheck.modified_datetime == modifiedDate );
+
+	 }
+
 	 function loadExistingEntityToJSON() test{
 				beforeEach();
 		 var testEntity = new model.EventLog( dao = this.dao );
@@ -687,7 +722,7 @@ function ImplicitloadRecordByID() test{
 				var truthy = false;
 				testEntity.beforeLoad = function( entity ){
 						 entity.setId( 99999 );
-						 writeLog('testInjectedPreLoadEvent has access to the entity''s getID():: #entity.getId()#');
+						 // writeLog('testInjectedPreLoadEvent has access to the entity''s getID():: #entity.getId()#');
 						 $assert.isTrue( entity.getId() == 99999 );
 						 truthy = true;
 				};
