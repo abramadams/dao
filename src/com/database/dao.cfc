@@ -80,7 +80,7 @@
 	<cfproperty name="writeTransactionLog" type="boolean">
 	<cfproperty name="transactionLogFile" type="string">
 	<cfproperty name="tableDefs" type="struct">
-	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified: Experimental as of 7/9/14">
+	<cfproperty name="autoParameterize" type="boolean" hint="Causes SQL to be cfqueryparam'd even if not specified">
 	<cfproperty name="nullValue" hint="The value to pass in if you want the queryParam to consider it null.  Default is $null">
 	<cfproperty name="SINGLEQUOTE" type="string" hint="Placeholder for escaped single quote character">
 	<cfproperty name="DOUBLEQUOTE" type="string" hint="Placeholder for escaped double quote character">
@@ -481,7 +481,7 @@
 				if( len( trim( LOCAL.primaryKey ) ) && !reFindNoCase( '\b#LOCAL.primaryKey#\b', arguments.sql ) ){
 					LOCAL.tmpSQL = reReplaceNoCase( arguments.sql, 'INSERT(.*?)INTO (.*?)\(','REPLACE INTO \2(`' & LOCAL.primaryKey & '`, ','one' );
 					LOCAL.tmpSQL = reReplaceNoCase( LOCAL.tmpSQL, 'VALUES(.*?)\(',"VALUES (" & queryParam( value = arguments.lastID, cfsqltype = 'int', list = 'false',null = 'false' ) & ", ", 'one' );
-					arguments.sql = LOCAL.tmpSQL ;
+					arguments.sql = LOCAL.tmpSQL;
 				}
 			}
 
@@ -771,7 +771,7 @@
 
 				// So, we didn't have the special characters (998) that indicate the parameters were created
 				// using the queryParam() method, however, there may be some where clause type stuff that can
-				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statment
+				// be "guessed".  Let's try that, and if we fail we'll just return the original sql statement
 				// unharmed.
 				if( tmpSQL contains "where "){
 
@@ -824,7 +824,7 @@
 
 			for( var sqlFrag in tmpSQL ){
 
-				tmp.before = listFirst( sqlFrag, chr( 998 ) ) ;
+				tmp.before = listFirst( sqlFrag, chr( 998 ) );
 				// remove trailing ' from previous clause
 				if( left( tmp.before, 1 ) == "'" ){
 					tmp.before = mid( tmp.before, 2, len( tmp.before ) );
@@ -1354,9 +1354,329 @@
 		}
 
 
+		public any function read(
+				 string sql = "",
+				 struct params = {},
+				 string name = "ret_#listFirst(createUUID(),'-')#_#getTickCount()#",
+				 struct QoQ = {},
+				 any cachedwithin = "",
+				 string table = "",
+				 string columns = "",
+				 string where = "",
+				 any limit = "",
+				 any offset = "",
+				 string orderby = "",
+				 string returnType = "query",
+				 boolean returnEmptyStruct = false,
+				 string file = "",
+				 any map = "",
+				 boolean forceLowercaseKeys = false
+		){
+
+			var tmpSQL = "";
+			var tempCFSQLType = "";
+			var tempValue = "";
+			var tmpName = "";
+			var idx = "";
+			var LOCAL = {};
+			// where is also a function name in this cfc, so let''s localize the arg
+			var _where = isNull( arguments.where ) ? "" : arguments.where;
+
+			if( !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) ) ){
+				throw message="You must pass in either a table name or sql statement.";
+			}
+
+			if( listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) ) ){
+				arguments.table = arguments.sql;
+			}
+
+			if( len( trim( arguments.sql ) ) || len( trim( arguments.table ) ) ){
+				if( listLen( arguments.sql, ' ') > 1 ){
+					/*
+						We need to parse the sql
+						statement to find $queryParam()$ calls.  We do this by
+						passing the sql to parseQueryParams, which replaces the
+						$queryParam()$ function call with a pseudo cfqueryparam that
+						we can digest here to build the query.  The returned pseudo
+						cfqueryparam tag is structured as follows:
+
+						<cfqueryparam
+									cfsqltype="sql data type"  <--- this is converted
+																	to cfsqltype using
+																	getCFSQLType
+									value="actual value";
+						EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
+						This can also be done prior to sending the SQL statement to this
+						function by calling the queryParam() function directly.
+						EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
+						This direct method is recommended.
+					  */
+
+					// Now we build the query
+					var tmpSQL = parameterizeSQL( arguments.sql, arguments.params );
+					var sql = "";
+					var paramMap = [];
+					/*
+						Parse out the queryParam calls inside the where statement
+						This has to be done this way because you cannot use
+						cfqueryparam tags outside of a cfquery.
+					 */
+					// Parse out the queryParam calls inside the where statement
+					savecontent variable="sql"{
+						for( var statement in tmpSQL.statements ){
+								var SqlPart = statement.before;
+								writeOutput(preserveSingleQuotes( SqlPart ));
+								if( statement.keyExists( 'cfsqltype' ) ){
+									paramMap.append({ cfsqltype: statement.cfsqltype, value: statement.value, list: statement.isList });
+									writeOutput('?');
+								}
+						}
+						// Honor the order by if passed in
+						if( len( trim( arguments.orderby ) ) ){
+							writeOutput( 'ORDER BY #orderby#' );
+						}
+					};
+
+					var options = {
+						"datasource": variables.dsn,
+						"result": "results_#arguments.name#"
+					};
+					if( len( trim( arguments.cachedWithin ) ) ){
+						options["cachedWithin"] = cachedWithin;
+					}
+					if( QoQ.size() ){
+						// Query of Query
+						var fullCount = QoQ[ listFirst( QoQ.keyList() ) ].recordCount;
+						options["dbtype"] = "query";
+						options["maxrows"] = val(limit) && (!structKeyExists( arguments, 'offset' ) || offset eq 0) ? limit : 2147483647;
+						variables.append( arguments.QoQ );
+					}
+					local[ name ] = queryExecute( sql, paramMap, options );
+					if( !isDefined( 'fullCount' ) ){
+						var fullCount = local[ name ].recordCount;
+					}
+					//  DB Agnostic Limit/Offset for server-side paging
+					if( QoQ.size() && val( limit ) && ( !arguments.keyExists( 'offset' ) || offset == 0 ) && !LOCAL[ name ].keyExists( '__fullCount ' ) ){
+						queryAddColumn( LOCAL[ name ], '__fullCount', listToArray( repeatString( fullCount & ",", LOCAL[ name ].recordCount ) ) );
+					}else
+					if( !QoQ.size() && len( trim( limit ) ) && len( trim( offset ) ) ){
+						LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit );
+					}
+
+				}else{
+					// Query by table
+					// abstract
+					LOCAL[arguments.name] = getConn().select(
+														table = table,
+														columns = columns,
+														name = name,
+														where = _where,
+														orderby = orderby,
+														limit = limit,
+														offset = offset,
+														cachedwithin = cachedwithin
+													);
+				}
+
+
+				if( !structKeyExists( LOCAL, arguments.name ) ){
+					throw( errorcode="882", type="DAO.Read.InvalidQueryType", detail="Invalid Query Type for ""DAO.read()""", message="The query was either invalid or was an insert statement.  Use DAO.Execute() for insert statements." );
+				}
+				if( arguments.returnType == 'array' ){
+					return queryToArray( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys, returnEmptyStruct = returnEmptyStruct );
+				}else if( arguments.returnType eq 'json' ){
+					return queryToJSON( qry = LOCAL[arguments.name], map = map, forceLowercaseKeys = forceLowercaseKeys, returnEmptyStruct = returnEmptyStruct );
+				}else{
+					var isNullisClosureValue = !isNull( map ) && isClosure( map );
+					LOCAL.columns = listToArray( LOCAL[ arguments.name ].columnList );
+					if( isNullisClosureValue ){
+						var i = 0;
+						for( var rec in LOCAL[ arguments.name ] ){
+							i++;
+							var tmpRec = map( row = rec, index = i, cols = LOCAL.columns );
+							// If the return value is not a row struct, it means it was deleted.
+							// This really should be abstracted to a "reduce" function, but I think
+							// it's worth adding to map in this context
+							if( !isDefined( 'tmpRec' ) || !isStruct( tmpRec ) ) {
+								queryDeleteRow( LOCAL[ arguments.name ], i );
+								continue;
+							}
+							rec = duplicate(tmpRec);
+							// Add any cols that may have been added during the map transformation
+							var newCols = rec.keyList().listToArray();
+							for( var newCol in newCols ){
+								if( !queryColumnExists( LOCAL[ arguments.name ], newCol ) ){
+									queryAddColumn( LOCAL[ arguments.name ], newCol, rec );
+								}
+								var col = forceLowercaseKeys ? newCol.lcase() : newCol;
+								querySetCell( LOCAL[ arguments.name ], col, rec[ col ], i );
+							}
+						}
+					}
+					return LOCAL[ arguments.name ];
+				}
+			}
+		}
+
+		/**
+		* @hint I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert.
+		**/
+		public any function execute( required string sql, struct params = {}, boolean writeTransactionLog = this.getWriteTransactionLog() ){
+
+			var ret = 0;
+			var exec = "";
+			var LOCAL = {};
+			var result = {};
+
+			try{
+
+				/*
+				We need to parse the sql
+				statement to find $queryParam()$ calls.  We do this by
+				passing the sql to parseQueryParams, which replaces the
+				$queryParam()$ function call with a pseudo cfqueryparam that
+				we can digest here to build the query.  The returned pseudo
+				cfqueryparam tag is structured as follows:
+
+				<cfqueryparam
+							cfsqltype="sql data type"  <--- this is converted
+															to cfsqltype using
+															getCFSQLType
+							value="actual value";
+
+				EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
+				This can also be done prior to sending the SQL statement to this
+				function by calling the queryParam() function directly.
+				EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
+				This direct method is recommended.
+				*/
+				// First thing to do is replace the <cfqueryparam with a delimiter chr(999)
+				LOCAL.tmpSQL = parseQueryParams( str = arguments.sql, params = params );
+				// Now we build the query
+				var execSQL = "";
+				savecontent variable="execSQL"{
+
+
+					// <cfquery datasource="#variables.dsn#" result="LOCAL.result">
+					// The first position of the tmpSQL list will be the first section of SQL code
+					writeOutput( listFirst( preserveSingleQuotes( LOCAL.tmpSQL ), chr(998) ) )
+					// Now, we loop through the rest of the tmpSQL to build the cfqueryparams
+					var listifiedSQL = listDeleteAt(LOCAL.tmpSQL,1,chr(998));
+					var sqlFrags = listifiedSQL.listToArray( chr(998 ) );
+					for( var frag in sqlFrags ){
+						// <cfloop list="#listDeleteAt(LOCAL.tmpSQL,1,chr(998))#" delimiters="#chr(998)#" index="LOCAL.idx">
+						/*
+							This will return the position and length of the cfsqltype
+							We use this to extract the values for the actual cfqueryparam
+						 */
+						LOCAL.tempCFSQLType = reFindNoCase('cfsqltype\=#chr(777)#(.*?)#chr(777)#',frag,1,true);
+						// A little regex to extract the value from the queryparam string
+						LOCAL.value = reReplaceNoCase( PreserveSingleQuotes(frag),'.*value\=#chr(777)#(.*?)#chr(777)#.*','\1','all');
+						// Strip out any loose hanging special characters used for temporary delimiters (chr(999) and chr(777))
+						LOCAL.value = reReplaceNoCase(preserveSingleQuotes(LOCAL.value),chr(999),'','all');
+
+						// We'll look for the list and null attributes to see if they exist and then extract their values
+						LOCAL.tempList = reFindNoCase('list\=#chr(777)#(.*?)#chr(777)#',frag,1,true);
+						if( !LOCAL.tempList.pos.len() >= 2 || !isBoolean(mid(frag,LOCAL.tempList.pos[2],LOCAL.tempList.len[2])) ){
+							LOCAL.isList = false;
+						}else{
+							LOCAL.isList = mid(frag,LOCAL.tempList.pos[2],LOCAL.tempList.len[2]);
+						}
+						LOCAL.tempNull = reFindNoCase('null\=#chr(777)#(.*?)#chr(777)#',frag,1,true);
+						if( !LOCAL.tempNull.pos.len() >= 2 || !isBoolean(mid(frag,LOCAL.tempNull.pos[2],LOCAL.tempNull.len[2])) ){
+							LOCAL.isNull = false;
+						}else{
+							LOCAL.isNull = mid(frag,LOCAL.tempNull.pos[2],LOCAL.tempNull.len[2]);
+						}
+						LOCAL.cfSQLType = mid(frag,LOCAL.tempCFSQLType.pos[2],LOCAL.tempCFSQLType.len[2]);
+
+						if( getUseCFQueryParams() ){
+							// Now write the cfqueryparam
+							params.append({ cfsqltype: LOCAL.cfSQLType, value: LOCAL.value, list: LOCAL.isList, null: LOCAL.isNull });
+							writeOutput( '?' );
+						}else{
+							writeOutput( this.getNonQueryParamFormattedValue(
+													value = LOCAL.value,
+													cfsqltype = LOCAL.cfSQLType,
+													list = LOCAL.isList,
+													null = LOCAL.isNull) );
+						}
+
+						// Now anything after the closing > should be
+						if( len(listLast(preserveSingleQuotes(frag),chr(999))) ){
+							writeOutput( listLast(preserveSingleQuotes(frag),chr(999)) );
+						}
+					}
+				};
+				LOCAL.tmpSQL = execSQL;
+				// Grab the last inserted ID if it was an insert
+				if( refindNoCase('(INSERT|REPLACE)(.*?)INTO (.*?)\(',LOCAL.tmpSQL) ){
+
+					if( LOCAL.result.keyExists( 'GENERATED_KEY' ) ){ // MySQL
+						LOCAL.lastInsertedID = LOCAL.result.GENERATED_KEY;
+					// Some versions of MSSQL call this 'GENERATEDKEY' (-sy)
+					}else if( LOCAL.result.keyExists( 'GENERATEDKEY' ) ){
+						LOCAL.lastInsertedID = LOCAL.result.GENERATEDKEY;
+					}else if( LOCAL.result.keyExists( 'IDENTITYCOL' ) ) { // MSSQL
+						LOCAL.lastInsertedID = LOCAL.result.IDENTITYCOL;
+					}else if( LOCAL.result.keyExists( 'ROWID' ) ){ // Oracle
+						LOCAL.lastInsertedID = LOCAL.result.ROWID;
+					}else if( LOCAL.result.keyExists( 'SYB_IDENTITY' ) ){ // Sybase
+						LOCAL.lastInsertedID = LOCAL.result.SYB_IDENTITY;
+					}else if( LOCAL.result.keyExists( 'SERIAL_COL' ) ){ // Informix
+						LOCAL.lastInsertedID = LOCAL.result.SERIAL_COL;
+					}else{ // Rely on db connector cfc to provide last ID
+						LOCAL.lastInsertedID = getLastID();
+					}
+
+					ret = LOCAL.lastInsertedID;
+
+				}else{
+					LOCAL.lastInsertedID = 1;
+					ret = 1;
+				}
+
+
+				// Now write to the transaction log
+				if( arguments.writeTransactionLog ){
+					this.logTransaction(arguments.sql,LOCAL.lastInsertedID);
+				}
+			}catch( database d ){
+					if( findNoCase('Invalid data',cfcatch.Message) ) {
+						throw(
+							errorcode="801",
+							type="DAO.Execute.InvalidDataType",
+							detail="Invalid Data Type",
+							message="The value: &quot;#d.value#&quot; was expected to be of type: &nbsp;#listLast(d.sql_type,'_')#.  Please correct the values and try again."
+						);
+					}else{
+						rethrow;
+					}
+			}catch( any e ){
+					if( e.message contains "0000-00-00 00:00:00 is an invalid date or time string" ){
+						throw(
+							type="DAO.Execute.ZeroDateTimeException",
+							message="There was an error updating the database.  In order to save '0000-00-00 00:00:00' as a date/time you must enable this behavior in your JDBC connection string by adding: ""zeroDateTimeBehavior=convertToNull"".  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF.",
+							detail="In order to save '0000-00-00 00:00:00' as a date you must add ""zeroDateTimeBehavior=convertToNull"" to your JDBC connection string.  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF. Attempted Query: #renderSQLforView(sql)# :: #e.message#"
+						);
+					}else{
+						throw(
+							errorcode="802",
+							type="DAO.Execute.UnexpectedError",
+							detail="Unexpected Error: #renderSQLforView(sql)#:::Params:#serializeJSON(arguments.params)#",
+							message="There was an unexpected error updating the database.  Please contact your administrator. #e.message#"
+						);
+					}
+					ret = 0;
+			}
+
+			return ret;
+		}
+
+
 	</cfscript>
 	<!--- @TODO: convert to using new queryExecute() --->
-	<cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
+	<!--- <cffunction name="read" hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false">
 		<cfargument name="sql" required="false" type="string" default="" hint="Either a tablename or full SQL statement.">
 		<cfargument name="params" required="false" type="struct" hint="Struct containing named query param values used to populate the parameterized values in the query (see parameterizeSQL())" default="#{}#">
 		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="ret_#listFirst(createUUID(),'-')#_#getTickCount()#">
@@ -1440,7 +1760,7 @@
 									</cfif>
 								</cfloop>
 							</cfquery>
-							<!--- DB Agnostic Limit/Offset for server-side paging --->
+							DB Agnostic Limit/Offset for server-side paging
 							<cfif len( trim( limit ) ) && len( trim( offset ) )>
 								<cfset LOCAL[ name ] = pageRecords( LOCAL[ name ], offset, limit ) />
 							</cfif>
@@ -1562,11 +1882,11 @@
 				return LOCAL[ arguments.name ];
 			</cfscript>
 		</cfif>
-	</cffunction>
+	</cffunction> --->
 
 
 	<!--- @TODO: convert to using new Query() --->
-	<cffunction name="execute" hint="I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert." returntype="any" output="false">
+	<!--- <cffunction name="execute" hint="I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert." returntype="any" output="false">
 		<cfargument name="sql" required="true" type="string" hint="SQL command to execute.  Can be any valid SQL command.">
 		<cfargument name="params" required="false" type="struct" hint="" default="#{}#">
 		<cfargument name="writeTransactionLog" required="false" default="#this.getWriteTransactionLog() eq true#" type="boolean" hint="Do you want to write the executed statement to the transaction log?">
@@ -1723,7 +2043,7 @@
 
 		<cfreturn ret />
 
-	</cffunction>
+	</cffunction> --->
 
 	<cffunction name="renderSQLforView" hint="I retur the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages." output="false">
 		<cfargument name="sql" type="string" required="true">

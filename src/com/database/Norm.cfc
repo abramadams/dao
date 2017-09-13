@@ -1827,7 +1827,10 @@ component accessors="true" output="false" {
 											: arguments.property;
 		}
 		fkValue = isNull( fkvalue ) ? get( fkColumn ) : fkValue;
-
+		// Set the fkValue to the fkColumn value if fkValue wasn't supplied or is empty
+		if( isNull( fkValue ) || !len( trim( fkValue ) ) ){
+			fkValue = this[fkColumn];
+		}
 		// Reverse lookup for an alias name in the dynamicMappings.  This is used in case the load() method
 		// is auto-wiring relationships and doesn't know that a column has a mapping.
 		if( propertyName == arguments.table && arrayLen( structFindValue( getDynamicMappings(), mapping.table ) ) ){
@@ -1858,10 +1861,6 @@ component accessors="true" output="false" {
 		}
 		newObj.setTable( mapping.table );
 
-		// Set the fkValue to the fkColumn value if fkValue wasn't supplied or is empty
-		if( isNull( fkValue ) || !len( trim( fkValue ) ) ){
-			fkValue = this[fkColumn];
-		}
 		// Load data into new object
 		// logIt('Loading dynamic many-to-one relationship entity #table#[#mapping.table#] [from #getFunctionCalledName()#] with id (#fkColumn#) of #isSimpleValue( this[fkColumn] ) ? this[fkColumn] : 'complex object'# || #fkValue#. Lazy? #yesNoFormat(getParentTable() eq mapping.table)#');
 		if( len( trim( fkValue ) ) ){
@@ -1924,12 +1923,12 @@ component accessors="true" output="false" {
 			variables[ property ] = this[ property ] = _getManyToOne(
 																table = lcase( arguments.table ),
 																fkColumn = arguments.fkColumn,
+																fkValue = get(arguments.fkColumn),
 																property = arguments.property,
 																pkColumn = arguments.pkColumn,
 																returnType = arguments.returnType,
 																where = arguments.where
 														);
-			this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		}else{
 			variables[table] = this[table] =
 			variables[property] = this[property] =
@@ -1944,12 +1943,13 @@ component accessors="true" output="false" {
 																			where = arguments.where
 																		);
 		}
+		this[ "set" & property ] = variables[ "set" & property ] = _setter;
 		// Update Cache
-		if( get__cacheEntities() ){
-			lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
-				cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
-			}
-		}
+		// if( get__cacheEntities() ){
+		// 	lock type="exclusive" name="#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#" timeout="3"{
+		// 		cachePut( '#this.getDao().getDsn()#-#this.getTable()#-#this.getID()#', this, getcachedWithin() );
+		// 	}
+		// }
 		return this;
 	}
 
@@ -2597,11 +2597,10 @@ component accessors="true" output="false" {
 		// remove object from cache (if it exists)
 		// Removing #this.getTable()#-#this.getID()# from cache
 		if( get__cacheEntities() ){
-		lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
-			cacheRemove( '#this.getTable()#-#this.getID()#' );
+			lock type="exclusive" name="#this.getTable()#-#this.getID()#" timeout="3"{
+				cacheRemove( '#this.getTable()#-#this.getID()#' );
+			}
 		}
-		}
-
 		// Either insert or update the record
 		if ( isNew() ){
 
@@ -2749,26 +2748,31 @@ component accessors="true" output="false" {
 			// this entity instance.
 			// logIt('All the Children of #parentTable#...');
 			_saveTheChildren( parentTable = parentTable );
+
 			// logIt('All the Children saved...');
-			// Grab the data from the current entity.  We only need the top level keys so we'll limit to boost performance
-			var DATA = duplicate( this.toStruct( top = 1 ) );
-			for ( var col in DATA ){
+			// Grab the data from the current entity.
+			var DATA = {};
+			for ( var col in this ){
+				// If not a simple value, it's not a data property of the entity so we can skip it
+				if( !isSimpleValue( col ) ){
+					continue;
+				}
 				// the entity cfc could have a different column name than the given property name.  If the meta property "column" exists, we'll use that instead.
-				var columnName = structFindValue( variables.meta, col );
-				columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'column' ) ? columnName[ 1 ].owner.column : col;
-				if(columnName == ''){
-					columnName = arrayLen( columnName ) && structKeyExists( columnName[ 1 ].owner, 'fkcolumn' ) ? columnName[ 1 ].owner.fkcolumn : '';
+				var columnName = variables.meta.findValue( col );
+				columnName = columnName.len() && columnName[ 1 ].owner.keyExists( 'column' ) ? columnName[ 1 ].owner.column : col;
+				if( columnName == '' ){
+					columnName = columnName.len() && columnName[ 1 ].owner.keyExists( 'fkcolumn' ) ? columnName[ 1 ].owner.fkcolumn : '';
 				}
 				// the data could be a child struct for which we just wan the ID field.
 				// DATA[ LOCAL.columnName ] = !isStruct( DATA[col] ) ? DATA[col] : DATA[col][ getIDField() ];
-				if( !structKeyExists( DATA, LOCAL.columnName ) ){
-					DATA[ LOCAL.columnName ] = DATA[col];
+				if( !DATA.keyExists( LOCAL.columnName ) ){
+					DATA[ LOCAL.columnName ] = get( col );
 				}
 			}
 
 			callbackArgs.ID = DATA[getIDField()] = this.getID();
 
-			if (structCount(arguments.overrides) > 0){
+			if( arguments.overrides.size() > 0 ){
 				for ( var override in overrides ){
 					DATA[override] = overrides[override];
 				}
@@ -2861,7 +2865,7 @@ component accessors="true" output="false" {
 				&& col.fieldType eq 'many-to-one'
 				&& ( structKeyExists( arguments, 'tempID' ) && len( trim( arguments.tempID ) ) )
 				&& ( !structKeyExists( col, 'cascade') || col.cascade != "none" ) ){
-				// logIt('_savethechildren: yes, a many-to-one');
+				logIt('_savethechildren: yes, a many-to-one');
 				//**************************************************************************************************
 				// MANY TO ONE.   This will and persist the child record to the back end storage (DB)
 				//**************************************************************************************************
@@ -2870,8 +2874,10 @@ component accessors="true" output="false" {
 				// logIt('child:#col.name#');
 				// Only save the child object if there were changes.
 				if( isObject( child ) && child.isDirty() ) {
-					// logIt('saving child:#col.name#');
-					child.save( parentTable = this.getTable() );
+					logIt('saving child:#col.name#');
+					// logIt(child.toJSON());
+					child.save( parentTable = this.getTable(), force = true );
+					logIt('done:saving child:#col.name#');
 				}
 
 
