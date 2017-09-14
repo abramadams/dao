@@ -1387,25 +1387,25 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 		if( len( trim( arguments.sql ) ) || len( trim( arguments.table ) ) ){
 			if( listLen( arguments.sql, ' ') > 1 ){
-				/*
-					We need to parse the sql
-					statement to find $queryParam()$ calls.  We do this by
-					passing the sql to parseQueryParams, which replaces the
-					$queryParam()$ function call with a pseudo cfqueryparam that
-					we can digest here to build the query.  The returned pseudo
-					cfqueryparam tag is structured as follows:
 
-					<cfqueryparam
-								cfsqltype="sql data type"  <--- this is converted
-																to cfsqltype using
-																getCFSQLType
-								value="actual value";
-					EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
-					This can also be done prior to sending the SQL statement to this
-					function by calling the queryParam() function directly.
-					EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
-					This direct method is recommended.
-				  */
+				// We need to parse the sql
+				// statement to find $queryParam()$ calls.  We do this by
+				// passing the sql to parseQueryParams, which replaces the
+				// $queryParam()$ function call with a pseudo cfqueryparam that
+				// we can digest here to build the query.  The returned pseudo
+				// cfqueryparam tag is structured as follows:
+
+				// cfqueryparam
+				// 			cfsqltype="sql data type"  <--- this is converted
+				// 											to cfsqltype using
+				// 											getCFSQLType
+				// 			value="actual value";
+				// EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
+				// This can also be done prior to sending the SQL statement to this
+				// function by calling the queryParam() function directly.
+				// EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
+				// This direct method is recommended.
+
 
 				// Now we build the query
 				var tmpSQL = parameterizeSQL( arguments.sql, arguments.params );
@@ -1526,27 +1526,27 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		var paramMap = [];
 		try{
 
-			/*
-			We need to parse the sql
-			statement to find $queryParam()$ calls.  We do this by
-			passing the sql to parseQueryParams, which replaces the
-			$queryParam()$ function call with a pseudo cfqueryparam that
-			we can digest here to build the query.  The returned pseudo
-			cfqueryparam tag is structured as follows:
 
-			<cfqueryparam
-						cfsqltype="sql data type"  <--- this is converted
-														to cfsqltype using
-														getCFSQLType
-						value="actual value";
+			// We need to parse the sql
+			// statement to find $queryParam()$ calls.  We do this by
+			// passing the sql to parseQueryParams, which replaces the
+			// $queryParam()$ function call with a pseudo cfqueryparam that
+			// we can digest here to build the query.  The returned pseudo
+			// cfqueryparam tag is structured as follows:
 
-			EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
-			This can also be done prior to sending the SQL statement to this
-			function by calling the queryParam() function directly.
-			EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
-			This direct method is recommended.
-			*/
-			// First thing to do is replace the <cfqueryparam with a delimiter chr(999)
+			// cfqueryparam
+			// 			cfsqltype="sql data type"  <--- this is converted
+			// 											to cfsqltype using
+			// 											getCFSQLType
+			// 			value="actual value";
+
+			// EXAMPLE: $queryParam(value='abc',cfsqltype='varchar')$
+			// This can also be done prior to sending the SQL statement to this
+			// function by calling the queryParam() function directly.
+			// EXAMPLE: #dao.queryParam(value='abc',cfsqltype='varchar')#
+			// This direct method is recommended.
+
+			// First thing to do is replace the cfqueryparam with a delimiter chr(999)
 			LOCAL.tmpSQL = parseQueryParams( str = arguments.sql, params = params );
 			// Now we build the query
 			var execSQL = "";
@@ -1680,7 +1680,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 	/**
 	* @hint I read from another query (query of query). I take a sql statement as a parameter.
 	**/
-	public query function readFromQuery( required string sql ){}
+	public query function readFromQuery( required string sql ){
 		var ret = "";
 
 		if( len(trim(arguments.sql)) ){
