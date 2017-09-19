@@ -1348,7 +1348,27 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		return qry;
 	}
 
-
+	/**
+	* @hint I read from the database. I take either a tablename or sql statement as a parameter.
+	*
+	* @sql required="false" type="string" default="" hint="Either a tablename or full SQL statement."
+	* @params required="false" type="struct" hint="Struct containing named query param values used to populate the parameterized values in the query (see parameterizeSQL())" default="#{}#"
+	* @name required="false" type="string" hint="Name of Query (required for cachedwithin)" default="ret_#listFirst(createUUID(),'-')#_#getTickCount()#"
+	* @QoQ required="false" type="struct" hint="Struct containing query object for QoQ" default="#{}#"
+	* @cachedwithin required="false" type="any" hint="createTimeSpan() to cache this query" default=""
+	* @table required="false" type="string" default="" hint="Table name to select from, use only if not using SQL"
+	* @columns required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL"
+	* @where required="false" type="string" hint="Where clause. Only used if sql is a tablename"
+	* @limit required="false" type="any" hint="Limit records returned." default=""
+	* @offset required="false" type="any" hint="Offset queried recordset." default=""
+	* @orderby required="false" type="string" hint="Order By columns.  Only used if sql is a tablename" default=""
+	* @returnType required="false" type="string" hint="Return query object or array of structs. Possible options: query|array|json" default="query"
+	* @returnEmptyStruct required="false" type="boolean" hint="If false will return empty array if qry.recordcount is zero.  If true will return a single item array containing a struct mirroring the query columns with empty data.  Only used if returnType == array or json" default="false"
+	* @file required="false" type="string" hint="Full path to a script file to be read in as the SQL string. If this value is passed it will override any SQL passed in." default=""
+	* @map required="false" type="any" hint="A function to be executed for each row in the results ( only used if returnType == array )" default=""
+	* @forceLowercaseKeys required="false" type="boolean" hint="Forced struct keys to lowercase ( only used if returnType == array )" default="false"
+	*
+	**/
 	public any function read(
 			 string sql = "",
 			 struct params = {},
@@ -1515,6 +1535,9 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 	/**
 	* @hint I execute database commands that do not return data.  I take an SQL execute command and return 0 for failure, 1 for success, or the last inserted ID if it was an insert.
+	* @sql required="true" type="string" hint="SQL command to execute.  Can be any valid SQL command."
+	* @params required="false" type="struct" hint="" default="#{}#"
+	* @writeTransactionLog required="false" default="#this.getWriteTransactionLog() eq true#" type="boolean" hint="Do you want to write the executed statement to the transaction log?"
 	**/
 	public any function execute( required string sql, struct params = {}, boolean writeTransactionLog = this.getWriteTransactionLog() ){
 
@@ -1668,7 +1691,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		return ret;
 	}
 	/**
-	* @hint I retur the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages.
+	* @hint I return the sql statement with the special characters used internally replaced with print friendly characters.  Use this for displaying attempted sql in error messages.
 	**/
 	private string function renderSQLforView( required string sql ){
 
