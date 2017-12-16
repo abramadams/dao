@@ -77,12 +77,18 @@
 			return this;
 		}
 		public function andWhere( any column, string operator, string value, struct predicate = {} ){
+			// Must be at least a where clause
+			if( !this._criteria.clause.len() ) where(1,"=",1);
+
 			arguments.andOr = "AND";
 			_andOrWhere( argumentCollection:arguments );
 			return this;
 		}
 
 		public function orWhere( any column, string operator, string value, struct predicate = {} ){
+			// Must be at least a where clause
+			if( !this._criteria.clause.len() ) where(1,"=",1);
+
 			arguments.andOr = "OR";
 			_andOrWhere( argumentCollection:arguments );
 			return this;
