@@ -25,7 +25,7 @@ component{
 	// request start
 	public function onRequestStart( String targetPage ){
 		request.dao = new com.database.dao( dsn = "dao" );
-
+		setupDatabase();
 		return true;
 	}
 

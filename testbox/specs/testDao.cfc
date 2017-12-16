@@ -254,7 +254,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var data = { "test": i & "  " & createUUID(), "testDate": now() };
           var test = request.dao.insert( table = "test", data = data );
 
-          $assert.isTrue( test.len() == 1 );
+          $assert.isTrue( test == 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 1 );
@@ -269,7 +269,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                return data.test == testData;
           } );
 
-          $assert.isTrue( test.len() == 1 );
+          $assert.isTrue( test == 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 1 );

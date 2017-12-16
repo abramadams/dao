@@ -272,11 +272,12 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		pet.save();
 		$assert.isTrue( pet.getModifiedDate() == modifiedDate );
 		var user = pet.getUser();
-		// writeDump(user);abort;
 		user.setmodified_datetime( modifiedDate );
+		// writeDump([modifiedDate,user]);
 		// writeDump(pet.toStruct());abort;
 		pet.save();
-
+		// writeDump([modifiedDate,user]);abort;
+		// writeDUmp([user.getmodified_datetime() , modifiedDate]);abort;
 		$assert.isTrue( user.getmodified_datetime() == modifiedDate );
 		// secondary check directly against database
 		var userCheck = this.dao.read(sql="SELECT * FROM users WHERE ID = :userId",params={userId:pet.getUserId()});
