@@ -4,7 +4,7 @@ component {
 	this.sessionManagement = true;
 
 	// any mappings go here, we create one that points to the root called test.
-	this.mappings[ "/com" ] = expandPath('/src/com');
+	this.mappings[ "/com" ] = expandPath('/');
 	this.mappings[ "/testbox" ] = expandPath( '/testbox' );
 	// any orm definitions go here.
 

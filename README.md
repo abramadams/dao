@@ -9,7 +9,7 @@ Dao/Norm is a duo of libraries that provide a simple yet full featured interface
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 # 0.3.x Breaking Changes
 * Changed `get` function to a generic property getter `get('propertyName')` rather than a data fetching method.  If using `entity.get(1)` to get the record with ID of 1, use `entity.getRecord(1)` instead.
-* Split out LINQ and oData features into mixin files (`linq.cfm` and `oData.cfm` respetively).  If updating from a previous version, simply make sure you deploy all files in the `/src/com/database` folder to your target.
+* Split out LINQ and oData features into mixin files (`linq.cfm` and `oData.cfm` respetively).  If updating from a previous version, simply make sure you deploy all files in the `/database` folder to your target.
 # New in 0.2.x
 This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
 
@@ -49,7 +49,7 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 The second part, NORM (Norm.cfc) adds a layer of ORM type functionality, plus a whole lot more.
 
 # Installation
-Copy the "database" folder `(/src/com/database)` into your project (or into the folder you place your components)
+Copy the "database" folder `(/database)` into your project (or into the folder you place your components)
 
 # DAO Examples:
 ```ActionScript

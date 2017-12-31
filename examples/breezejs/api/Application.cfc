@@ -1,6 +1,6 @@
 component extends="taffy.core.api" {
     this.name = hash(getCurrentTemplatePath());
-    this.mappings['/com'] = expandPath( '/src/com/' );
+    this.mappings['/com'] = expandPath( '/' );
     this.mappings['/model'] = expandPath( '../model' );
     this.mappings['/taffy'] = expandPath( './taffy' );
     this.mappings['/resources'] = expandPath( './resources' );

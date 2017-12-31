@@ -50,7 +50,7 @@ The example Todo app has the following folder structure:
 	* model `-- model CFC`
 	* scripts `-- JavaScript Libraries`
 		* app `-- JavaScript files for application`
-* /src/com/dao `-- DAO framework`
+* /database/ `-- DAO framework`
 
 Of all of the files, there's only a few that are specific to this example.  The rest are just standard library dependancies.  So the actual code involved in this project is boiled down to:
 
