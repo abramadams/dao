@@ -1,6 +1,6 @@
 {
     "name":"Dao",
-    "version":"minor",
+    "version":"0.1.1",
     "author":"Abram Adams",
     "location":"abramadams/dao#v0.1.0",
     "createPackageDirectory":true,
