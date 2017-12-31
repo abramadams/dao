@@ -1,0 +1,8 @@
+title: DAO
+description: A ColdFusion library for easy Data Access and Object Mapping
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-midnight
+
+gems:
+  - jekyll-mentions
