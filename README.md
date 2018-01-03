@@ -24,7 +24,7 @@ Clone this repo and copy the "database" folder `(/database)` into your project (
 **Chat:** The [CFML team Slack](http://cfml-slack.herokuapp.com) - Ask questions in the [#cfml-general channel](https://cfml.slack.com/messages/cfml-general/) and mention @abram.
 
 # Contributing
-Pull requests welcome! See [installation instructions](https://github.com/abramadams/dao/blob/master/installInstructions.md) for setup and testing.
+Pull requests welcome! See [installation instructions](https://github.com/abramadams/dao/wiki/02-Extending%5CTesting) for setup and testing.
 
 # Copyright and License
 
