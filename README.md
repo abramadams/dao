@@ -11,11 +11,11 @@ In short, the goal of this library is to allow one to interact with the database
 # Requirements
 Currently this library has been actively used and tested on Lucee 4x, CF11+
 
-# Database Platform Agnostic
-Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
-creating a new CFC that implements the necessary methods (see IDAOConnector.cfc).  The CFC name would then be the "dbtype"
-argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
-instantiate as: dao = new dao( dbType = 'otherrdbs' );
+# Installation
+## Manual
+Clone this repo and copy the "database" folder `(/database)` into your project (or into the folder you place your components)
+## CommandBox
+`box install dao`
 
 # Resources
 
