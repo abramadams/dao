@@ -6,7 +6,7 @@
     "createPackageDirectory":true,
     "packageDirectory":"database",
     "homepage":"http://abramadams.github.io/dao/",
-    "documentation":"http://abramadams.github.io/dao/",
+    "documentation":"https://github.com/abramadams/dao/wiki",
     "repository":{
         "type":"git",
         "URL":"https://github.com/abramadams/dao.git"
