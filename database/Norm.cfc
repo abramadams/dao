@@ -1,5 +1,5 @@
 /**
-*	Copyright (c) 2013-2017, Abram Adams
+*	Copyright (c) 2013-2018, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
 *   @version 0.3.2
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 09/12/2017
+*   @updated 09/12/2018
 *   @author Abram Adams
 **/
 

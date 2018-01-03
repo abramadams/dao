@@ -1,7 +1,7 @@
 <cfscript>
 	/* ************************************************************
 	*
-	*	Copyright (c) 2017, Abram Adams
+	*	Copyright (c) 2018, Abram Adams
 	*
 	*	Licensed under the Apache License, Version 2.0 (the "License");
 	*	you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 
 		Component	: linq.cfm
 		Author		: Abram Adams
-		Date		: 9/7/2017
+		Date		: 9/7/2018
 		@version 0.0.01
-		@updated 9/7/2017
+		@updated 9/7/2018
 		Description	: Provides LINQ style query building for dao.cfc.  This
 		file is cfincluded into dao.cfc as a mixin.
 	 */

@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2017, Abram Adams
+*	Copyright (c) 2007-2018, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
 *		@version 0.0.71
-*	   	@updated 5/15/2017
+*	   	@updated 5/15/2018
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
