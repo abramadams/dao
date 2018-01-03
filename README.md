@@ -60,7 +60,7 @@ User.save();
 ```
 ## Resources
 
-**Documentation and Examples:** https://github.com/abramadams/dao/wiki
+**Documentation and Examples:** [https://github.com/abramadams/dao/wiki](https://github.com/abramadams/dao/wiki)
 
 **Chat:** The [CFML team Slack](http://cfml-slack.herokuapp.com) - Ask questions in the [#cfml-general channel](https://cfml.slack.com/messages/cfml-general/) and mention @abram.
 
