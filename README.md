@@ -69,6 +69,7 @@ Pull requests welcome! See [installation instructions](https://github.com/abrama
 
 ## Copyright and License
 
-Copyright (c) 2009-2018 Abram Adams. All rights reserved.
+Copyright (c) 2007-2018 Abram Adams. All rights reserved.
+
 The use and distribution terms for this software are covered by the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0) which can also be found in the file LICENSE at the root of this distribution and in individual licensed files.
 By using this software in any fashion, you are agreeing to be bound by the terms of this license. You must not remove this notice, or any other, from this software.
