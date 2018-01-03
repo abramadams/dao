@@ -1,35 +1,19 @@
 Dao & Norm
 ===
-* Dao - A ColdFusion library for easy Data Access
-* Norm (Not ORM) - A dynamic Object Mapping layer built on top of DAO.
+* Dao - A ColdFusion library for easy and db agnostic CRUD interaction and Linq style query building.
+* Norm (Not ORM) - A dynamic Object Mapping layer built on top of DAO that provides oData support on top of ORM style object interactions (load, save, relate entities, etc...).
 
 # Elevator Pitch
 Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box.
 
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
-# 0.3.x Breaking Changes
-* Changed `get` function to a generic property getter `get('propertyName')` rather than a data fetching method.  If using `entity.get(1)` to get the record with ID of 1, use `entity.getRecord(1)` instead.
-* Split out LINQ and oData features into mixin files (`linq.cfm` and `oData.cfm` respetively).  If updating from a previous version, simply make sure you deploy all files in the `/database` folder to your target.
-# New in 0.2.x
-This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
-
-## 0.2.x Breaking changes
-The "Norm" aspect of this project has always aimed to closely mimic the Adobe ColdFusion implementation of ORM.  It uses the same attributes, has support to define relationships via properties, even supports the same events.  While this is still a goal, I found it necessary to diverge sligthly in certain areas.  The first being the attribute names.
-
-Attribute names used in Norm in version 0.1.x were always named exactly as the ORM counterpart attributes.  While this makes it easy to migrate from CF ORM to Norm, it caused unexpected issues due to the fact that the cfml engine (Lucee in particular) may see these attributes as reserved keywords at compile time, which fires up Hibernate and expect ORM to be enabled.  To mitigate this, I've change the ``persistent`` attribute to ``norm_persistent``.  So far this is the only attribute name I've needed to change, but will evaluate changing the rest as needed.
-
-The other breaking change, and deviation from the CFML way is in the ORM style events.  ACF named these events "``preLoad``, ``postLoad``, etc...", and while that is fine for ACF I thought it to be stupid naming.  I've opted to use ``beforeLoad``, and ``afterLoad``, etc... instead. If you are using this lib and really, really want it to be pre/post, submit an issue, or better yet a pull request to add support for both namings.
-
-One to Many relationships have changed in that when dynamically loading child records these will be loaded as either an array of structs instead of array of objects or an array of closures for lazy loading the objects (for which calling ``parentObj.getWhateverChildNameIs()`` would hydrate the object).  The process to load fully initialized/loaded objects is quite expensive when adding 3 or more child entities to a parent entity.
-
-This update also includes many bug fixes and performance improvements.
 
 # Requirements
-Currently this library has been actively used and tested on Railo 4x, Lucee 4x, CF10 and CF11 (though the dao.cfc stuff should work with CF8 - for now).
+Currently this library has been actively used and tested on Lucee 4x, CF11+
 
 # Database Platform Agnostic
 Currently there are two databases that are supported: MySQL and MS SQL.  Others can be added by
-creating a new CFC that implements the necessary methods.  The CFC name would then be the "dbtype"
+creating a new CFC that implements the necessary methods (see IDAOConnector.cfc).  The CFC name would then be the "dbtype"
 argument passed to the init method when instantiating dao.cfc.  So if you have otherrdbs.cfc, you'd
 instantiate as: dao = new dao( dbType = 'otherrdbs' );
 
@@ -49,7 +33,10 @@ providing optional "onFinish" callbacks functions, transaction logging (for cust
 The second part, NORM (Norm.cfc) adds a layer of ORM type functionality, plus a whole lot more.
 
 # Installation
-Copy the "database" folder `(/database)` into your project (or into the folder you place your components)
+## Manual
+Clone this repo and copy the "database" folder `(/database)` into your project (or into the folder you place your components)
+## CommandBox
+`box install dao`
 
 # DAO Examples:
 ```ActionScript
@@ -914,16 +901,30 @@ remote function get(string $filter = "" ,string $orderby = "", string $skip = ""
 	}
  ```
 
-
-# More examples
-Check out the daotest.cfm and entitytest.cfm files for a basic examples of the various features.
-
 # Railo/Lucee Notes
-In order to use the DAO caching options with Railo/Lucee you'll need to enable a default cache in the Railo/Lucee Administrator.  Otherwise you'll end up with an error like: `there is no default object cache defined, you need to define this default cache in the Railo/Lucee Administrator`
-Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under `Services > Cache` and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
+In order to use the DAO caching options with Railo/Lucee you'll need to enable a default cache in the Railo/Lucee Administrator. If this is not done, the caching mechanism will be forced off (otherwise would result in errors). Simply create a _"RamCache"_ (for some reason EHCache throws NPE) type Cache service under `Services > Cache` and set it to be the default for Object caches.  The default can also be set per app using Application.cfc by adding:
 ```ActionScript
 this.cache.object = "your_cache_name_here";
 ```
-> NOTE: DAO Caching is experimental and does not currently work well with dynamic relationships.
+> NOTE: DAO Caching is experimental and does not currently work well with nested dynamic relationships.
 
 Also, the "Preserve single quotes" setting must be checked in the Railo/Lucee admin.  DAO specifically passes the SQL strings through ```preserveSingleQuotes()```, but this doesn't seem to work unless you have that setting checked under `Services > Datasources`.
+
+
+# Changelog
+## 0.3.x Breaking Changes
+* Changed `get` function to a generic property getter `get('propertyName')` rather than a data fetching method.  If using `entity.get(1)` to get the record with ID of 1, use `entity.getRecord(1)` instead.
+* Split out LINQ and oData features into mixin files (`linq.cfm` and `oData.cfm` respetively).  If updating from a previous version, simply make sure you deploy all files in the `/database` folder to your target.
+## New in 0.2.x
+This version bump to 0.2.x indicates some breaking changes.  First, and most trivial is the renaming of BaseModelObject to Norm.  Norm has long been the pet name for this project as it is sort of a polysemantic name.  First, the name Norm is an acronym for **N**ot **ORM** (or one could argue **N**ot **O**nly **ORM**, but Noorm didn't look as good to me).  The second is that this project (and parent Dao) has always been about **Norm**-alizing the data access layer.  Building on Dao/Norm gives you a centralized, unified way to interact with your various dbs, providing the ability to introduce AOP style functionality (via events), db agnostic systems with the abstractions that Dao provides, etc...
+
+## 0.2.x Breaking changes
+The "Norm" aspect of this project has always aimed to closely mimic the Adobe ColdFusion implementation of ORM.  It uses the same attributes, has support to define relationships via properties, even supports the same events.  While this is still a goal, I found it necessary to diverge sligthly in certain areas.  The first being the attribute names.
+
+Attribute names used in Norm in version 0.1.x were always named exactly as the ORM counterpart attributes.  While this makes it easy to migrate from CF ORM to Norm, it caused unexpected issues due to the fact that the cfml engine (Lucee in particular) may see these attributes as reserved keywords at compile time, which fires up Hibernate and expect ORM to be enabled.  To mitigate this, I've change the ``persistent`` attribute to ``norm_persistent``.  So far this is the only attribute name I've needed to change, but will evaluate changing the rest as needed.
+
+The other breaking change, and deviation from the CFML way is in the ORM style events.  ACF named these events "``preLoad``, ``postLoad``, etc...", and while that is fine for ACF I thought it to be stupid naming.  I've opted to use ``beforeLoad``, and ``afterLoad``, etc... instead. If you are using this lib and really, really want it to be pre/post, submit an issue, or better yet a pull request to add support for both namings.
+
+One to Many relationships have changed in that when dynamically loading child records these will be loaded as either an array of structs instead of array of objects or an array of closures for lazy loading the objects (for which calling ``parentObj.getWhateverChildNameIs()`` would hydrate the object).  The process to load fully initialized/loaded objects is quite expensive when adding 3 or more child entities to a parent entity.
+
+This update also includes many bug fixes and performance improvements.
