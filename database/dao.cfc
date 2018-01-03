@@ -1198,7 +1198,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			var sqlString = qry.getMetadata().getExtendedMetaData().sql;
 		}
 
-		var tablesInQry = reMatchNoCase( "FROM\s+(\w+?)\s", sqlString & " " );
+		var tablesInQry = reMatchNoCase( "FROM\s+[\[|`|.]*(\w+)[\]|`]*\s+", sqlString & " " );
 		if( !tablesInQry.len() ){
 			throw("Unable to determine table name(s) in query");
 		}
