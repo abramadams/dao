@@ -1,10 +1,5 @@
-/**
-* Copyright Since 2005 Ortus Solutions, Corp
-* www.coldbox.org | www.luismajano.com | www.ortussolutions.com | www.gocontentbox.org
-**************************************************************************************
-*/
 component{
-	this.name = "A TestBox Runner " & hash( getCurrentTemplatePath() );
+	this.name = "A TestBox Runner Suite" & hash( getCurrentTemplatePath() );
 	// any other application.cfc stuff goes below:
 	this.sessionManagement = true;
 
@@ -55,6 +50,7 @@ component{
 				" );
 			request.dao.execute("TRUNCATE TABLE [users]");
 				var userInsertArray = [
+					"('0', 'system', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'system', 'bonduser', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'sys@spymail.com')",
 					"('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com')",
 				   	"('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com')",
 			   		"('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')"
@@ -143,7 +139,7 @@ component{
 			request.dao.execute("DROP TABLE IF EXISTS `users`");
 			request.dao.execute("
 				 CREATE TABLE `users` (
-				   `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
+				   `ID` int(11) NOT NULL AUTO_INCREMENT,
 				   `user_name` varchar(50) DEFAULT NULL,
 				   `password` varchar(50) DEFAULT NULL,
 				   `first_name` varchar(60) DEFAULT NULL,
@@ -169,11 +165,13 @@ component{
 			       `_id`,
 			       `email`)
 			   VALUES
+			   	('-1', 'system', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'system', 'user', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'sys@spymail.com'),
 			   	('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com'),
 			   	('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com'),
 			   	('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')
 			   "
 			);
+			request.dao.execute("update users set ID = 0 where id = -1");
 			request.dao.execute("DROP TABLE IF EXISTS `eventLog`");
 			request.dao.execute("
 			   CREATE TABLE `eventLog` (
@@ -200,7 +198,7 @@ component{
 			   CREATE TABLE `pets` (
 				   `ID` int(11) unsigned NOT NULL AUTO_INCREMENT,
 				   `_id` varchar(45) NOT NULL,
-				   `userID` int(11) unsigned NOT NULL,
+				   `userID` int(11) NOT NULL,
 				   `firstName` varchar(255) DEFAULT NULL,
 				   `lastName` varchar(255) DEFAULT NULL,
 				   `createdDate` datetime DEFAULT NULL,
@@ -336,7 +334,7 @@ component{
 						`companies_ID` int(11) unsigned DEFAULT NULL,
 						`order_datetime` datetime DEFAULT NULL,
 						`total` double NOT NULL DEFAULT '0',
-						`users_ID` int(11) unsigned DEFAULT NULL,
+						`users_ID` int(11) DEFAULT NULL,
 						PRIMARY KEY (`ID`)
 						) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
 					"
