@@ -709,7 +709,10 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 		var returnString = {};
 		var returnStruct = {};
+		// if the value is an array, we need to convert it to a list
 		if( isArray( value ) ){
+			// If the value is an array, treat it as a list
+			arguments.list = true;
 			value = value.toList();			
 		}
 		// best guess if
