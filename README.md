@@ -1,6 +1,6 @@
 ## Dao & Norm
 * Dao - A ColdFusion library for easy and db agnostic CRUD interaction and Linq style query building.
-* Norm (Not ORM) - A dynamic Object Mapping layer built on top of DAO that provides oData support on top of ORM style object interactions (load, save, relate entities, etc...).
+* Norm (Not ORM) - A dynamic Object Mapping layer built on top of DAO that provides oData support and ORM style object interactions (load, save, relate entities, etc...).
 
 ## Elevator Pitch
 Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more.  Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box.

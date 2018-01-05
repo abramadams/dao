@@ -705,17 +705,20 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 	* @list Whether or not to param as a list (i.e. for passing a param'd list to IN() statements )
 	* @null Whether the value is null or not
 	**/
-	public function queryParam( required string value, string type = "", string cfsqltype = type, boolean list = false, boolean null = false ){
+	public function queryParam( required any value, string type = "", string cfsqltype = type, boolean list = false, boolean null = false ){
 
 		var returnString = {};
 		var returnStruct = {};
+		if( isArray( value ) ){
+			value = value.toList();			
+		}
 		// best guess if
 		if( ( reFindNoCase( "${ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
 			arguments.cfsqltype = "cf_sql_timestamp";
 		}else if( !len( trim( cfsqltype ) ) ){
 			// default to varchar
 			arguments.cfsqltype = "cf_sql_varchar";
-		}
+		}		
 		returnStruct = queryParamStruct( value = arguments.value, cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
 		returnString = '#chr(998)#list=#chr(777)##returnStruct.list##chr(777)# null=#chr(777)##returnStruct.null##chr(777)# cfsqltype=#chr(777)##returnStruct.cfsqltype##chr(777)# value=#chr(777)##returnStruct.value##chr(777)##chr(999)#';
 		return returnString;
