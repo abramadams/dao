@@ -62,7 +62,67 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
                WHERE ID IN(:eventLogIds{type='int',null=false,list=true})",{ eventLogIds=[1,20] } );
 
           $assert.typeOf( "query", records );
-          $assert.isTrue( records.ID == 1 );
+          $assert.isTrue( records.ID == 1 );     
+     }
+     function readWithNamedParamsAsAlphaList() test{
+        var events="delete,test insert";
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE event IN(:events{list=true})",{ events:events } );
+
+        $assert.typeOf( "query", records );
+        $assert.isTrue( records.recordCount == 3 );
+     }
+     function readWithNamedParamsArrayAsAlphaList() test{
+        var events=["delete","test insert"];
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE event IN(:events{list=true})",{ events:events } );
+
+        $assert.typeOf( "query", records );
+        $assert.isTrue( records.recordCount == 3 );  
+     }
+     function readWithParamsAsList() test{
+        var eventLogIds="1,20";
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE ID IN( #request.dao.queryParam( value=eventLogIds, type='int',null=false,list=true )# )" );
+
+        $assert.typeOf( "query", records );
+        $assert.isTrue( records.ID == 1 );
+     }
+     function readWithParamsArrayAsList() test{
+        var eventLogIds=[1,20];
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE ID IN( #request.dao.queryParam( value=eventLogIds, type='int',null=false,list=true )# )" );
+
+        $assert.typeOf( "query", records );
+        $assert.isTrue( records.ID == 1 );
+     }
+     function readWithParamsAsAlphaList() test{
+        var events="delete,test insert";
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE event IN( #request.dao.queryParam( value=events,list=true )# )" );
+
+        $assert.typeOf( "query", records );
+        $assert.isTrue( records.recordCount == 3 );
+     }
+     function readWithParamsArrayAsAlphaList() test{
+        var events=["delete","test insert"];
+        var records = request.dao.read("
+            SELECT *
+            FROM eventLog
+            WHERE event IN( #request.dao.queryParam( value=events,list=true )# )" );
+
+        $assert.typeOf( "query", records );        
+        $assert.isTrue( records.recordCount == 3 );
      }
      function readWithMissingNamedParams() test{
           try{
