@@ -20,7 +20,7 @@
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
 *		@version 0.0.71
-*	   	@updated 5/15/2018
+*	   	@updated 5/15/2017
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.

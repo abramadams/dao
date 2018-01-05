@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.3.2
+*   @version 0.3.4
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 09/12/2018
+*   @updated 01/05/2018
 *   @author Abram Adams
 **/
 
@@ -95,7 +95,7 @@ component accessors="true" output="false" {
 		set__FromCache( false );
 		set__cacheEntities( cacheEntities );
 		if( get__cacheEntities() && !__cacheEnabled() ){
-			set__cacheEntities( false );			
+			set__cacheEntities( false );
 		}
         // If true, will tell // logIt() to actually write to log.
 		set__debugMode( debugMode );
@@ -336,12 +336,12 @@ component accessors="true" output="false" {
 	private function __cacheEnabled(){
 		if( len( trim( _cacheEnabled ) ) ){
 			return _cacheEnabled;
-		}		
+		}
 		_cacheEnabled = true;
 		try{
 			cacheCount('');
 		}catch(any e){
-			_cacheEnabled = false;		
+			_cacheEnabled = false;
 		}
 		return _cachEnabled;
 	}

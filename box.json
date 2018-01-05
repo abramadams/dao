@@ -42,9 +42,7 @@
     "installPaths":{
         "testbox":"testbox"
     },
-    "scripts":{
-        "postInstall":"docs"
-    },
+    "scripts":{},
     "ignore":[
         "**/.*",
         "test",

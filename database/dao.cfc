@@ -1,4 +1,4 @@
-/*
+/**
 ************************************************************
 *
 *	Copyright (c) 2007-2018, Abram Adams
@@ -16,60 +16,60 @@
 *	limitations under the License.
 *
 ***********************************************************
-
-	Component	: dao.cfc
-	Author		: Abram Adams
-	Date		: 1/2/2007
-	@version 0.1.1
-	@updated 9/13/2018
-	Description	: Generic database access object that will
-	control all database interaction.  This component will
-	invoke database specific functions when needed to perform
-	platform specific calls.
-
-	For instance mysql.cfc has MySQL specific syntax
-	and routines to perform generic functions like obtaining
-	the definition of a table, the interface here is
-	define(tablename) and the MySQL function is DESCRIBE tablename.
-	To implement for MS SQL you would need to create a
-	mssql.cfc and have MS SQL specific syntax for the
-	define(tablename) function that returns a query object.
-
-	EXAMPLES:
-		// Create global database connection
-		dao = new dao(
-					   dsn		= "mydsn",
-					   user		= "dbuser",
-					   password = "dbpass",
-					   dbtype	= "mysql"
-					  );
-
-		Function read:
-		query = dao.read("users");
-		or:
-		query = dao.read("
-			select name, email
-			from users
-			where id = #dao.queryParam(1)#
-		");
-
-		Function write:
-		NewKey = application.dao.write('insert into users (id) values(1)');
-
-		Function update:
-		dao.update("
-			update users
-			set name = #dao.queryParam('test','varchar')#
-			where id = #dao.queryParam(12,'int')#
-		");
-
-		Function execute:
-		results = dao.execute("show databases");
-
-		Function delete:
-		dao.delete("users","*");
-
-  ********************************************************** */
+*
+*	Component	: dao.cfc
+*	Author		: Abram Adams
+*	Date		: 1/2/2007
+*	@version 0.1.3
+*	@updated 1/5/2018
+*	Description	: Generic database access object that will
+*	control all database interaction.  This component will
+*	invoke database specific functions when needed to perform
+*	platform specific calls.
+*
+*	For instance mysql.cfc has MySQL specific syntax
+*	and routines to perform generic functions like obtaining
+*	the definition of a table, the interface here is
+*	define(tablename) and the MySQL function is DESCRIBE tablename.
+*	To implement for MS SQL you would need to create a
+*	mssql.cfc and have MS SQL specific syntax for the
+*	define(tablename) function that returns a query object.
+*
+*	EXAMPLES:
+*		// Create global database connection
+*		dao = new dao(
+*					   dsn		= "mydsn",
+*					   user		= "dbuser",
+*					   password = "dbpass",
+*					   dbtype	= "mysql"
+*					  );
+*
+*		Function read:
+*		query = dao.read("users");
+*		or:
+*		query = dao.read("
+*			select name, email
+*			from users
+*			where id = #dao.queryParam(1)#
+*		");
+*
+*		Function write:
+*		NewKey = application.dao.write('insert into users (id) values(1)');
+*
+*		Function update:
+*		dao.update("
+*			update users
+*			set name = #dao.queryParam('test','varchar')#
+*			where id = #dao.queryParam(12,'int')#
+*		");
+*
+*		Function execute:
+*		results = dao.execute("show databases");
+*
+*		Function delete:
+*		dao.delete("users","*");
+*
+*********************************************************** */
 component displayname="DAO" hint="This component is basically a DAO Factory that will construct the appropriate invokation for the given database type." output="false" accessors="true" {
 
 	property name="dsn" type="string";
@@ -360,8 +360,16 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 			if ( len( trim( arguments.ID ) ) && column == pk ){
 				LOCAL.table.setColumn( column = column, value = arguments.id, row = row );
-			}else if ( structKeyExists( arguments.data, column ) ){
-				LOCAL.table.setColumn( column = column, value = arguments.data[ column ], row = row );
+			}else if( structKeyExists( arguments.data, column ) ){
+				// The column data could potentially be a lazy loaded child, in which case it
+				// would be a closure waiting to be executed.  This will execute and store the PK
+				// value into the table data.
+				if( isClosure( arguments.data[ column ] ) ){
+					 var hydratedColumn = arguments.data[ column ]();
+					LOCAL.table.setColumn( column = column, value = hydratedColumn.getID(), row = row );
+				}else{
+					LOCAL.table.setColumn( column = column, value = arguments.data[ column ], row = row );
+				}
 			}
 
 		}
@@ -713,7 +721,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		if( isArray( value ) ){
 			// If the value is an array, treat it as a list
 			arguments.list = true;
-			value = value.toList();			
+			value = value.toList();
 		}
 		// best guess if
 		if( ( reFindNoCase( "${ts.*?}", value ) ) && ( cfsqltype does not contain "date" || cfsqltype does not contain "time" ) ){
@@ -721,7 +729,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		}else if( !len( trim( cfsqltype ) ) ){
 			// default to varchar
 			arguments.cfsqltype = "cf_sql_varchar";
-		}		
+		}
 		returnStruct = queryParamStruct( value = arguments.value, cfsqltype = arguments.cfsqltype, list = arguments.list, null = arguments.null );
 		returnString = '#chr(998)#list=#chr(777)##returnStruct.list##chr(777)# null=#chr(777)##returnStruct.null##chr(777)# cfsqltype=#chr(777)##returnStruct.cfsqltype##chr(777)# value=#chr(777)##returnStruct.value##chr(777)##chr(999)#';
 		return returnString;
