@@ -20,7 +20,7 @@
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
 *		@version 0.0.71
-*	   	@updated 5/15/2017
+*	   	@updated 1/17/2018
 *   	@dependencies { "dao" : ">=0.0.90" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
@@ -206,7 +206,7 @@
 							<cfif len( trim( arguments.orderby ) )>
 								ORDER BY #arguments.orderby#
 							</cfif>
-							) t
+							) #arguments.table#
 						<cfif val( arguments.limit ) GT 0>
 							WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
 						</cfif>
@@ -236,7 +236,7 @@
 								</cfloop>
 								<!--- /Parse out the queryParam calls inside the where statement --->
 								</cfif>
-								) t
+								) #arguments.table#
 
 							<cfif val( arguments.limit ) GT 0>
 								WHERE [__fullCount] BETWEEN #val( arguments.offset )# AND #val( arguments.limit )#
@@ -494,10 +494,9 @@
 		**/
 		public string function getSafeColumnNames( required string cols )  output = false {
 			var columns = [];
+			// writeDump(cols);abort;
 			for( var colName in listToArray( cols ) ){
-				var col = "#getSafeIdentifierStartChar()##trim(colName)##getSafeIdentifierEndChar()#";
-				col = reReplace( col, "\.", "#getSafeIdentifierStartChar()#.#getSafeIdentifierEndChar()#", "all" );
-				col = reReplace( col, "#getSafeIdentifierStartChar()#\*#getSafeIdentifierEndChar()#", "*", "all" );
+				var col = reReplace( colName, "(.*?)(\.)(.+?)(,|\.|\s|$)", "#getSafeIdentifierStartChar()#\1#getSafeIdentifierEndChar()#.#getSafeIdentifierStartChar()#\3#getSafeIdentifierEndChar()#", "all" );
 				arrayAppend( columns, col );
 			}
 
