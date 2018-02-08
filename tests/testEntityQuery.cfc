@@ -71,6 +71,19 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
         $assert.isTrue( query.getCriteria().limit == 15 );
 	}
 
+	function offset() test{
+		var query = request.dao.from( "eventLog" )
+					.where( "ID", "<=", 5 )
+					.andWhere( "ID", ">=", 1)
+					.andWhere( "event", "=", "delete")
+					.orWhere( "event", "=", "insert")
+					.orderBy("eventDate desc")
+					.offset(15);
+		$assert.typeOf( "struct", query.getCriteria() );
+
+		$assert.isTrue( query.getCriteria().offset == 15);
+	}
+
 	function limitAll() test{
 		var query = request.dao.from( "eventLog" )
 					.where( "ID", "<=", 5 )
