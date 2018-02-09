@@ -233,6 +233,12 @@
 			return this;
 		}
 
+		public function offset( required any offset ) {
+			this._criteria.offset = arguments.offset;
+			this._criteria.callStack.append( { offset = { offset = offset } } );
+			return this;
+		}
+
 		public function returnAs( string returnType = "Query" ){
 
 			this._criteria.returnType = arguments.returnType;
@@ -246,6 +252,7 @@
 						 columns = this._criteria.columns,
 						 where = arrayToList( this._criteria.joins, " " ) & " " & arrayToList( this._criteria.clause, " " ),
 						 limit = this._criteria.limit,
+						 offset = this._criteria.offset,
 						 orderBy = this._criteria.orderBy,
 						 returnType = this._criteria.returnType );
 		}
@@ -302,6 +309,6 @@
 			return this;
 		}
 		public function _resetCriteria(){
-			this._criteria = { from = "", clause = [], limit = "*", orderBy = "", joins = [], returnType = "Query" };
+			this._criteria = { from = "", clause = [], limit = "*", offset = "*", orderBy = "", joins = [], returnType = "Query" };
 		}
 </cfscript>
