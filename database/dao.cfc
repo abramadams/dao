@@ -293,14 +293,17 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 	/**
 	* I update data in a table in the database.
 	* @table Name of table to update data from.
-	* @data Struct of name value pairs containing data.  Name must match column name.  This could be a form scope
+	* @data Struct or single row query object of name value pairs containing data.  Name must match column name.  This could be a form scope
 	* @IDField The name of the Primary Key column in the table.
 	* @ID The value of the Primary Key column in the table.
 	* @dryRun For debugging, will dump the data used to insert instead of actually inserting.
 	* @onFinish Will execute when finished updating.  Can be used for audit logging, notifications, post update processing, etc...
 	**/
-	public function update( required string table, required struct data, string IDField = "ID", string ID = "", boolean dryRun = false, any onFinish = "", any callbackArgs = {}  ){
+	public function update( required string table, required any data, string IDField = "ID", string ID = "", boolean dryRun = false, any onFinish = "", any callbackArgs = {}  ){
 		var LOCAL = {};
+		if( !isStruct( data ) && !isQuery( data ) ){
+			throw( message = "Data must be a struct or a query object with key/value pairs where the key matches exactly the column name." );
+		}
 
 		LOCAL.isDirty = false;
 		var changes = [];

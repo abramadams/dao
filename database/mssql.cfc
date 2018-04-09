@@ -434,8 +434,7 @@
 				<cfset constants.ERROR.table.message = "Table Definition"/>
 				<cfset constants.ERROR.table.details = define(arguments.tabledef.getTableName()) />
 
-
-				<cfthrow errorcode="803-mssql.update" type="dao.custom.error" detail="#lp.getGlobalLabel('Unexpected Error')#" message="#lp.getGlobalLabel('There was an unexpected error updating the database.  Please contact your administrator')#. #cfcatch.message#">
+				<cfthrow errorcode="803-mssql.update" type="dao.custom.error" detail="Unexpected Error" message="There was an unexpected error updating the database.  Please contact your administrator. #cfcatch.message#">
 
 			</cfcatch>
 
