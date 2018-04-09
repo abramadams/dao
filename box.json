@@ -2,7 +2,7 @@
   "name": "Dao",
   "version": "0.1.5",
   "author": "Abram Adams",
-  "location": "abramadams/dao#v0.1.5",
+  "location": "abramadams/dao#v0.1.6",
   "createPackageDirectory": true,
   "packageDirectory": "database",
   "homepage": "http://abramadams.github.io/dao/",
@@ -13,22 +13,18 @@
   },
   "bugs": "",
   "slug": "dao",
-  "shortDescription":
-    "A ColdFusion library for easy Data Access, CRUD, ORM like functionality and LINQ style query building.",
-  "description":
-    "Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more. Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box. In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.",
+  "shortDescription": "A ColdFusion library for easy Data Access, CRUD, ORM like functionality and LINQ style query building.",
+  "description": "Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more. Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box. In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.",
   "instructions": "",
   "changelog": "",
   "type": "projects",
   "keywords": ["database", "orm", "linq", "odata", "sql", "dao"],
   "private": false,
   "projectURL": "https://github.com/abramadams/dao",
-  "License": [
-    {
-      "type": "Apache 2.0",
-      "URL": "http://www.apache.org/licenses/LICENSE-2.0"
-    }
-  ],
+  "License": [{
+    "type": "Apache 2.0",
+    "URL": "http://www.apache.org/licenses/LICENSE-2.0"
+  }],
   "contributors": [],
   "dependencies": {},
   "devDependencies": {
