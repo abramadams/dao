@@ -368,7 +368,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				// would be a closure waiting to be executed.  This will execute and store the PK
 				// value into the table data.
 				if( isClosure( arguments.data[ column ] ) ){
-					 var hydratedColumn = arguments.data[ column ]();
+					 var hydratedColumn = arguments.data[ column ];
 					LOCAL.table.setColumn( column = column, value = hydratedColumn.getID(), row = row );
 				}else{
 					LOCAL.table.setColumn( column = column, value = arguments.data[ column ], row = row );
@@ -1415,7 +1415,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		var _where = isNull( arguments.where ) ? "" : arguments.where;
 
 		if( !len( trim( arguments.sql ) ) && !len( trim( arguments.table ) ) ){
-			throw message="You must pass in either a table name or sql statement.";
+			throw "You must pass in either a table name or sql statement.";
 		}
 
 		if( listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) ) ){
@@ -1446,7 +1446,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 				// Now we build the query
 				var tmpSQL = parameterizeSQL( arguments.sql, arguments.params );
-				var sql = "";
+//				var sql = "";
 				var paramMap = [];
 				/*
 					Parse out the queryParam calls inside the where statement
@@ -1592,7 +1592,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			var execSQL = "";
 			savecontent variable="execSQL"{
 				// The first position of the tmpSQL list will be the first section of SQL code
-				writeOutput( listFirst( preserveSingleQuotes( LOCAL.tmpSQL ), chr(998) ) )
+				writeOutput( listFirst( preserveSingleQuotes( LOCAL.tmpSQL ), chr(998) ) );
 				// Now, we loop through the rest of the tmpSQL to build the cfqueryparams
 				var listifiedSQL = listDeleteAt(LOCAL.tmpSQL,1,chr(998));
 				var sqlFrags = listifiedSQL.listToArray( chr(998 ) );
