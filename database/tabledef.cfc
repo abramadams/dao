@@ -202,7 +202,7 @@
 	}
 
 	public string function getValidDataType( required string type ){
-		if( arguments.type is "datetime" ){
+		if( arguments.type contains "datetime" ){
 			arguments.type = "timestamp";
 		}
 		if( findNoCase( "int", arguments.type ) ){
@@ -302,7 +302,7 @@
 		var cfsqltype = "";
 		cfsqltype = jdbcType( typeid = getColumnType( arguments.col ) );
 
-		if( cfsqltype is "datetime" ){
+		if( cfsqltype contains "datetime" ){
 			cfsqltype = "timestamp";
 		}
 		return "cf_sql_" & cfsqltype;
