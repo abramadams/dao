@@ -1562,7 +1562,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		var exec = "";
 		var LOCAL = {};
 		var result = {};
-		var options = { datasource: variables.dsn };
+		var options = { datasource: variables.dsn, results: "local.result" };
 		var paramMap = [];
 		try{
 
@@ -1642,7 +1642,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			};
 
 			// Execute the query
-			LOCAL.result = queryExecute( execSQL, paramMap, options );
+			queryExecute( execSQL, paramMap, options );
 
 			// Grab the last inserted ID if it was an insert
 			if( refindNoCase('(INSERT|REPLACE)(.*?)INTO (.*?)\(', execSQL ) ){
@@ -1695,6 +1695,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 						detail="In order to save '0000-00-00 00:00:00' as a date you must add ""zeroDateTimeBehavior=convertToNull"" to your JDBC connection string.  See: http://helpx.adobe.com/coldfusion/kb/mysql-error-java-sql-sqlexception.html for Adobe CF. Attempted Query: #renderSQLforView(sql)# :: #e.message#"
 					);
 				}else{
+					writeDump(e);abort;
 					throw(
 						errorcode="802",
 						type="DAO.Execute.UnexpectedError",
