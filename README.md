@@ -8,7 +8,7 @@ Dao/Norm is a duo of libraries that provide a simple yet full featured interface
 In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.
 
 ## Requirements
-Currently this library has been actively used and tested on Lucee 4x, CF11+
+Currently this library has been actively used and tested on Lucee 4x, 5.x, CF11+
 
 ## Installation
 ### Manual
@@ -69,7 +69,7 @@ Pull requests welcome! See [installation instructions](https://github.com/abrama
 
 ## Copyright and License
 
-Copyright (c) 2007-2018 Abram Adams. All rights reserved.
+Copyright (c) 2007-2020 Abram Adams. All rights reserved.
 
 The use and distribution terms for this software are covered by the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0) which can also be found in the file LICENSE at the root of this distribution and in individual licensed files.
 By using this software in any fashion, you are agreeing to be bound by the terms of this license. You must not remove this notice, or any other, from this software.
