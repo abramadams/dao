@@ -1562,7 +1562,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		var exec = "";
 		var LOCAL = {};
 		var result = {};
-		var options = { datasource: variables.dsn, results: "local.result" };
+		var options = { datasource: variables.dsn, result: "local.result" };
 		var paramMap = [];
 		try{
 
@@ -1663,7 +1663,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				}else{ // Rely on db connector cfc to provide last ID
 					LOCAL.lastInsertedID = getLastID();
 				}
-
+				
 				ret = LOCAL.lastInsertedID;
 
 			}else{
@@ -1677,7 +1677,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				this.logTransaction(arguments.sql,LOCAL.lastInsertedID);
 			}
 		}catch( database d ){
-				if( findNoCase('Invalid data',cfcatch.Message) ) {
+				if( findNoCase('Invalid data',d.Message) ) {
 					throw(
 						errorcode="801",
 						type="DAO.Execute.InvalidDataType",
