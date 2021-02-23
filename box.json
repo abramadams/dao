@@ -1,8 +1,8 @@
 {
     "name":"Dao",
-    "version":"0.2.0",
+    "version":"0.2.1",
     "author":"Abram Adams",
-    "location":"abramadams/dao#v0.2.0",
+    "location":"abramadams/dao#v0.2.1",
     "createPackageDirectory":true,
     "packageDirectory":"database",
     "homepage":"http://abramadams.github.io/dao/",

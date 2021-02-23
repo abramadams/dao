@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.4.0
+*   @version 0.3.5
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 01/21/2021
+*   @updated 02/22/2021
 *   @author Abram Adams
 **/
 
@@ -592,6 +592,13 @@ component accessors="true" output="false" {
 		var propName = getFunctionCalledName();
 		propName = mid( propName, 4, len( propName ) );
 		return isArray( variables[ propName ] ) && arrayLen( variables[ propName ] );
+	}
+	
+	/**
+	* I return true if the supplied column exists on the current enttity
+	**/
+	public function columnExists( column ){
+		return variables.tabledef.hasColumn(column );
 	}
 
 	/**
