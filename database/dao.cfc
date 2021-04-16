@@ -937,14 +937,15 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 	**/
 	public function parseQueryParams( required any str, struct params = {} ){
 		for( var param in params ){
-			if( isSimpleValue( params[param] ) ){
-				params[param] = reReplaceNoCase( params[param], '"', getDOUBLEQUOTE() );
-				params[param] = reReplaceNoCase( params[param], "'", getSINGLEQUOTE() );
-				params[param] = reReplaceNoCase( params[param], "=", getEQUALS() );
-				params[param] = reReplaceNoCase( params[param], ":", getCOLON() );
+			if( isSimpleValue( arguments.params[param] ) ){
+				arguments.params[param] = reReplaceNoCase( arguments.params[param], '"', getDOUBLEQUOTE() );
+				arguments.params[param] = reReplaceNoCase( arguments.params[param], "'", getSINGLEQUOTE() );
+				arguments.params[param] = reReplaceNoCase( arguments.params[param], "=", getEQUALS() );
+				arguments.params[param] = reReplaceNoCase( arguments.params[param], ":", getCOLON() );
 			}
 		}
-		str &= " ";// pad with trailing space for simpler regex.
+		var _str = arguments.str;
+		_str &= " ";// pad with trailing space for simpler regex.
 		// This function wll parse the passed SQL string to replace $queryParam()$ with the evaluated
 		// <cfqueryparam> tag before passing the SQL statement to cfquery (dao.read(),execute()).  If the
 		// SQL is generated in-page, you can use dao.queryParam()$ directly to create query parameters.
@@ -976,20 +977,21 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		// Let's inspect the possible named parameters to see if they are really parameters or just the existence
 		// of :somevalue in the value string.  If the parameter variable exists we're assuming :somevalue was a
 		// named parameter, otherwise we'll treat it as a literal string.
-		var possibleParams = str.refind( '(:(?![0-9|\s])\w[^\{]*?)(?=\s|\)|,|$)', 0, true );
+		var possibleParams = _str.refind( '(:(?![0-9|\s])\w[^\{]*?)(?=\s|\)|,|$)', 0, true );
 		if( possibleParams.keyExists('pos') && possibleParams.pos[1] > 0 ){
+			var parameters = duplicate(arguments.params);
 			// possible parameter found, let's inspect each one
 			possibleParams.pos.each( function( pos, index ){
 				// Match results will find each instance twice because of regex grouping. We only need to inspect once each
 				if( index mod 2 ){
-					var tmpParamPrestine = str.mid( pos, possibleParams.len[ index ] );
-					var tmpParam = str.mid( pos, possibleParams.len[ index ] );
+					var tmpParamPrestine = _str.mid( pos, possibleParams.len[ index ] );
+					var tmpParam = _str.mid( pos, possibleParams.len[ index ] );
 					tmpParam = " " & tmpParam;
 					var tmpParam = tmpParam.listRest(':');
 					tmpParam = trim( tmpParam );
 					// If the parameter exists in the params struct, we'll normalize the param syntax to :name{}
-					if( len( trim( tmpParam ) ) && params.keyExists( tmpParam ) ){
-						str = reReplaceNoCase( str, tmpParamPrestine,'#tmpParamPrestine#{}', 'all' );
+					if( len( trim( tmpParam ) ) && parameters.keyExists( tmpParam ) ){
+						_str = reReplaceNoCase( _str, tmpParamPrestine,'#tmpParamPrestine#{}', 'all' );
 					}
 				}
 			});
@@ -997,29 +999,28 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 
 		// pull out : in values.
-		str = reReplaceNoCase( str, 'value=\#chr( 777 )#(.*?)(:+)(.*?)\#chr( 777 )#', 'value=#chr( 777 )#\1#chr(765)#\3#chr( 777 )#','all' );
+		_str = reReplaceNoCase( _str, 'value=\#chr( 777 )#(.*?)(:+)(.*?)\#chr( 777 )#', 'value=#chr( 777 )#\1#chr(765)#\3#chr( 777 )#','all' );
 		// pull out the : in date object values that can break the named param regex
-		str = reReplaceNoCase( str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
+		_str = reReplaceNoCase( _str, "{ts '(.*?):(.*?)'}","{ts '\1#chr(765)#\2'}", "all" );
 		// now parse named params
-		str = reReplaceNoCase( str, '((\s|\t|\(|,):)(?![0-9|\s])(\w[^\{]*?)(?=\s|\)|,|$)','\1\3{}','all');
-		str = reReplaceNoCase( str, '(\s|\t|\(|,):(\w*?)\{(.*?)\}','\1$queryParam(%%%="##arguments.params.\2##",\3)$','all');
+		_str = reReplaceNoCase( _str, '((\s|\t|\(|,):)(?![0-9|\s])(\w[^\{]*?)(?=\s|\)|,|$)','\1\3{}','all');
+		_str = reReplaceNoCase( _str, '(\s|\t|\(|,):(\w*?)\{(.*?)\}','\1$queryParam(%%%="##arguments.params.\2##",\3)$','all');
 
-		str = reReplace(str,',\)',')','all');
-		if( findNoCase( '##arguments.params', str) ){
-			str = parseNamedParamValues( str, params );
-			str = reReplaceNoCase( str, 'value+(\s*?)=(\s|''|"\s)(.*?)(''|"\s)', '', 'all' );
-			str = reReplaceNoCase( str, '\%\%\%=', 'value=', 'all' );
-			str = reReplaceNoCase( str, '(,+[\s]*,)', ',', 'all' );
-			str = reReplace( str, "=+(\s*)'(.*?)'", '="\2"', 'all' );
+		_str = reReplace(_str,',\)',')','all');
+		if( findNoCase( '##arguments.params', _str) ){
+			_str = parseNamedParamValues( _str, params );
+			_str = reReplaceNoCase( _str, 'value+(\s*?)=(\s|''|"\s)(.*?)(''|"\s)', '', 'all' );
+			_str = reReplaceNoCase( _str, '\%\%\%=', 'value=', 'all' );
+			_str = reReplaceNoCase( _str, '(,+[\s]*,)', ',', 'all' );
+			_str = reReplace( _str, "=+(\s*)'(.*?)'", '="\2"', 'all' );
 		}
 
 		// put the : back into date values
-		str = reReplace( str, chr(765), ":", "all" );
+		_str = _str.replace( chr(765), ":", "all" );
 		// get rid of empty curlies
-		str = reReplace( str, "{}", "", "all" );
-
+		_str = _str.replace( "{}", "", "all" );
 		// First we check to see if the string has anything to parse
-		var startPos = findNoCase('$queryparam(',arguments.str,1);
+		var startPos = findNoCase('$queryparam(',_str,1);
 		var endPos = "";
 		var tmpStartString = "";
 		var tmpString = "";
@@ -1028,22 +1029,22 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		var returnString = "";
 
 		//Append a space for padding, this helps with the last iteration of recursion
-		arguments.str = arguments.str & " ";
+		_str &= " ";
 
 		if( startPos ){
 			//If so, we'll recursively parse all CF code (code between $'s)
 			startPos 	= startPos + 1;
-			endPos 	= ( find( ')$', arguments.str, startPos ) - startPos )+1;
+			endPos 	= ( find( ')$', _str, startPos ) - startPos )+1;
 			// If no end $ was found, pass back original string.
 			if ( !val( endPos ) ){
-				return arguments.str;
+				return _str;
 			}else if( startPos lte 1 ){
-				return arguments.str;
+				return _str;
 			}
 			// Now let's grab the piece of string to evaluate
-			tmpStartString = mid( arguments.str, 1, startPos - 2 );
-			tmpString = mid( arguments.str, startPos, endPos );
-			tmpEndString = mid( arguments.str, len( tmpStartString ) + endPos + 3, len( arguments.str ) );
+			tmpStartString = mid( _str, 1, startPos - 2 );
+			tmpString = mid( _str, startPos, endPos );
+			tmpEndString = mid( _str, len( tmpStartString ) + endPos + 3, len( _str ) );
 			// A little clean-up
 			tmpString = reReplaceNoCase( tmpString, '&quot;', "'", 'all' );
 			var originalString = tmpString;
@@ -1110,7 +1111,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 				if( !isJSON( tmpString ) ){
 					throw( errorcode="881", message="Invalid QueryParam", type="DAO.parseQueryParams.InvalidQueryParam",
-						detail="The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. ""#originalString#"" ==> ""#tmpString#""  || ""#arguments.str#""");
+						detail="The query parameter passed in is not properly escaped.  Make sure to wrap literals in quotes. ""#originalString#"" ==> ""#tmpString#""  || ""#_str#""");
 				}
 				// turn the JSON into a CF struct
 				tmpString = deSerializeJSON( tmpString );
@@ -1152,11 +1153,11 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				}
 			}else{
 				// There was not an instance of queryParam called, so return the unmodified sql
-				return arguments.str;
+				return _str;
 			}
 		}else{
 			// Nothing left to parse, let's return the string back to the original calling function
-			return arguments.str;
+			return _str;
 		}
 	}
 
