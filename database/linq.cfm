@@ -33,10 +33,10 @@
 		* Returns a duplicate copy of DAO with an empty Entity Query criteria
 		* (except the args passed in).  This allows multiple entity queries to co-exist
 		**/
-		public function from( required string table, string alias, any joins = [], string columns = getColumns( arguments.table ) ){
+		public function from( required string table, string alias = "", any joins = [], string columns = getColumns( arguments.table ) ){
 			var newDao = new();
 			newDao._criteria.from = table;
-			newDao._criteria.alias = alias?:"";
+			newDao._criteria.alias = alias;
 			newDao._criteria.columns = columns;
 			newDao._criteria.callStack = [ { from = table, joins = joins } ];
 			if( arrayLen( joins ) ){
@@ -312,6 +312,6 @@
 			return this;
 		}
 		public function _resetCriteria(){
-			this._criteria = { from = "", clause = [], limit = "*", offset = "*", orderBy = "", joins = [], returnType = "Query" };
+			this._criteria = { from = "", alias = "", clause = [], limit = "*", offset = "*", orderBy = "", joins = [], returnType = "Query" };
 		}
 </cfscript>
