@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2018, Abram Adams
+*	Copyright (c) 2007-2021, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 *		Component	: dao.cfc (MSSQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 0.0.71
-*	   	@updated 1/17/2018
-*   	@dependencies { "dao" : ">=0.0.90" }
+*		@version 1.0.0
+*	   	@updated 10/10/2021
+*   	@dependencies { "dao" : ">=1.0.0" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
 *		This component will use MSSQL syntax to perform general
@@ -109,6 +109,7 @@
 		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="sel_#listFirst(createUUID(),'-')#">
 		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
+		<cfargument name="alias" required="false" type="string" default="" hint="Table alias name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned." default="">
@@ -177,13 +178,21 @@
 				<cfif !len( trim( arguments.columns ) ) >
 					<cfset arguments.columns = getSafeColumnNames(getDao().getColumns(arguments.table))/>
 				</cfif>
+				<cfset var columnAliases = arguments.columns.listToArray().map((col)=>{
+					var ret = col.listLast( ' ' );
+					ret = ret.listLast( '.' );
+					return ret;
+				}).toList()/>
+				<cfif !isNull( arguments.alias ) >
+					<cfset arguments.columns = arguments.columns.reReplaceNoCase( "\b#arguments.table#\.", "#arguments.alias#.", "all" )/>
+				</cfif> 
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
 
-						SELECT #arguments.columns#
+						SELECT #columnAliases#
 						FROM (
 							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
-							FROM #arguments.table#
+							FROM #arguments.table# #arguments.alias#
 							<cfif len( trim( arguments.where ) )>
 							<!---
 								Parse out the queryParam calls inside the where statement
@@ -213,10 +222,10 @@
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#getDsn()#">
-						SELECT #arguments.columns#
+						SELECT #columnAliases#
 							FROM (
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
-								FROM #arguments.table#
+								FROM #arguments.table# as #arguments.alias#
 								<cfif len( trim( arguments.where ) )>
 								<!---
 									Parse out the queryParam calls inside the where statement

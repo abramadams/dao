@@ -16,9 +16,9 @@
 *****************************************************************************************
 *	Extend this component to add ORM like behavior to your model CFCs.
 *	Tested on CF10/11, Railo 4.x, Lucee 4.x, will not work on CF9+ due to use of function expressions and closures
-*   @version 0.3.5
+*   @version 1.0.0
 *   @dependencies { "dao" : ">=0.0.80" }
-*   @updated 02/22/2021
+*   @updated 10/20/2021
 *   @author Abram Adams
 **/
 

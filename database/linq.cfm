@@ -19,9 +19,9 @@
 
 		Component	: linq.cfm
 		Author		: Abram Adams
-		Date		: 9/7/2018
-		@version 0.0.01
-		@updated 9/7/2018
+		Date		: 9/7/2021
+		@version 1.0.0
+		@updated 10/20/2021
 		Description	: Provides LINQ style query building for dao.cfc.  This
 		file is cfincluded into dao.cfc as a mixin.
 	 */
@@ -33,14 +33,15 @@
 		* Returns a duplicate copy of DAO with an empty Entity Query criteria
 		* (except the args passed in).  This allows multiple entity queries to co-exist
 		**/
-		public function from( required string table, any joins = [], string columns = getColumns( arguments.table ) ){
+		public function from( required string table, string alias, any joins = [], string columns = getColumns( arguments.table ) ){
 			var newDao = new();
 			newDao._criteria.from = table;
+			newDao._criteria.alias = alias?:"";
 			newDao._criteria.columns = columns;
 			newDao._criteria.callStack = [ { from = table, joins = joins } ];
 			if( arrayLen( joins ) ){
 				for( var _table in joins ){
-					newDao.join( type = _table.type, table = _table.table, on = _table.on );
+					newDao.join( type = _table.type, table = _table.table, alias = _table?.alias, on = _table.on );
 					if( !isNull( _table.columns ) ){
 						newDao._criteria.columns = listAppend( newDao._criteria.columns, _table.columns );
 					}
@@ -73,6 +74,7 @@
 			}else{
 				this._criteria.clause[ 1 ] = "WHERE #_getSafeColumnName( column )# #operator# #queryParam(value)#";
 			}
+			param name="this._criteria.callStack" default={};
 			this._criteria.callStack.append( { where = { column = column, operator = operator, value = value } } );
 			return this;
 		}
@@ -249,7 +251,8 @@
 
 		public function run(){
 			return read( table = this._criteria.from,
-						 columns = this._criteria.columns,
+						 alias = this._criteria.alias,
+						 columns = this._criteria?.columns,
 						 where = arrayToList( this._criteria.joins, " " ) & " " & arrayToList( this._criteria.clause, " " ),
 						 limit = this._criteria.limit,
 						 offset = this._criteria.offset,

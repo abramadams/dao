@@ -1,7 +1,7 @@
 /**
 ************************************************************
 *
-*	Copyright (c) 2007-2018, Abram Adams
+*	Copyright (c) 2007-2021, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 *	Component	: dao.cfc
 *	Author		: Abram Adams
 *	Date		: 1/2/2007
-*	@version 0.1.3
-*	@updated 1/5/2018
+*	@version 1.0.1
+*	@updated 10/20/2021
 *	Description	: Generic database access object that will
 *	control all database interaction.  This component will
 *	invoke database specific functions when needed to perform
@@ -1395,6 +1395,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			 struct QoQ = {},
 			 any cachedwithin = "",
 			 string table = "",
+			 string alias = "",
 			 string columns = "",
 			 string where = "",
 			 any limit = "",
@@ -1501,6 +1502,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				// abstract
 				LOCAL[arguments.name] = getConn().select(
 													table = table,
+													alias = arguments.alias,
 													columns = columns,
 													name = name,
 													where = _where,

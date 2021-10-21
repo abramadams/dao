@@ -1,7 +1,7 @@
 <!---
 ************************************************************
 *
-*	Copyright (c) 2007-2015, Abram Adams
+*	Copyright (c) 2007-2021, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 		Component	: tabledef.cfc
 		Author		: Abram Adams
 		Date		: 1/2/2007
-	  	@version 0.0.66
-	   	@updated 9/10/2015
+	  	@version 1.0.0
+	   	@updated 10/20/2021
 		Description	: Creates an instance of the tabledef object that
 		is used in various dao functions, like bulkInsert().  The
 		tabledef object represents a copy of an actual db table with the

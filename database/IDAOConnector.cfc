@@ -1,6 +1,6 @@
 /************************************************************
 *
-*	Copyright (c) 2007-2015, Abram Adams
+*	Copyright (c) 2007-2021, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ interface {
 					string name = "sel_#listFirst(createUUID(),'-')#",
 					any cachedWithin = "",
 					string table = "",
+					string alias = "",
 					string columns = "",
 					string where = "",
 					any limit = "",
