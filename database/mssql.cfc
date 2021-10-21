@@ -225,7 +225,7 @@
 						SELECT #columnAliases#
 							FROM (
 								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
-								FROM #arguments.table# as #arguments.alias#
+								FROM #arguments.table# #arguments.alias#
 								<cfif len( trim( arguments.where ) )>
 								<!---
 									Parse out the queryParam calls inside the where statement
