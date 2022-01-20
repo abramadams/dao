@@ -920,10 +920,10 @@ component accessors="true" output="false" {
 			variables._isNew = record.recordCount EQ 0;
 
 			//If a record existed, load it
-			if( record.recordCount == 1 && !left( originalMethodName, 7 ) == "loadAll" && !left( originalMethodName, 11 ) == "lazyLoadAll"){
+			if( record.recordCount == 1 && !left( originalMethodName, 7 ) == "loadAll" && !left( originalMethodName, 11 ) == "lazyLoadAll" && returnType == "object" ){
 				return this.load( ID = record, lazy = left( originalMethodName , 4 ) is "lazy" );
 			// If more than one record was returned, or method called was a "loadAll" type, return an array of data.
-			}else if( record.recordCount > 1 || left( originalMethodName, 7 ) == "loadAll" || left( originalMethodName , 11 ) == "lazyLoadAll" ) {
+			}else if( record.recordCount >= 1 || left( originalMethodName, 7 ) == "loadAll" || left( originalMethodName , 11 ) == "lazyLoadAll" ) {
 				logIt('lazy load all #this.getTable()# - [#originalMethodName# | #getParentTable()#]');
 				var recordArray = [];
 				var recCount = record.recordCount;
