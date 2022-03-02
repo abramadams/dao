@@ -1316,7 +1316,7 @@ component accessors="true" output="false" {
 				}
 				// Save the pristine state of this entity instance
 				lock name="#this.getTable()#-#this.getID()#-pristine" type="exclusive" timeout="3"{
-					variables._pristine = structCopy( this );
+					variables._pristine = duplicate( this );
 				}
 				// Fire the afterLoad the event handler
 				logIt( 'Executing afterLoad event for #getTable()#' );

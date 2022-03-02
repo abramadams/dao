@@ -202,7 +202,7 @@
 	}
 
 	public string function getValidDataType( required string type ){
-		if( arguments.type contains "datetime" ){
+		if( arguments.type contains "date" ){
 			arguments.type = "timestamp";
 		}
 		if( findNoCase( "int", arguments.type ) ){
