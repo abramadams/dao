@@ -325,7 +325,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 		 var testEntity = new model.EventLog( dao = this.dao );
 
 		 // change event to 'test'
-		 var list = testEntity.list( where = "where `event` = 'test insert'" );
+		 var list = testEntity.list( where = "where event = 'test insert'" );
 
 		 // now list should contain a query object containing records
 	$assert.typeOf( "query", list );
@@ -576,7 +576,7 @@ function ImplicitloadRecordByID() test{
 		 var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
 
 		 // change event to 'test'
-		 var list = testEntity.listAsArray( where = "where `event` = 'test insert'" );
+		 var list = testEntity.listAsArray( where = "where event = 'test insert'" );
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "array", list );
@@ -591,7 +591,7 @@ function ImplicitloadRecordByID() test{
 		 var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
 
 		 // change event to 'test'
-		 var list = testEntity.list( where = "where `event` = 'test insert'" );
+		 var list = testEntity.list( where = "where event = 'test insert'" );
 
 		 // now list should contain an array of records (structs)
 	$assert.typeOf( "query", list );
@@ -602,15 +602,15 @@ function ImplicitloadRecordByID() test{
 
 	 function ImplicitgetSingleRecordByID() test{
 				beforeEach();
-		 var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
+		var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
 
-		 // change event to 'test'
-		 var list = testEntity.getRecord( 208 );
+		// change event to 'test'
+		var list = testEntity.getRecord( 208 );
 
-		 // now list should contain an array of records (structs)
-	$assert.typeOf( "query", list );
+		// now list should contain an array of records (structs)
+		$assert.typeOf( "query", list );
 
-	$assert.isTrue( list.recordCount eq 1 );
+		$assert.isTrue( list.recordCount eq 1 );
 
 	 }
 
@@ -650,7 +650,7 @@ function ImplicitloadRecordByID() test{
 		errors = testEntity.validate();
 		/*writeDump([errors, testEntity]);abort;*/
 		$assert.typeOf( "array", errors );
-		/*writeDump( errors );abort;*/
+		// writeDump( errors );abort;
 		$assert.isTrue( arrayLen( errors ) == 1 );
 	 }
 
@@ -710,6 +710,9 @@ function ImplicitloadRecordByID() test{
 				var testEntity2 = testEntity.$new();
 
 				$assert.isTrue( testEntity2.isNew() );
+				testEntity2.setCreatedDate(now());
+				testEntity2.setModifiedDate(now());
+				testEntity2.set_Id(createUUID());
 				testEntity2.save();
 				$assert.isTrue( testEntity2.getId() != 93 );
 				$assert.isFalse( testEntity2.isNew() );
@@ -749,7 +752,7 @@ function ImplicitloadRecordByID() test{
 		beforeEach();
 
 		var testEntity = new com.database.Norm( dao = this.dao, table = "orders" );
-		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10, returnType="array" );
+		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID", limit=10, returnType="array" );
 		var data = testEntity.serializeODataRows( query );
 		var meta = { "base": "orders", "page": 1, "filter": "" };
 		var ret = testEntity.serializeODataResponse( 4, data, meta );
@@ -763,7 +766,7 @@ function ImplicitloadRecordByID() test{
 		beforeEach();
 
 		var testEntity = new com.database.Norm( dao = this.dao, table = "orders" );
-		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10 );
+		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID", limit=10 );
 		var qoq = this.dao.read(
 			sql = "select ID as MainId, products_ID from qry", qoq={qry:query});
 		var ret = testEntity.queryAsOData( qry = qoq );
@@ -775,7 +778,7 @@ function ImplicitloadRecordByID() test{
 		beforeEach();
 
 		var testEntity = new com.database.Norm( dao = this.dao, table = "orders" );
-		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID limit 30", limit=10, returnType="array" );
+		var query = this.dao.read( sql="select o.ID, oi.* from orders o join order_items oi on oi.orders_ID = o.ID", limit=10, returnType="array" );
 		var ret = testEntity.arrayAsOData( data = query );
 		$assert.isTrue( ret.keyExists('__metadata') );
 
@@ -787,7 +790,7 @@ function ImplicitloadRecordByID() test{
 		$assert.isTrue( structKeyExists( testEntity.toStruct(), 'ID'  ) );
 		var testEntity2 = new com.database.Norm( dao = this.dao, table = "orders" );
 		testEntity2.loadById(1);
-		$assert.isTrue( structKeyExists( testEntity2.toStruct(), 'ID'  ) );
+		$assert.isTrue( structKeyExists( testEntity2.toStruct(), 'companies'  ) );
 
 	 }
 

@@ -30,7 +30,7 @@ component{
 		if ( request.dao.getDBtype()  == "mssql" ){
 			// MSSQL specific
 			request.dao.execute( "
-				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'pets' AND xtype = 'U' )
+				IF EXISTS ( SELECT * FROM sysobjects WHERE name = 'pets' AND xtype = 'U' )
 					TRUNCATE TABLE [pets]
 				" );
 			request.dao.execute( "
@@ -43,34 +43,33 @@ component{
 					    first_name varchar(60) DEFAULT NULL,
 					    last_name varchar(60) DEFAULT NULL,
 					    email varchar(255) DEFAULT NULL,
-					    status int(11) DEFAULT NULL,
-					    crated_datetime datetime DEFAULT NULL,
+					    status int DEFAULT NULL,
+					    created_datetime datetime DEFAULT NULL,
 					    modified_datetime datetime DEFAULT NULL
 					)
 				" );
 			request.dao.execute("TRUNCATE TABLE [users]");
-				var userInsertArray = [
-					"('0', 'system', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'system', 'bonduser', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'sys@spymail.com')",
-					"('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com')",
-				   	"('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com')",
-			   		"('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')"
-			   	];
-			for( var insert in userInsertArray ){
-				request.dao.execute("
-					INSERT INTO users(
-				       `ID`,
-				       `user_name`,
-				       `password`,
-				       `first_name`,
-				       `last_name`,
-				       `status`,
-				       `created_datetime`,
-				       `modified_datetime`,
-				       `_id`,
-				       `email`)
-				   VALUES #insert#
-				");
-			}
+			
+			request.dao.execute("
+				set identity_insert users on;
+				INSERT INTO users(
+					[ID],
+					[user_name],
+					[password],
+					[first_name],
+					[last_name],
+					[status],
+					[created_datetime],
+					[modified_datetime],
+					[_id],
+					[email])
+				VALUES 	
+					('0', 'system', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'system', 'bonduser', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'sys@spymail.com'),
+					('1', 'jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com'),
+					('2', 'hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com'),
+					('3', 'ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', '1', '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com');
+				set identity_insert users off;
+			");
 
 			request.dao.execute( "
 				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'eventLog' AND xtype = 'U' )
@@ -91,7 +90,10 @@ component{
 							{ID:'219', event: 'test named params', description: 'This is a description from a named param', eventDate: '2014-12-30 08:38:46'},
 							{ID:'220', event: 'test insert', description: '', eventDate: '2014-12-30 08:38:46'}
 						];
-			request.dao.insert( "eventLog", eventLogData );
+			
+			request.dao.execute("set identity_insert eventLog on");
+			request.dao.insert( table="eventLog", data=eventLogData, insertPrimaryKeys=true );
+			request.dao.execute("set identity_insert eventLog off");
 
 			request.dao.execute( "
 				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'pets' AND xtype = 'U' )
@@ -106,17 +108,19 @@ component{
 					)
 				" );
 			request.dao.execute("TRUNCATE TABLE [pets]");
-
 			var petsData = [
-							  {ID:'93',_id: '7d5a4d53-0a80-6eaf-db2acdaf5ed86568', userId:'1',  firstName:'dog', lastName: '', createdDate: now(),now()},
-			                  {ID:'94',_id: 'fbf08c9d-e8de-01f7-7c89d8b41b258aac', userId:'8',  firstName:'dog', lastName: 'frog', createdDate:now(),now()},
-			                  {ID:'95',_id: 'fc059ee0-96ce-a99b-7c0f26be24e3271a', userId:'12', firstName: 'dog', lastName: 'mog', createdDate:now(),now()},
-			                  {ID:'96',_id: 'fc0601c7-9f0b-fae9-0eb0b9ad5ac0ea93', userId:'15', firstName: 'corn', lastName: 'dag', createdDate:now(),now()},
-			                  {ID:'97',_id: 'fc070c5c-9943-6503-a10e73bd72ab1125', userId:'18', firstName: 'chicken', lastName: 'cat', createdDate:now(),now()},
-			                  {ID:'98',_id: 'fc0f2f26-efb3-fd03-1fb7a5e794be17f2', userId:'21', firstName: 'beef', lastName: 'rat', createdDate:now(),now()},
-			                  {ID:'99',_id: 'fc108acf-0c05-7303-62273152f581f444', userId:'24', firstName: 'dog', lastName: '', createdDate: now(),now()}
+							  {ID:'93',_id: '7d5a4d53-0a80-6eaf-db2acdaf5ed86568', userId:'1',  firstName:'dog', lastName: '', createdDate: now(), modifiedDate:now()},
+			                  {ID:'94',_id: 'fbf08c9d-e8de-01f7-7c89d8b41b258aac', userId:'8',  firstName:'dog', lastName: 'frog', createdDate:now(), modifiedDate:now()},
+			                  {ID:'95',_id: 'fc059ee0-96ce-a99b-7c0f26be24e3271a', userId:'12', firstName: 'dog', lastName: 'mog', createdDate:now(), modifiedDate:now()},
+			                  {ID:'96',_id: 'fc0601c7-9f0b-fae9-0eb0b9ad5ac0ea93', userId:'15', firstName: 'corn', lastName: 'dag', createdDate:now(), modifiedDate:now()},
+			                  {ID:'97',_id: 'fc070c5c-9943-6503-a10e73bd72ab1125', userId:'18', firstName: 'chicken', lastName: 'cat', createdDate:now(), modifiedDate:now()},
+			                  {ID:'98',_id: 'fc0f2f26-efb3-fd03-1fb7a5e794be17f2', userId:'21', firstName: 'beef', lastName: 'rat', createdDate:now(), modifiedDate:now()},
+			                  {ID:'99',_id: 'fc108acf-0c05-7303-62273152f581f444', userId:'24', firstName: 'dog', lastName: '', createdDate: now(), modifiedDate:now()}
 			                ];
-			request.dao.insert( "pets", petsData );
+			request.dao.execute("set identity_insert pets on");
+			request.dao.insert( table="pets", data=petsData, insertPrimaryKeys=true );
+			request.dao.execute("set identity_insert pets off");
+
 
 			request.dao.execute( "
 				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'test' AND xtype = 'U' )
@@ -128,7 +132,188 @@ component{
 				" );
 			request.dao.execute("TRUNCATE TABLE [test]");
 
-			// TODO: Add MSSQL specific create tables for orders, order_items, companies, call_notes, products and product_clasess (See mysql create statements for definitions/data)
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'products' AND xtype = 'U' )
+					CREATE TABLE products (
+					ID int NOT NULL IDENTITY (1, 1),
+					product_classes_ID int NOT NULL DEFAULT '0',
+					name varchar(255) DEFAULT NULL,
+					description varchar(255) DEFAULT NULL,
+					price decimal(18, 2) DEFAULT NULL,
+					cost decimal(18, 2) DEFAULT NULL,
+				);
+				" );
+			request.dao.execute("TRUNCATE TABLE [products]");
+			
+			request.dao.execute(
+				sql = "
+					set identity_insert products on;
+					INSERT INTO products( ID, product_classes_ID, name, description, price, cost )
+					VALUES
+						( 1, 1, 'Gloves', 'Leather work gloves', 15.00, 3.50 ),
+						( 2, 1, 'Pants', 'Heavy work pants', 45.00, 13.40 ),
+						( 3, 2, 'Jackhammer', 'Jackhammer', 345.00, 116.00 ),
+						( 4, 2, 'Drill', 'Drill', 150.00, 40.00 ),
+						( 5, 3, 'Demolition', 'Demolition', 50.00, 30.00 );
+					set identity_insert products off;
+					"
+			);
+
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'product_classes' AND xtype = 'U' )
+					CREATE TABLE product_classes (
+					ID int NOT NULL IDENTITY (1, 1),
+					name varchar(255) DEFAULT NULL,
+					description varchar(255) DEFAULT NULL,
+				);
+			" );
+			request.dao.execute("TRUNCATE TABLE [product_classes]");
+
+			request.dao.execute(
+				sql = "
+					set identity_insert product_classes on;
+					INSERT INTO product_classes( ID, name, description)
+					VALUES
+						( 1, 'Apparel', 'Clothing' ),
+						( 2, 'Equipment', 'Equipment' ),
+						( 3, 'Services', 'Non-taxable services' );
+					set identity_insert product_classes off;
+			       "
+			);
+
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'companies' AND xtype = 'U' )
+					CREATE TABLE companies (
+					ID int NOT NULL IDENTITY (1, 1),
+					name varchar(255) DEFAULT NULL,
+					account_reference varchar(255) DEFAULT NULL,
+					email_address varchar(100) DEFAULT NULL,
+				);
+			" );
+			request.dao.execute("TRUNCATE TABLE [companies]");
+			
+			request.dao.execute(
+				sql = "
+				INSERT INTO companies ( name, account_reference )
+				VALUES
+					('M and D Coars and Co', 'C01099'),
+					('ALASTAIR FERGUSON', 'C01100'),
+					('E T Tomlinson & Son', 'C01101'),
+					('A N Other', 'C01102'),
+					('MR R SHANKS', 'C01103'),
+					('R MCCRACKEN', 'C01104'),
+					('R J V Kelso & Son', 'C01105'),
+					('OWEN MARTIN', 'C01106'),
+					('Ballyedmond Castle Farms Ltd', 'C01107'),
+					('W G Johnston', 'C01108'),
+					('G & S E McNiece', 'C01109'),
+					('James McAuley', 'C01110'),
+					('R.M. & R.A. Shepherd', 'C01111'),
+					('D & J Armstrong', 'C01113'),
+					('W Walker & Sons', 'C01115'),
+					('F G Jones & Son', 'C01119'),
+					('RICHARD CHARLES', 'C01120'),
+					('T N Beeston & Son', 'C01122'),
+					('Webber Dairying', 'C01124'),
+					('ST & EE Nickles', 'C01125'),
+					('M L Farming', 'C01127'),
+					('Fluscopike Farms', 'C01129'),
+					('Earl of Plymouth Estates Ltd', 'C01130'),
+					('D L & H & I R Davies', 'C01131'),
+					('Meinbank Farm', 'C01132'),
+					('H & E W Harrison', 'C01133')
+
+			       "
+			);
+
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'orders' AND xtype = 'U' )
+					CREATE TABLE orders (
+					ID int NOT NULL IDENTITY (1, 1),
+					companies_ID int DEFAULT NULL,
+					order_datetime datetime DEFAULT NULL,
+					total decimal(18, 2) DEFAULT NULL,
+					users_ID int DEFAULT NULL,
+				);
+			" );
+			request.dao.execute("TRUNCATE TABLE [orders]");
+
+			request.dao.execute(
+				sql = "
+					INSERT INTO orders ( companies_ID, order_datetime,  users_ID )
+					VALUES
+						(1, '2018-01-12', 1 ),
+						(3, '2018-01-22', 1 ),
+						(5, '2018-05-12', 1 ),
+						(7, '2018-08-01', 1 ),
+						(5, '2018-08-05', 1 ),
+						(2, '2016-11-12', 1 ),
+						(6, '2016-12-12', 1 ),
+						(7, '2018-01-12', 1 ),
+						(8, '2018-01-12', 1 ),
+						(10, '2018-01-12', 1 ),
+						(15, '2018-01-12', 1 ),
+						(9, '2018-01-12', 1 ),
+						(12, '2018-01-12', 1 ),
+						(3, '2018-01-12', 1 ),
+						(2, '2018-01-12', 1 ),
+						(6, '2018-01-12', 1 )
+				"
+			);
+
+
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'order_items' AND xtype = 'U' )
+					CREATE TABLE order_items (
+					ID int NOT NULL IDENTITY (1, 1),
+					orders_ID int DEFAULT NULL,
+					companies_ID int DEFAULT NULL,
+					products_ID int DEFAULT NULL,
+					item_price decimal(18, 2) DEFAULT NULL,
+				);
+			" );
+			request.dao.execute("TRUNCATE TABLE [order_items]");
+			
+			var orders = request.dao.read("orders");
+			var companies = request.dao.read("companies");
+			var products = request.dao.read("products");
+
+			for( var order in orders ){
+				var productId = randRange(1, products.recordCount );
+				
+				request.dao.insert( "order_items", {
+					orders_ID: order.id, 
+					companies_ID: randRange(1,companies.recordCount ), 
+					products_ID:productId, 
+					item_price: products.price[ productId ]
+				} );
+			}
+
+			request.dao.execute( "
+				IF NOT EXISTS ( SELECT * FROM sysobjects WHERE name = 'call_notes' AND xtype = 'U' )
+					CREATE TABLE call_notes (
+					ID int NOT NULL IDENTITY (1, 
+					1),
+					companies_ID int DEFAULT NULL,
+					note nvarchar(1000) DEFAULT NULL,
+					created_datetime datetime DEFAULT NULL,
+
+				);
+			" );
+			request.dao.execute("TRUNCATE TABLE [call_notes]");
+			
+			var callNotes = [
+				{companies_ID:5,note: 'abc', created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() },
+				{companies_ID:5,note: createUUID(), created_datetime:now() }
+			];
+			request.dao.insert( "call_notes", callNotes );
+
+
 
 		} else if ( request.dao.getDBtype() == "mysql" ){
 

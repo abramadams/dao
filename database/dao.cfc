@@ -20,8 +20,8 @@
 *	Component	: dao.cfc
 *	Author		: Abram Adams
 *	Date		: 1/2/2007
-*	@version 1.0.1
-*	@updated 10/20/2021
+*	@version 1.0.3
+*	@updated 3/1/2022
 *	Description	: Generic database access object that will
 *	control all database interaction.  This component will
 *	invoke database specific functions when needed to perform
@@ -431,7 +431,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				if( arguments.RecordID is "*" ){
 					ret = getConn().deleteAll( tablename = arguments.table );
 				}else{
-					ret = getConn().delete( tablename = arguments.table, recordid = arguments.recordid, idField = arguments.idfield );
+					ret = getConn().delete( tablename = arguments.table, recordID = arguments.recordID, IDField = arguments.IDField );
 				}
 			}
 		// } catch( any e ){
@@ -790,7 +790,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 
 				var selectClause = findNoCase( "where ", tmpSQL ) GT 1 ? left( tmpSQL, findNoCase( "where ", tmpSQL )-1 ) : "";
 				var whereClause = mid( tmpSQL, findNoCase( "where ", tmpSQL ), len( tmpSQL ) );
-				whereClause = reReplaceNoCase( whereClause, "\(\)", chr(654), "all") & ";";
+				whereClause = reReplaceNoCase( whereClause, "\(\)", chr(654), "all");
 				var newTmpSQL = "";
 
 				// Attempt to pull out any values used in the sql criteria and wrap them
@@ -803,7 +803,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 				// 			chr( 10 ) );
 				newTmpSQL = listAppend( selectClause,
 						reReplaceNoCase( whereClause,
-							"(\b\!\=\b|\b<>\b|=|<|>|in(\s*?)\(|\blike\b)(\s*)(.*?)(\)|\$|group|having|order|and|or|where|;|\n)",
+							"(\b\!\=\b|\b<>\b|=|<|>|in(\s*?)\(|\blike\b)(\s*)(.*?)(\)|\$|group|having|order|and|or|where|;|\n|$)",
 							"\1 \2 \3 $queryParam(value=""\4"")$ \5 \6 ", "all"
 						),
 						chr( 10 )
@@ -1490,7 +1490,9 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 					var fullCount = local[ name ].recordCount;
 				}
 				//  DB Agnostic Limit/Offset for server-side paging
-				if( QoQ.size() && val( limit ) && ( !arguments.keyExists( 'offset' ) || offset == 0 ) && !LOCAL[ name ].keyExists( '__fullCount ' ) ){
+				if( QoQ.size() && val( limit )
+					&& ( !arguments.keyExists( 'offset' ) || offset == 0 ) 
+					&& !LOCAL[ name ].keyExists( '__fullCount' ) ){
 					queryAddColumn( LOCAL[ name ], '__fullCount', listToArray( repeatString( fullCount & ",", LOCAL[ name ].recordCount ) ) );
 				}else
 				if( !QoQ.size() && len( trim( limit ) ) && len( trim( offset ) ) ){
@@ -1645,7 +1647,11 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			};
 
 			// Execute the query
-			queryExecute( execSQL, paramMap, options );
+			try{
+				queryExecute( execSQL, paramMap, options );
+			}catch(any e){
+				writeDump([e, execSQL, paramMap, options]);abort;
+			}
 
 			// Grab the last inserted ID if it was an insert
 			if( refindNoCase('(INSERT|REPLACE)(.*?)INTO (.*?)\(', execSQL ) ){

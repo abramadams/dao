@@ -29,7 +29,11 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().clause );
-        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` >=" );
+		if( request.dao.getDBtype() == "mssql"){
+			$assert.includes( query.getCriteria().clause[1], "WHERE [ID] >=" );
+		}else{
+			$assert.includes( query.getCriteria().clause[1], "WHERE `ID` >=" );
+		}
 	}
 
 	function andWhere() test{
@@ -40,9 +44,13 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 					.orWhere( "event", "=", "insert");
 		$assert.typeOf( "struct", query.getCriteria() );
         $assert.typeOf( "array", query.getCriteria().clause );
-
-        $assert.includes( query.getCriteria().clause[1], "WHERE `ID` <=" );
-        $assert.includes( query.getCriteria().clause[2], "AND `ID` >=" );
+		if( request.dao.getDBtype() == "mssql"){
+			$assert.includes( query.getCriteria().clause[1], "WHERE [ID] <=" );
+			$assert.includes( query.getCriteria().clause[2], "AND [ID] >=" );
+		}else{
+			$assert.includes( query.getCriteria().clause[1], "WHERE `ID` <=" );
+			$assert.includes( query.getCriteria().clause[2], "AND `ID` >=" );
+		}
 	}
 
 	function orderBy() test{
@@ -288,14 +296,14 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 	function simpleJoin() test{
 
-		var query = request.dao.from( table = "pets", columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName" )
+		var query = request.dao.from( table = "pets", columns = "pets.ID as petId, pets.firstname as petName, users.first_name as ownerName" )
 					.join( type = "LEFT", table = "users", on = "users.id = pets.userId")
 					.where( "pets.ID", "=", 93 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
 		$assert.isTrue( arrayLen( query.getCriteria().joins ) );
-
+// writeDump(query);abort;
 		var results = query.run();
 		$assert.isTrue( results.recordCount != 0 );
 		$assert.isTrue( results.ownerName  eq 'james' );
@@ -305,7 +313,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 	function shorthandJoin() test{
 		var query = request.dao.from(
 						table = "pets",
-						columns = "pets.ID as petId, users.ID as userID, pets.firstname as petName, users.first_name as ownerName",
+						columns = "pets.ID as petId, pets.firstname as petName, users.first_name as ownerName",
 						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId"}] )
 					.where( "pets.ID", "=", 93 );
 
@@ -321,7 +329,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 	function joinWithColumns() test{
 		var query = request.dao.from( table = "pets")
-					.join( type = "LEFT", table = "users", on = "users.id = pets.userId", columns = "users.ID as userID, users.first_name as ownerName" )
+					.join( type = "LEFT", table = "users", on = "users.id = pets.userId", columns = "users.first_name as ownerName" )
 					.where( "pets.ID", "=", 93 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
@@ -337,7 +345,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 	function shorthandJoinWithColumns() test{
 		var query = request.dao.from(
 						table = "pets",
-						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.ID as userID, users.first_name as ownerName"}] )
+						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.first_name as ownerName"}] )
 					.where( "pets.ID", "=", 93 );
 
 		$assert.typeOf( "struct", query.getCriteria() );
@@ -353,7 +361,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 	function shorthandJoinWithColumnsToOdata() test{
 		var query = request.dao.from(
 						table = "pets",
-						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.ID as userID, users.first_name as ownerName"}])
+						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.first_name as ownerName"}])
 					.returnAs("array")
 					.where( "pets.ID", "=", 93 );
 

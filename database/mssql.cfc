@@ -19,8 +19,8 @@
 *		Component	: dao.cfc (MSSQL Specific)
 *		Author		: Abram Adams
 *		Date		: 1/2/2007
-*		@version 1.0.0
-*	   	@updated 10/10/2021
+*		@version 1.0.3
+*	   	@updated 3/1/2022
 *   	@dependencies { "dao" : ">=1.0.0" }
 *		Description	: Targeted database access object that will
 *		controll all MSSQL specific database interaction.
@@ -70,19 +70,15 @@
 		<cfset var pk = getPrimaryKey(arguments.tablename) />
 		<cfset var del = "" />
 
-		<cftry>
-			<cfquery name="del" datasource="#getDsn()#">
-				DELETE from #arguments.tablename#
-				<cfif not len(trim(arguments.IDField))>
-				WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getCFSQLType(pk.type)#" value="#arguments.recordID#">
-				<cfelse>
-				WHERE #getSafeColumnName(arguments.idField)# = <cfqueryparam cfsqltype="#getCFSQLType(pk.type)#" value="#arguments.recordID#">
-				</cfif>
-			</cfquery>
-			<cfcatch type="any">
-				<cfset ret = false>
-			</cfcatch>
-		</cftry>
+		<cfquery name="del" datasource="#getDsn()#">
+			DELETE from #arguments.tablename#
+			<cfif not len(trim(arguments.IDField))>
+			WHERE #getSafeColumnName(pk.field)# = <cfqueryparam cfsqltype="#getDAO().getCFSQLType(pk.type)#" value="#arguments.recordID#">
+			<cfelse>
+			WHERE #getSafeColumnName(arguments.idField)# = <cfqueryparam cfsqltype="#getDAO().getCFSQLType(pk.type)#" value="#arguments.recordID#">
+			</cfif>
+		</cfquery>
+		
 		<cfreturn ret />
 	</cffunction>
 
@@ -109,7 +105,7 @@
 		<cfargument name="name" required="false" type="string" hint="Name of Query (required for cachedwithin)" default="sel_#listFirst(createUUID(),'-')#">
 		<cfargument name="cachedwithin" required="false" type="any" hint="createTimeSpan() to cache this query" default="">
 		<cfargument name="table" required="false" type="string" default="" hint="Table name to select from, use only if not using SQL">
-		<cfargument name="alias" required="false" type="string" default="" hint="Table alias name to select from, use only if not using SQL">
+		<cfargument name="alias" required="false" type="string" default="#arguments.table#" hint="Table alias name to select from, use only if not using SQL">
 		<cfargument name="columns" required="false" type="string" default="" hint="List of valid column names for select statement, use only if not using SQL">
 		<cfargument name="where" required="false" type="string" hint="Where clause. Only used if sql is a tablename" default="">
 		<cfargument name="limit" required="false" type="any" hint="Limit records returned." default="">
@@ -121,7 +117,9 @@
 		<cfif listlen( arguments.sql, ' ') EQ 1 && !len( trim( arguments.table ) )>
 			<cfset arguments.table = arguments.sql/>
 		</cfif>
-
+		<cfif !len( trim( arguments.alias ) )>
+			<cfset arguments.alias = arguments.table/>
+		</cfif>
 		<cftry>
 			<cfif listlen(trim(arguments.sql), ' ') GT 1>
 				<cfif len(trim(arguments.cachedwithin))>
@@ -189,9 +187,9 @@
 				<cfif len(trim(arguments.cachedwithin))>
 					<cfquery name="get" datasource="#getDsn()#" cachedwithin="#arguments.cachedwithin#">
 
-						SELECT #columnAliases#
+						SELECT #columnAliases#, __fullCount
 						FROM (
-							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
+							SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.alias & "." & getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
 							FROM #arguments.table# #arguments.alias#
 							<cfif len( trim( arguments.where ) )>
 							<!---
@@ -200,7 +198,7 @@
 								cfqueryparam tags outside of a cfquery.
 								@TODO: refactor to use the query.cfc
 							--->
-							<cfset tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+							<cfset var tmpSQL = getDao().parameterizeSQL(sql = arguments.where, autoParameterize = true )/>
 							<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 								#tmpSQL.statements[idx].before#
 								<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -222,9 +220,9 @@
 					</cfquery>
 				<cfelse>
 					<cfquery name="get" datasource="#getDsn()#">
-						SELECT #columnAliases#
+						SELECT #columnAliases#,  __fullCount
 							FROM (
-								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
+								SELECT ROW_NUMBER() OVER(ORDER BY #( len( trim( arguments.orderby ) ) ? arguments.orderby : arguments.alias & "." & getDao().getPrimaryKey( arguments.table )['field'] )#) as [__fullCount], #arguments.columns#
 								FROM #arguments.table# #arguments.alias#
 								<cfif len( trim( arguments.where ) )>
 								<!---
@@ -233,7 +231,7 @@
 									cfqueryparam tags outside of a cfquery.
 									@TODO: refactor to use the query.cfc
 								--->
-								<cfset var tmpSQL = getDao().parameterizeSQL( arguments.where )/>
+								<cfset var tmpSQL = getDao().parameterizeSQL(sql = arguments.where, autoParameterize = true )/>
 								<cfloop from="1" to="#arrayLen( tmpSQL.statements )#" index="idx">
 									#tmpSQL.statements[idx].before#
 									<cfif structKeyExists( tmpSQL.statements[idx], 'cfsqltype' )>
@@ -468,7 +466,7 @@
 
 		<cfset var table = new tabledef( dsn = getDao().getDSN(), tableName = arguments.TableName )>
 		<cfset var pk = table.getPrimaryKeyColumn()/>
-		<cfset var type = table.getColumnType( pk )/>
+		<cfset var type = table.getCFSQLType( pk )/>
 
 		<cfreturn { field = pk, type = type } />
 
@@ -534,7 +532,7 @@
 	    **/
 		public tabledef function makeTable( required tabledef tabledef ) output = false {
 
-			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
+			var tableSQL = "CREATE TABLE #getSafeIdentifierStartChar()##tabledef.getTableName()##getSafeIdentifierEndChar()# (";
 			var columnsSQL = "";
 			var primaryKeys = "";
 			var indexes = "";

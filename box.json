@@ -1,24 +1,24 @@
 {
-    "name":"Dao",
-    "version":"1.0.2",
-    "author":"Abram Adams",
-    "location":"abramadams/dao#v1.0.2",
-    "createPackageDirectory":true,
-    "packageDirectory":"database",
-    "homepage":"http://abramadams.github.io/dao/",
-    "documentation":"https://github.com/abramadams/dao/wiki",
-    "repository":{
-        "type":"git",
-        "URL":"https://github.com/abramadams/dao.git"
+    "name": "Dao",
+    "version": "1.0.3",
+    "author": "Abram Adams",
+    "location": "abramadams/dao#v1.0.3",
+    "createPackageDirectory": true,
+    "packageDirectory": "database",
+    "homepage": "http://abramadams.github.io/dao/",
+    "documentation": "https://github.com/abramadams/dao/wiki",
+    "repository": {
+        "type": "git",
+        "URL": "https://github.com/abramadams/dao.git"
     },
-    "bugs":"",
-    "slug":"dao",
-    "shortDescription":"A ColdFusion library for easy Data Access, CRUD, ORM like functionality and LINQ style query building.",
-    "description":"Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more. Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box. In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.",
-    "instructions":"",
-    "changelog":"",
-    "type":"projects",
-    "keywords":[
+    "bugs": "",
+    "slug": "dao",
+    "shortDescription": "A ColdFusion library for easy Data Access, CRUD, ORM like functionality and LINQ style query building.",
+    "description": "Dao/Norm is a duo of libraries that provide a simple yet full featured interface to perform script based queries as well as adds extended functionality such as ORM (with easy and dynamic relationships), oData (Consume/Produce), LINQ style queries and more. Basically it is the data interaction ColdFusion/Railo/Lucee should have come with out of the box. In short, the goal of this library is to allow one to interact with the database in a DB platform agnostic way, while making it super easy.",
+    "instructions": "",
+    "changelog": "",
+    "type": "projects",
+    "keywords": [
         "database",
         "orm",
         "linq",
@@ -26,26 +26,24 @@
         "sql",
         "dao"
     ],
-    "private":false,
-    "projectURL":"https://github.com/abramadams/dao",
-    "License":[
-        {
-            "type":"Apache 2.0",
-            "URL":"http://www.apache.org/licenses/LICENSE-2.0"
-        }
-    ],
-    "contributors":[],
-    "dependencies":{},
-    "devDependencies":{
-        "testbox":"^2.5.0+107"
+    "private": false,
+    "projectURL": "https://github.com/abramadams/dao",
+    "License": [{
+        "type": "Apache 2.0",
+        "URL": "http://www.apache.org/licenses/LICENSE-2.0"
+    }],
+    "contributors": [],
+    "dependencies": {},
+    "devDependencies": {
+        "testbox": "@latest"
     },
-    "installPaths":{
-        "testbox":"testbox"
+    "installPaths": {
+        "testbox": "testbox"
     },
-    "scripts":{
-        "test":"box testbox run verbose=false"
+    "scripts": {
+        "test": "box testbox run verbose=false"
     },
-    "ignore":[
+    "ignore": [
         "**/.*",
         "test",
         "tests",
@@ -56,7 +54,7 @@
         "examples",
         "model"
     ],
-    "testbox":{
-        "runner":"http://localhost:8800/tests/runner.cfm"
+    "testbox": {
+        "runner": "http://localhost:8500/tests/runner.cfm"
     }
 }

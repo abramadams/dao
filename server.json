@@ -4,7 +4,7 @@
     },
     "web":{
         "http":{
-            "port":"8800"
+            "port":"8500"
         }
     },
     "openbrowser":"false"

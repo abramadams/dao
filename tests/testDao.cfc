@@ -178,7 +178,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.isTrue( records.recordCount GT 0 );
      }
      function readWithDateParam() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
-          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #request.dao.queryParam(now())#");
+          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #request.dao.queryParam(value=now(),type="datetime")#");
           $assert.typeOf( "query", records );
           $assert.isTrue( records.recordCount GT 0 );
      }
@@ -310,7 +310,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // }
      function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate test");
+          request.dao.execute("truncate table test");
           var data = { "test": i & "  " & createUUID(), "testDate": now() };
           var test = request.dao.insert( table = "test", data = data );
 
@@ -322,7 +322,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      function insertWithOnFinish() hint="I insert data into a table in the database then call an onFinish function." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate test");
+          request.dao.execute("truncate table test");
           var testData = i & "  " & createUUID();
           var data = { "test": testData, "testDate": now() };
           var test = request.dao.insert( table = "test", data = data, onFinish = function( table, data, id ){
@@ -337,7 +337,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      function bulkInsertArray() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
           var data = [];
-          request.dao.execute("truncate test");
+          request.dao.execute("truncate table test");
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
@@ -351,7 +351,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
      function bulkInsertQuery() hint="I test inserting an query object of data into the a table." returntype="any" output="false" test{
           var data = [];
-          request.dao.execute("truncate test");
+          request.dao.execute("truncate table test");
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
@@ -366,7 +366,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
      function update() hint="I update data in a table in the database." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate test");
+          request.dao.execute("truncate table test");
           var data = { "test": "test data here", "testDate": now() };
           var test = request.dao.insert( table = "test", data = data );
           var retrieve = request.dao.read( "test" );
@@ -383,16 +383,19 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      //      $assert.fail('test not implemented yet');
      // }
      function delete() hint="I delete data in the database.  I take the table name and either the ID of the record to be deleted or a * to indicate delete all." output="false" test{
+          var identityInsertOn = request.dao.getDBtype() == "mssql" ? "set identity_insert dbo.eventLog on;":"";
+          var identityInsertOff = request.dao.getDBtype() == "mssql" ? "set identity_insert dbo.eventLog off;":"";
           var newRecordId = request.dao.execute(sql =
-               "
+               "#identityInsertOn#
                INSERT INTO eventLog ( ID, event, description, eventDate )
-               VALUES (:ID, :event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'})",
+               VALUES (:ID, :event{type='varchar',null=false,list=false}, :description, :eventDate{type='timestamp'});
+               #identityInsertOff#",
                params = { event="test to be deleted", description = "This is a description from a named param", eventDate = now(), ID = 10000 }
           );
 
           var event = request.dao.read("select * from eventLog where ID = 10000");
           $assert.isTrue( event.recordCount );
-          request.dao.delete( table = "eventLog", idField = "ID", recordID = 10000 );
+          request.dao.delete( table = "eventLog", idField = "ID", recordID = 10000 );         
           var event = request.dao.read("select * from eventLog where ID = 10000");
           $assert.isTrue( !event.recordCount );
      }
