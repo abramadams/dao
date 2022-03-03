@@ -1647,12 +1647,8 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			};
 
 			// Execute the query
-			try{
-				queryExecute( execSQL, paramMap, options );
-			}catch(any e){
-				writeDump([e, execSQL, paramMap, options]);abort;
-			}
-
+			queryExecute( execSQL, paramMap, options );
+			
 			// Grab the last inserted ID if it was an insert
 			if( refindNoCase('(INSERT|REPLACE)(.*?)INTO (.*?)\(', execSQL ) ){
 
