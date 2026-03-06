@@ -1,6 +1,7 @@
 {
     "app":{
-        "cfengine":"lucee@5"
+        "cfengine":"lucee@6",
+        "libDirs":"lib"
     },
     "web":{
         "http":{

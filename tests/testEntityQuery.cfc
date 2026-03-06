@@ -2,7 +2,7 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 	// executes before all tests
 	function beforeTests(){
-		request.dao = new com.database.dao( dsn = "dao" );
+		request.dao = new com.database.dao( dsn = ( structKeyExists( application, "datasource" ) ? application.datasource : "dao_sqlite" ) );
 
 	}
 
@@ -31,7 +31,9 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 		$assert.typeOf( "array", query.getCriteria().clause );
 		if( request.dao.getDBtype() == "mssql"){
 			$assert.includes( query.getCriteria().clause[1], "WHERE [ID] >=" );
-		}else{
+		} else if ( request.dao.getDBtype() == "sqlite" ) {
+			$assert.includes( query.getCriteria().clause[1], 'WHERE "ID" >=' );
+		} else {
 			$assert.includes( query.getCriteria().clause[1], "WHERE `ID` >=" );
 		}
 	}
@@ -47,7 +49,10 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 		if( request.dao.getDBtype() == "mssql"){
 			$assert.includes( query.getCriteria().clause[1], "WHERE [ID] <=" );
 			$assert.includes( query.getCriteria().clause[2], "AND [ID] >=" );
-		}else{
+		} else if ( request.dao.getDBtype() == "sqlite" ) {
+			$assert.includes( query.getCriteria().clause[1], 'WHERE "ID" <=' );
+			$assert.includes( query.getCriteria().clause[2], 'AND "ID" >=' );
+		} else {
 			$assert.includes( query.getCriteria().clause[1], "WHERE `ID` <=" );
 			$assert.includes( query.getCriteria().clause[2], "AND `ID` >=" );
 		}
@@ -295,10 +300,10 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 
 	function simpleJoin() test{
-
+		var petId = ( request.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var query = request.dao.from( table = "pets", columns = "pets.ID as petId, pets.firstname as petName, users.first_name as ownerName" )
 					.join( type = "LEFT", table = "users", on = "users.id = pets.userId")
-					.where( "pets.ID", "=", 93 );
+					.where( "pets.ID", "=", petId );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
@@ -306,16 +311,18 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 // writeDump(query);abort;
 		var results = query.run();
 		$assert.isTrue( results.recordCount != 0 );
-		$assert.isTrue( results.ownerName  eq 'james' );
+		var ownerNameVal = results.ownerName ?: results.OWNERNAME ?: "";
+		$assert.isTrue( ownerNameVal == 'james', "Expected ownerName 'james', got: #ownerNameVal#" );
 
 	}
 
 	function shorthandJoin() test{
+		var petId = ( request.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var query = request.dao.from(
 						table = "pets",
 						columns = "pets.ID as petId, pets.firstname as petName, users.first_name as ownerName",
 						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId"}] )
-					.where( "pets.ID", "=", 93 );
+					.where( "pets.ID", "=", petId );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
@@ -323,14 +330,16 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 		var results = query.run();
 		$assert.isTrue( results.recordCount != 0 );
-		$assert.isTrue( results.ownerName  eq 'james' );
+		var ownerNameVal = results.ownerName ?: results.OWNERNAME ?: "";
+		$assert.isTrue( ownerNameVal == 'james', "Expected ownerName 'james', got: #ownerNameVal#" );
 
 	}
 
 	function joinWithColumns() test{
+		var petId = ( request.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var query = request.dao.from( table = "pets")
 					.join( type = "LEFT", table = "users", on = "users.id = pets.userId", columns = "users.first_name as ownerName" )
-					.where( "pets.ID", "=", 93 );
+					.where( "pets.ID", "=", petId );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
@@ -338,15 +347,17 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 		var results = query.run();
 		$assert.isTrue( results.recordCount != 0 );
-		$assert.isTrue( results.ownerName  eq 'james' );
+		var ownerNameVal = results.ownerName ?: results.OWNERNAME ?: "";
+		$assert.isTrue( ownerNameVal == 'james', "Expected ownerName 'james', got: #ownerNameVal#" );
 
 	}
 
 	function shorthandJoinWithColumns() test{
+		var petId = ( request.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var query = request.dao.from(
 						table = "pets",
 						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.first_name as ownerName"}] )
-					.where( "pets.ID", "=", 93 );
+					.where( "pets.ID", "=", petId );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
@@ -354,16 +365,18 @@ component displayName="I test the EntityQuery CFC" extends="testbox.system.BaseS
 
 		var results = query.run();
 		$assert.isTrue( results.recordCount != 0 );
-		$assert.isTrue( results.ownerName  eq 'james' );
+		var ownerNameVal = results.ownerName ?: results.OWNERNAME ?: "";
+		$assert.isTrue( ownerNameVal == 'james', "Expected ownerName 'james', got: #ownerNameVal#" );
 
 	}
 
 	function shorthandJoinWithColumnsToOdata() test{
+		var petId = ( request.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var query = request.dao.from(
 						table = "pets",
 						joins = [{ type: "LEFT", table: "users", on: "users.id = pets.userId", columns: "users.first_name as ownerName"}])
 					.returnAs("array")
-					.where( "pets.ID", "=", 93 );
+					.where( "pets.ID", "=", petId );
 
 		$assert.typeOf( "struct", query.getCriteria() );
 		$assert.typeOf( "array", query.getCriteria().joins );
