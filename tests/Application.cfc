@@ -9,7 +9,27 @@ component{
 	this.mappings[ "/testbox" ] = expandPath( '/testbox' );
 	this.mappings[ "/model" ] = expandPath( '/model' );
 
-	this.datasource = "dao";
+	// All supported DBs; tests use the one named in this.datasource. SQLite driver from lib/ via server.json app.libDirs.
+	this.datasources = {
+		dao_sqlite = {
+			class: "org.sqlite.JDBC",
+			connectionString: "jdbc:sqlite:#expandPath( '/data/dao.sqlite' )#"
+		},
+		dao_mysql = {
+			class: "com.mysql.cj.jdbc.Driver",
+			connectionString: "jdbc:mysql://localhost:3306/dao_test?useSSL=false&allowPublicKeyRetrieval=true",
+			username: "dao",
+			password: "dao"
+		},
+		dao_mssql = {
+			class: "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+			connectionString: "jdbc:sqlserver://localhost:1433;databaseName=dao_test;encrypt=true;trustServerCertificate=true",
+			username: "sa",
+			password: "DaoTest123!"
+		}
+	};
+	// Which datasource to use for tests: dao_sqlite | dao_mysql | dao_mssql
+	this.datasource = "dao_mssql";
 	// any orm definitions go here.
 	/*this.ormenabled = !!( isDefined( 'server' ) && ( structKeyExists( server, 'railo' ) || structKeyExists( server, 'lucee' ) ) );
 	this.ormsettings={datasource="dao"};*/
@@ -19,7 +39,9 @@ component{
 	}
 	// request start
 	public function onRequestStart( String targetPage ){
-		request.dao = new com.database.dao( dsn = "dao" );
+		application.datasource = this.datasource;
+		application.DATASOURCE = this.datasource;
+		request.dao = new com.database.dao( dsn = this.datasource );
 		setupDatabase();
 		return true;
 	}
@@ -589,6 +611,98 @@ component{
 			];
 			request.dao.insert( "call_notes", callNotes );
 
+
+		} else if ( request.dao.getDBtype() == "sqlite" ) {
+
+			// SQLite specific
+			request.dao.execute( "DROP TABLE IF EXISTS ""pets""" );
+			request.dao.execute( "DROP TABLE IF EXISTS ""users""" );
+			request.dao.execute( "CREATE TABLE ""users"" (
+				""ID"" INTEGER PRIMARY KEY AUTOINCREMENT,
+				""user_name"" TEXT,
+				""password"" TEXT,
+				""first_name"" TEXT,
+				""last_name"" TEXT,
+				""status"" INTEGER,
+				""created_datetime"" TEXT,
+				""modified_datetime"" TEXT,
+				""_id"" TEXT,
+				""email"" TEXT
+			)" );
+			request.dao.execute( "INSERT INTO ""users"" (user_name, password, first_name, last_name, status, created_datetime, modified_datetime, _id, email) VALUES
+				('system', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'system', 'user', 1, '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'sys@spymail.com'),
+				('jbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'james', 'bond', 1, '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'jbond@spymail.com'),
+				('hbond', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'harry', 'bond', 1, '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'hbond@spymail.com'),
+				('ssmith', '7d5a2669cf9d8338eeb29f4e67c1b0af', 'sarah', 'smith', 1, '2008-03-26 10:21:43', '2013-11-22 17:25:05', '#createUUID()#', 'ssmith@spymail.com')
+			" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""eventLog""" );
+			request.dao.execute( "CREATE TABLE ""eventLog"" (
+				""ID"" INTEGER PRIMARY KEY AUTOINCREMENT,
+				""userID"" INTEGER,
+				""event"" TEXT,
+				""description"" TEXT,
+				""eventDate"" TEXT
+			)" );
+			request.dao.execute( "INSERT INTO ""eventLog"" (ID, event, description, eventDate) VALUES
+				(208, 'delete', 'deleted 243', '2014-01-29 01:26:51'),
+				(1, 'not a test insert', '', '2014-12-30 08:36:01'),
+				(20, 'not a test insert', '', '2014-12-30 08:38:45'),
+				(215, 'test insert', '', '2014-12-30 08:38:44'),
+				(219, 'test named params', 'This is a description from a named param', '2014-12-30 08:38:46'),
+				(220, 'test insert', '', '2014-12-30 08:38:46')
+			" );
+
+			request.dao.execute( "CREATE TABLE IF NOT EXISTS ""pets"" (
+				""ID"" INTEGER PRIMARY KEY AUTOINCREMENT,
+				""_id"" TEXT,
+				""userID"" TEXT,
+				""firstName"" TEXT,
+				""lastName"" TEXT,
+				""createdDate"" TEXT,
+				""modifiedDate"" TEXT
+			)" );
+			request.dao.execute( "DELETE FROM ""pets""" );
+			request.dao.execute( "INSERT INTO ""pets"" (_id, userID, firstName, lastName, createdDate, modifiedDate) VALUES ('7d5a4d53-0a80-6eaf-db2acdaf5ed86568', '2', 'dog', '', datetime('now'), datetime('now'))" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""test""" );
+			request.dao.execute( "CREATE TABLE ""test"" (
+				""ID"" INTEGER PRIMARY KEY AUTOINCREMENT,
+				""test"" TEXT,
+				""testDate"" TEXT
+			)" );
+
+			// Norm/dynamic relationship tests (companies, products, orders, etc.)
+			request.dao.execute( "DROP TABLE IF EXISTS ""product_classes""" );
+			request.dao.execute( "CREATE TABLE ""product_classes"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""name"" TEXT, ""description"" TEXT)" );
+			request.dao.execute( "INSERT INTO ""product_classes"" (ID, name, description) VALUES (1, 'Apparel', 'Clothing'), (2, 'Equipment', 'Equipment'), (3, 'Services', 'Non-taxable services')" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""products""" );
+			request.dao.execute( "CREATE TABLE ""products"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""product_classes_ID"" INTEGER, ""name"" TEXT, ""description"" TEXT, ""price"" REAL, ""cost"" REAL)" );
+			request.dao.execute( "INSERT INTO ""products"" (ID, product_classes_ID, name, description, price, cost) VALUES (1, 1, 'Gloves', 'Leather work gloves', 15.00, 3.50), (2, 1, 'Pants', 'Heavy work pants', 45.00, 13.40), (3, 2, 'Jackhammer', 'Jackhammer', 345.00, 116.00), (4, 2, 'Drill', 'Drill', 150.00, 40.00), (5, 3, 'Demolition', 'Demolition', 50.00, 30.00)" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""companies""" );
+			request.dao.execute( "CREATE TABLE ""companies"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""name"" TEXT, ""account_reference"" TEXT, ""email_address"" TEXT)" );
+			request.dao.execute( "INSERT INTO ""companies"" (name, account_reference) VALUES ('M and D Coars and Co', 'C01099'), ('ALASTAIR FERGUSON', 'C01100'), ('E T Tomlinson & Son', 'C01101'), ('A N Other', 'C01102'), ('MR R SHANKS', 'C01103'), ('R MCCRACKEN', 'C01104'), ('R J V Kelso & Son', 'C01105'), ('OWEN MARTIN', 'C01106'), ('Ballyedmond Castle Farms Ltd', 'C01107'), ('W G Johnston', 'C01108'), ('G & S E McNiece', 'C01109'), ('James McAuley', 'C01110'), ('R.M. & R.A. Shepherd', 'C01111'), ('D & J Armstrong', 'C01113'), ('W Walker & Sons', 'C01115'), ('F G Jones & Son', 'C01119'), ('RICHARD CHARLES', 'C01120'), ('T N Beeston & Son', 'C01122'), ('Webber Dairying', 'C01124'), ('ST & EE Nickles', 'C01125'), ('M L Farming', 'C01127'), ('Fluscopike Farms', 'C01129'), ('Earl of Plymouth Estates Ltd', 'C01130'), ('D L & H & I R Davies', 'C01131'), ('Meinbank Farm', 'C01132'), ('H & E W Harrison', 'C01133')" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""orders""" );
+			request.dao.execute( "CREATE TABLE ""orders"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""companies_ID"" INTEGER, ""order_datetime"" TEXT, ""total"" REAL, ""users_ID"" INTEGER)" );
+			request.dao.execute( "INSERT INTO ""orders"" (companies_ID, order_datetime, users_ID) VALUES (1, '2018-01-12', 1), (3, '2018-01-22', 1), (5, '2018-05-12', 1), (7, '2018-08-01', 1), (5, '2018-08-05', 1), (2, '2016-11-12', 1), (6, '2016-12-12', 1), (7, '2018-01-12', 1), (8, '2018-01-12', 1), (10, '2018-01-12', 1), (15, '2018-01-12', 1), (9, '2018-01-12', 1), (12, '2018-01-12', 1), (3, '2018-01-12', 1), (2, '2018-01-12', 1), (6, '2018-01-12', 1)" );
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""order_items""" );
+			request.dao.execute( "CREATE TABLE ""order_items"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""orders_ID"" INTEGER, ""companies_ID"" INTEGER, ""products_ID"" INTEGER, ""item_price"" REAL)" );
+			var orders = request.dao.read( "orders" );
+			var companies = request.dao.read( "companies" );
+			var products = request.dao.read( "products" );
+			for ( var order in orders ) {
+				var productId = randRange( 1, products.recordCount );
+				request.dao.insert( "order_items", { orders_ID: order.id, companies_ID: randRange( 1, companies.recordCount ), products_ID: productId, item_price: products.price[ productId ] } );
+			}
+
+			request.dao.execute( "DROP TABLE IF EXISTS ""call_notes""" );
+			request.dao.execute( "CREATE TABLE ""call_notes"" (""ID"" INTEGER PRIMARY KEY AUTOINCREMENT, ""companies_ID"" INTEGER, ""note"" TEXT, ""created_datetime"" TEXT)" );
+			var callNotes = [ { companies_ID: 5, note: "abc", created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() }, { companies_ID: 5, note: createUUID(), created_datetime: now() } ];
+			request.dao.insert( "call_notes", callNotes );
 
 		}
 

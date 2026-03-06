@@ -2,7 +2,7 @@ component displayName="I test NORM's Dynamic Relationships" extends="testbox.sys
 
 	// executes before all tests
 	function beforeTests(){
-		request.dao = new com.database.dao( dsn = "dao" );
+		request.dao = new com.database.dao( dsn = ( structKeyExists( application, "datasource" ) ? application.datasource : "dao_sqlite" ) );
 	}
 
 	function createNewEntityInstance() test{

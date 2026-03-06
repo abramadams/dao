@@ -1,7 +1,7 @@
 /**
 ************************************************************
 *
-*	Copyright (c) 2007-2021, Abram Adams
+*	Copyright (c) 2007-2026, Abram Adams
 *
 *	Licensed under the Apache License, Version 2.0 (the "License");
 *	you may not use this file except in compliance with the License.
@@ -201,6 +201,7 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		switch( variables.dbVersion.database_productname ){
 			case "Microsoft SQL Server" : return "mssql";
 			case "MySQL" : return "mysql";
+			case "SQLite" : return "sqlite";
 		}
 	}
 
@@ -315,14 +316,16 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 		LOCAL.table = duplicate( variables.tabledefs[ arguments.table ] );
 
 		var columns = LOCAL.table.getColumns();
+		var pk = LOCAL.table.getPrimaryKeyColumn();
+		var pkVal = len( trim( arguments.ID ) ) ? arguments.ID : arguments.data[ pk ];
+		var pkCfsqltype = ( structKeyExists( LOCAL.table.getTableMeta().columns, pk ) && LOCAL.table.getTableMeta().columns[ pk ].type == 4 ) ? "int" : "varchar";
 		// @todo deligate read specifics to connector
 		var currentData = this.read("
 			SELECT #this.getSafeColumnNames( columns )#
 			FROM #arguments.table#
-			WHERE #LOCAL.table.getPrimaryKeyColumn()# = #this.queryParam(value=arguments.data[LOCAL.table.getPrimaryKeyColumn()],cfsqltype=local.table.instance.tablemeta.columns[LOCAL.table.getPrimaryKeyColumn()].type eq 4 ? 'int' : 'varchar')#
+			WHERE #pk# = #this.queryParam( value = pkVal, cfsqltype = pkCfsqltype )#
 		");
 		var row = LOCAL.table.addRow();
-		var pk = LOCAL.table.getPrimaryKeyColumn();
 
 		for( var column in listToArray( columns ) ){
 
@@ -677,6 +680,12 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 	**/
 	public function getPrimaryKey( required string table ){
 		return getConn().getPrimaryKey( arguments.table );
+	}
+	/**
+	* I get the primary keys (array) for the given table by delegating to the connector.
+	**/
+	public function getPrimaryKeys( required string table ){
+		return getConn().getPrimaryKeys( arguments.table );
 	}
 	/**
 	* I take a list of columns and return it as a safe columns list with each column wrapped within the DB specific escape characters.
@@ -1217,11 +1226,13 @@ component displayname="DAO" hint="This component is basically a DAO Factory that
 			var sqlString = qry.getMetadata().getExtendedMetaData().sql;
 		}
 
-		var tablesInQry = reMatchNoCase( "FROM\s+[\[|`|.]*(\w+)[\]|`]*\s+", sqlString & " " );
+		// Support double-quoted (SQLite), backtick (MySQL), and bracket (MSSQL) identifiers
+		var tablesInQry = reMatchNoCase( "FROM\s+[""`\[\]\.]*(\w+)[""`\[\]]*\s*", sqlString & " " );
 		if( !tablesInQry.len() ){
 			throw("Unable to determine table name(s) in query");
 		}
-		var tableName = listLast( tablesInQry[ 1 ], ' ' );
+		var tableName = trim( listLast( tablesInQry[ 1 ], ' ' ) );
+		tableName = reReplace( reReplace( reReplace( reReplace( tableName, """", "", "all" ), "`", "", "all" ), "\[", "", "all" ), "\]", "", "all" );
 
 		// Check for the tabledef object for this table, if it doesn't already exist, create it
 		if( !structKeyExists( variables.tabledefs, tableName) ){

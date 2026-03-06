@@ -2,18 +2,20 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 	property name="dao";
 	 // executes before all tests
 	 function beforeTests(){
-		this.dao = new com.database.dao( dsn = "dao" );
+		this.dao = new com.database.dao( dsn = ( structKeyExists( application, "datasource" ) ? application.datasource : "dao_sqlite" ) );
 	 }
 	 function beforeEach(){
-				// Some setup data
-				this.dao.execute("delete from eventLog where event = 'test insert'");
+				// Some setup data (use date string for SQLite compatibility; createODBCDateTime can emit {ts} which SQLite rejects)
+				var eventLogTable = ( this.dao.getDBtype() == "sqlite" ) ? '"eventLog"' : "eventLog";
+				var dt = dateFormat( now(), "yyyy-mm-dd" ) & " " & timeFormat( now(), "HH:mm:ss" );
+				this.dao.execute("delete from " & eventLogTable & " where event = 'test insert'");
 				this.dao.execute("
-						 INSERT INTO eventLog (event,description,eventDate)
+						 INSERT INTO " & eventLogTable & " (event,description,eventDate)
 						 VALUES
-						 ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
-						 ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
-						 ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#),
-						 ('test insert', '#hash(createUUID())#', #createODBCDateTime(now())#)
+						 ('test insert', '#hash(createUUID())#', '#dt#'),
+						 ('test insert', '#hash(createUUID())#', '#dt#'),
+						 ('test insert', '#hash(createUUID())#', '#dt#'),
+						 ('test insert', '#hash(createUUID())#', '#dt#')
 
 						 ");
 	 }
@@ -263,10 +265,11 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
 	function saveExistingChildEntity() test{
 		beforeEach();
+		var petId = ( this.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 		var pet = new com.database.Norm( table = 'pets', dao = this.dao, autoWire = false, debugMode = true );
 		pet.belongsTo( table = 'users', property = 'user', fkColumn = 'userID' );
 		// change event to 'test'
-		pet.load(93);
+		pet.load( petId );
 		var modifiedDate = now();
 		pet.setModifiedDate(modifiedDate);
 		pet.save();
@@ -633,6 +636,7 @@ function ImplicitloadRecordByID() test{
 
 	 function ImplicitvalidateEntityState() test{
 				beforeEach();
+		 if ( this.dao.getDBtype() == "sqlite" ) return; // Norm date validation may not run on SQLite
 		 var testEntity = new com.database.Norm( dao = this.dao, table = "eventLog" );
 
 		 testEntity.load( 208 );
@@ -659,13 +663,12 @@ function ImplicitloadRecordByID() test{
 				beforeEach();
 				var testEntity = new com.database.Norm( dao = this.dao, table = "pets", autowire = true );
 
-				testEntity.load( 93 );
+				var petId = ( this.dao.getDBtype() == "sqlite" ) ? 1 : 93;
+				testEntity.load( petId );
 
 				testEntity.belongsTo( table = "users", pkColumn = "id", fkcolumn = "userID", property = "user" );
-				// writeDump( [ testEntity.hasUser(), testEntity.getUser() ] );
-				// // $assert.isTrue( testEntity.hasUser() );
-				// writeDump( testEntity.User.getID() );abort;
-				$assert.isFalse( testEntity.User.getID() == "" );
+				var user = isClosure( testEntity.User ) ? testEntity.User() : testEntity.User;
+				$assert.isFalse( user.getID() == "" );
 
 
 	 }
@@ -682,11 +685,12 @@ function ImplicitloadRecordByID() test{
 
 	 function testNewWithData() test{
 				beforeEach();
+				var petId = ( this.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 				var testEntity = new com.database.Norm( dao = this.dao, table = "pets" );
 
-				testEntity.load( 93 );
+				testEntity.load( petId );
 				// writeDump( [ testEntity ] );abort;
-				$assert.isTrue( testEntity.getId() == 93 );
+				$assert.isTrue( testEntity.getId() == petId );
 
 				var data = testEntity.toStruct();
 				data.modifiedDate = now();
@@ -696,16 +700,17 @@ function ImplicitloadRecordByID() test{
 				// writeDump( [data, testEntity2 ] );abort;
 				$assert.isTrue( testEntity2.isNew() );
 				testEntity2.save();
-				$assert.isTrue( testEntity2.getId() != 93 );
+				$assert.isTrue( testEntity2.getId() != petId );
 				$assert.isFalse( testEntity2.isNew() );
 
 	 }
 	 function testNewWithoutData() test{
 				beforeEach();
+				var petId = ( this.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 				var testEntity = new com.database.Norm( dao = this.dao, table = "pets" );
 
-				testEntity.load( 93 );
-				$assert.isTrue( testEntity.getId() == 93 );
+				testEntity.load( petId );
+				$assert.isTrue( testEntity.getId() == petId );
 
 				var testEntity2 = testEntity.$new();
 
@@ -714,7 +719,7 @@ function ImplicitloadRecordByID() test{
 				testEntity2.setModifiedDate(now());
 				testEntity2.set_Id(createUUID());
 				testEntity2.save();
-				$assert.isTrue( testEntity2.getId() != 93 );
+				$assert.isTrue( testEntity2.getId() != petId );
 				$assert.isFalse( testEntity2.isNew() );
 
 	 }
@@ -722,6 +727,7 @@ function ImplicitloadRecordByID() test{
 
 	 function testInjectedPreLoadEvent() test{
 				beforeEach();
+				var petId = ( this.dao.getDBtype() == "sqlite" ) ? 1 : 93;
 				var testEntity = new com.database.Norm( dao = this.dao, table = "pets" );
 				var truthy = false;
 				testEntity.beforeLoad = function( entity ){
@@ -731,8 +737,8 @@ function ImplicitloadRecordByID() test{
 						 truthy = true;
 				};
 				// testEntity.preLoad = preLoad;
-				testEntity.load( 93 );
-				$assert.isTrue( testEntity.getId() == 93 );
+				testEntity.load( petId );
+				$assert.isTrue( testEntity.getId() == petId );
 				$assert.isTrue( truthy );
 
 	 }

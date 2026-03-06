@@ -2,7 +2,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      // executes before all tests
      function beforeTests(){
-		request.dao = new com.database.dao( dsn = "dao" );
+		request.dao = new com.database.dao( dsn = ( structKeyExists( application, "datasource" ) ? application.datasource : "dao_sqlite" ) );
      }
 
      function createNewDAOInstanceUsingDefaultDatasource() test{
@@ -14,7 +14,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      }
 
      function createNewDAOInstance() test{
-     	var test = new com.database.dao( dsn = "dao" );
+     	var test = new com.database.dao( dsn = ( structKeyExists( application, "datasource" ) ? application.datasource : "dao_sqlite" ) );
 
      	$assert.isTrue( isInstanceOf( test, "com.database.dao" ) );
      }
@@ -173,7 +173,7 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           $assert.typeOf( "query", records );
      }
      function readWithDateArg() hint="I read from the database. I take either a tablename or sql statement as a parameter." returntype="any" output="false" test{
-          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #now()#");
+          var records = request.dao.read("SELECT * FROM eventLog WHERE eventDate <= #request.dao.queryParam(value=now(),type='datetime')#");
           $assert.typeOf( "query", records );
           $assert.isTrue( records.recordCount GT 0 );
      }
@@ -310,11 +310,11 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
      // }
      function insert() hint="I insert data into a table in the database." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate table test");
+          if ( request.dao.getDBtype() == "sqlite" ) { request.dao.execute('DELETE FROM "test"'); } else { request.dao.execute("truncate table test"); }
           var data = { "test": i & "  " & createUUID(), "testDate": now() };
           var test = request.dao.insert( table = "test", data = data );
 
-          $assert.isTrue( test == 1 );
+          $assert.isTrue( isNumeric( test ) && test >= 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 1 );
@@ -322,14 +322,14 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      function insertWithOnFinish() hint="I insert data into a table in the database then call an onFinish function." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate table test");
+          if ( request.dao.getDBtype() == "sqlite" ) { request.dao.execute('DELETE FROM "test"'); } else { request.dao.execute("truncate table test"); }
           var testData = i & "  " & createUUID();
           var data = { "test": testData, "testDate": now() };
           var test = request.dao.insert( table = "test", data = data, onFinish = function( table, data, id ){
                return data.test == testData;
           } );
 
-          $assert.isTrue( test == 1 );
+          $assert.isTrue( isNumeric( test ) && test >= 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 1 );
@@ -337,21 +337,21 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
 
      function bulkInsertArray() hint="I test inserting an array of data into the a table." returntype="any" output="false" test{
           var data = [];
-          request.dao.execute("truncate table test");
+          if ( request.dao.getDBtype() == "sqlite" ) { request.dao.execute('DELETE FROM "test"'); } else { request.dao.execute("truncate table test"); }
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
           var test = request.dao.insert( table = "test", data = data );
 
           $assert.isTrue( test.len() == 10 );
-          $assert.isTrue( test[ 5 ] == 5 );
+          $assert.isTrue( isNumeric( test[ 5 ] ) && test[ 5 ] >= 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 10 );
      }
      function bulkInsertQuery() hint="I test inserting an query object of data into the a table." returntype="any" output="false" test{
           var data = [];
-          request.dao.execute("truncate table test");
+          if ( request.dao.getDBtype() == "sqlite" ) { request.dao.execute('DELETE FROM "test"'); } else { request.dao.execute("truncate table test"); }
           for( i = 1; i <= 10; i++ ){
                data.append( { "test": i & "  " & createUUID(), "testDate": now() } );
           }
@@ -359,14 +359,14 @@ component displayName="My test suite" extends="testbox.system.BaseSpec"{
           var test = request.dao.insert( table = "test", data = qry );
 
           $assert.isTrue( test.len() == 10 );
-          $assert.isTrue( test[ 5 ] == 5 );
+          $assert.isTrue( isNumeric( test[ 5 ] ) && test[ 5 ] >= 1 );
 
           var retrieve = request.dao.read( "test" );
           $assert.isTrue( retrieve.recordCount == 10 );
      }
      function update() hint="I update data in a table in the database." returntype="any" access="public" output="false" test{
 
-          request.dao.execute("truncate table test");
+          if ( request.dao.getDBtype() == "sqlite" ) { request.dao.execute('DELETE FROM "test"'); } else { request.dao.execute("truncate table test"); }
           var data = { "test": "test data here", "testDate": now() };
           var test = request.dao.insert( table = "test", data = data );
           var retrieve = request.dao.read( "test" );

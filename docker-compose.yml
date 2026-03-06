@@ -1,0 +1,36 @@
+# MySQL and MSSQL for running dao test suite. Start one or both:
+#   docker compose up -d
+#   docker compose up -d mysql    # only MySQL
+#   docker compose up -d mssql     # only MSSQL
+# Stop: docker compose down
+# See docs/docker-mysql.md and docs/docker-mssql.md.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: dao_test
+      MYSQL_USER: dao
+      MYSQL_PASSWORD: dao
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "DaoTest123!"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 5s
+      start_period: 30s
